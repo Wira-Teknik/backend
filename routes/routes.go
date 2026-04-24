@@ -2,6 +2,7 @@ package routes
 
 import (
 	"teknik/controllers"
+	"teknik/middlewares"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,4 +18,12 @@ func SetupRoutes(app *fiber.App) {
 	auth.Post("/forgot-password/request", controllers.ForgotPasswordRequest)
 	auth.Post("/forgot-password/verify", controllers.ForgotPasswordVerify)
 	auth.Post("/forgot-password/reset", controllers.ForgotPasswordReset)
+
+	// Customer routes (protected)
+	customers := api.Group("/customers", middlewares.RequireAuth)
+	customers.Get("/", controllers.GetAllCustomers)
+	customers.Get("/:id", controllers.GetCustomer)
+	customers.Post("/", controllers.CreateCustomer)
+	customers.Put("/:id", controllers.UpdateCustomer)
+	customers.Delete("/:id", controllers.DeleteCustomer)
 }

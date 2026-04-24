@@ -68,6 +68,23 @@ definitions:
         example: uuid-verified-token
         type: string
     type: object
+  models.Customer:
+    properties:
+      id:
+        type: string
+      customer_name:
+        type: string
+      customer_email:
+        type: string
+      customer_phone:
+        type: string
+      customer_address:
+        type: string
+      created_at:
+        type: string
+      updated_at:
+        type: string
+    type: object
   models.UserRole:
     enum:
     - admin
@@ -76,6 +93,21 @@ definitions:
     x-enum-varnames:
     - RoleAdmin
     - RoleOwner
+  services.CustomerInput:
+    properties:
+      customer_name:
+        example: "Budi Santoso"
+        type: string
+      customer_email:
+        example: "budi.santoso@example.com"
+        type: string
+      customer_phone:
+        example: "08123456789"
+        type: string
+      customer_address:
+        example: "Jl. Contoh No. 123"
+        type: string
+    type: object
   services.UserDTO:
     properties:
       email:
@@ -274,6 +306,128 @@ paths:
       summary: Register akun baru
       tags:
       - Auth
+  /customers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Customer'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil semua customer
+      tags:
+      - Customers
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data customer
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/services.CustomerInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Customer'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Tambah customer baru
+      tags:
+      - Customers
+  /customers/{id}:
+    delete:
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Hapus customer
+      tags:
+      - Customers
+    get:
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Customer'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil detail customer
+      tags:
+      - Customers
+    put:
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data customer
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/services.CustomerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Customer'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Update data customer
+      tags:
+      - Customers
 securityDefinitions:
   BearerAuth:
     description: 'Masukkan token dengan format: **Bearer &lt;token&gt;**'
