@@ -1,0 +1,43 @@
+# Binaries
+main
+main.exe
+*.exe
+*.bin
+*.test
+*.prof
+
+# OS files
+.DS_Store
+.DS_Store?
+_MACOSX
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables (SANGAT PENTING)
+.env
+.env.production
+.env.local
+
+# Dependency directories
+vendor/
+
+# Logs
+*.log
+
+# Docker
+.docker/
+
+# Docker Compose
+docker-compose.yml
+
+# Temp files
+*.tmp
+*.log
+*.pid
+
+.temp/
