@@ -1,0 +1,283 @@
+basePath: /api/v1
+definitions:
+  controllers.ForgotStep1Request:
+    properties:
+      email:
+        example: budi@example.com
+        type: string
+    type: object
+  controllers.ForgotStep2Request:
+    properties:
+      email:
+        example: budi@example.com
+        type: string
+      otp:
+        example: "482931"
+        type: string
+    type: object
+  controllers.ForgotStep3Request:
+    properties:
+      confirm_password:
+        example: NewPass456
+        type: string
+      new_password:
+        example: NewPass456
+        type: string
+      token:
+        example: uuid-verified-token
+        type: string
+    type: object
+  controllers.LoginRequest:
+    properties:
+      email:
+        example: budi@example.com
+        type: string
+      password:
+        example: Password123
+        type: string
+    type: object
+  controllers.LoginResponseData:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        $ref: '#/definitions/services.UserDTO'
+    type: object
+  controllers.RegisterRequest:
+    properties:
+      email:
+        example: budi@example.com
+        type: string
+      name:
+        example: Budi Santoso
+        type: string
+      password:
+        example: Password123
+        type: string
+      role:
+        enum:
+        - admin
+        - owner
+        example: admin
+        type: string
+    type: object
+  controllers.VerifyTokenData:
+    properties:
+      token:
+        example: uuid-verified-token
+        type: string
+    type: object
+  models.UserRole:
+    enum:
+    - admin
+    - owner
+    type: string
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleOwner
+  services.UserDTO:
+    properties:
+      email:
+        example: budi@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Budi Santoso
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/models.UserRole'
+        example: admin
+    type: object
+  utils.Response:
+    properties:
+      data: {}
+      message:
+        example: Operasi berhasil
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+info:
+  contact:
+    email: admin@wira-teknik.com
+    name: Tim Wira Teknik
+  description: REST API untuk sistem manajemen Wira Teknik. Mendukung autentikasi,
+    manajemen pengguna, dan fitur bisnis lainnya.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Wira Teknik API
+  version: "1.0"
+paths:
+  /auth/forgot-password/request:
+    post:
+      consumes:
+      - application/json
+      description: Mengirim kode OTP 6 digit ke email pengguna. OTP berlaku 15 menit.
+        Response selalu sukses meski email tidak ditemukan (mencegah user enumeration).
+      parameters:
+      - description: Email terdaftar
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ForgotStep1Request'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OTP dikirim (atau email tidak ditemukan, response tetap sama)
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Format email tidak valid
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Langkah 1 – Request kode OTP
+      tags:
+      - Auth - Forgot Password
+  /auth/forgot-password/reset:
+    post:
+      consumes:
+      - application/json
+      description: Mereset password menggunakan token yang didapat dari langkah 2.
+        Password baru minimal 8 karakter dan harus mengandung huruf serta angka. Token
+        dihapus setelah digunakan (single-use).
+      parameters:
+      - description: Token verifikasi dan password baru
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ForgotStep3Request'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password berhasil diubah
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Validasi gagal atau token tidak valid/kadaluarsa
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Langkah 3 – Reset password
+      tags:
+      - Auth - Forgot Password
+  /auth/forgot-password/verify:
+    post:
+      consumes:
+      - application/json
+      description: Memvalidasi kode OTP yang diterima via email. Jika valid, mengembalikan
+        token sementara (berlaku 10 menit) untuk mereset password. OTP langsung dihapus
+        setelah berhasil (single-use).
+      parameters:
+      - description: Email dan kode OTP
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ForgotStep2Request'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OTP valid, token verifikasi dikembalikan
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/controllers.VerifyTokenData'
+              type: object
+        "400":
+          description: OTP salah atau kadaluarsa
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Langkah 2 – Verifikasi kode OTP
+      tags:
+      - Auth - Forgot Password
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login menggunakan email dan password. Mengembalikan **JWT** yang
+        dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.
+      parameters:
+      - description: Kredensial login
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login berhasil
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/controllers.LoginResponseData'
+              type: object
+        "400":
+          description: Format request tidak valid
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Email atau password salah
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Login
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Membuat akun pengguna baru dengan nama, email, password, dan role
+      parameters:
+      - description: Data registrasi
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Akun berhasil dibuat
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.UserDTO'
+              type: object
+        "400":
+          description: Validasi gagal atau email sudah terdaftar
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Email sudah terdaftar
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Register akun baru
+      tags:
+      - Auth
+securityDefinitions:
+  BearerAuth:
+    description: 'Masukkan token dengan format: **Bearer &lt;token&gt;**'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

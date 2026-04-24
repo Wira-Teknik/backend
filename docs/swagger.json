@@ -1,0 +1,426 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "REST API untuk sistem manajemen Wira Teknik. Mendukung autentikasi, manajemen pengguna, dan fitur bisnis lainnya.",
+        "title": "Wira Teknik API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "Tim Wira Teknik",
+            "email": "admin@wira-teknik.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "basePath": "/api/v1",
+    "paths": {
+        "/auth/forgot-password/request": {
+            "post": {
+                "description": "Mengirim kode OTP 6 digit ke email pengguna. OTP berlaku 15 menit. Response selalu sukses meski email tidak ditemukan (mencegah user enumeration).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth - Forgot Password"
+                ],
+                "summary": "Langkah 1 – Request kode OTP",
+                "parameters": [
+                    {
+                        "description": "Email terdaftar",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ForgotStep1Request"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OTP dikirim (atau email tidak ditemukan, response tetap sama)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Format email tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/forgot-password/reset": {
+            "post": {
+                "description": "Mereset password menggunakan token yang didapat dari langkah 2. Password baru minimal 8 karakter dan harus mengandung huruf serta angka. Token dihapus setelah digunakan (single-use).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth - Forgot Password"
+                ],
+                "summary": "Langkah 3 – Reset password",
+                "parameters": [
+                    {
+                        "description": "Token verifikasi dan password baru",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ForgotStep3Request"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password berhasil diubah",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Validasi gagal atau token tidak valid/kadaluarsa",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/forgot-password/verify": {
+            "post": {
+                "description": "Memvalidasi kode OTP yang diterima via email. Jika valid, mengembalikan token sementara (berlaku 10 menit) untuk mereset password. OTP langsung dihapus setelah berhasil (single-use).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth - Forgot Password"
+                ],
+                "summary": "Langkah 2 – Verifikasi kode OTP",
+                "parameters": [
+                    {
+                        "description": "Email dan kode OTP",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ForgotStep2Request"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OTP valid, token verifikasi dikembalikan",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/controllers.VerifyTokenData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "OTP salah atau kadaluarsa",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "Login menggunakan email dan password. Mengembalikan **JWT** yang dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login",
+                "parameters": [
+                    {
+                        "description": "Kredensial login",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login berhasil",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/controllers.LoginResponseData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Format request tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Email atau password salah",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "description": "Membuat akun pengguna baru dengan nama, email, password, dan role",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Register akun baru",
+                "parameters": [
+                    {
+                        "description": "Data registrasi",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Akun berhasil dibuat",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.UserDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Validasi gagal atau email sudah terdaftar",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Email sudah terdaftar",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "controllers.ForgotStep1Request": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "budi@example.com"
+                }
+            }
+        },
+        "controllers.ForgotStep2Request": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "budi@example.com"
+                },
+                "otp": {
+                    "type": "string",
+                    "example": "482931"
+                }
+            }
+        },
+        "controllers.ForgotStep3Request": {
+            "type": "object",
+            "properties": {
+                "confirm_password": {
+                    "type": "string",
+                    "example": "NewPass456"
+                },
+                "new_password": {
+                    "type": "string",
+                    "example": "NewPass456"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "uuid-verified-token"
+                }
+            }
+        },
+        "controllers.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "budi@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "Password123"
+                }
+            }
+        },
+        "controllers.LoginResponseData": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "user": {
+                    "$ref": "#/definitions/services.UserDTO"
+                }
+            }
+        },
+        "controllers.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "budi@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Budi Santoso"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "Password123"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "owner"
+                    ],
+                    "example": "admin"
+                }
+            }
+        },
+        "controllers.VerifyTokenData": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "example": "uuid-verified-token"
+                }
+            }
+        },
+        "models.UserRole": {
+            "type": "string",
+            "enum": [
+                "admin",
+                "owner"
+            ],
+            "x-enum-varnames": [
+                "RoleAdmin",
+                "RoleOwner"
+            ]
+        },
+        "services.UserDTO": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "budi@example.com"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Budi Santoso"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.UserRole"
+                        }
+                    ],
+                    "example": "admin"
+                }
+            }
+        },
+        "utils.Response": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Operasi berhasil"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Masukkan token dengan format: **Bearer \u0026lt;token\u0026gt;**",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
