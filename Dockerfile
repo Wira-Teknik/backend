@@ -1,5 +1,5 @@
 # Build Stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25.5-alpine AS builder
 
 # Install git & swag untuk generate docs jika diperlukan
 RUN apk add --no-cache git
