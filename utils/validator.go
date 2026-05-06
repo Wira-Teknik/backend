@@ -17,3 +17,13 @@ func IsStrongPassword(password string) bool {
 	hasDigit := regexp.MustCompile(`[0-9]`).MatchString(password)
 	return hasLetter && hasDigit
 }
+
+// IsValidUsername checks that a username contains only lowercase letters,
+// digits, underscores, or dots. No spaces allowed. Length 3-30.
+func IsValidUsername(name string) bool {
+	if len(name) < 3 || len(name) > 30 {
+		return false
+	}
+	re := regexp.MustCompile(`^[a-z0-9_.]+$`)
+	return re.MatchString(name)
+}

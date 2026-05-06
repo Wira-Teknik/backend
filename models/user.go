@@ -18,7 +18,7 @@ const (
 // User model
 type User struct {
 	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Name      string         `gorm:"type:varchar(255);not null" json:"name"`
+	Name      string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"name"`
 	Email     string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	Password  string         `gorm:"type:varchar(255);not null" json:"-"`
 	Role      UserRole       `gorm:"type:varchar(10);not null;default:'admin';check:role IN ('admin','owner')" json:"role"`

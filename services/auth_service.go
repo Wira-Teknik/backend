@@ -26,7 +26,7 @@ type RegisterInput struct {
 }
 
 type LoginInput struct {
-	Email    string
+	Name     string
 	Password string
 }
 
@@ -62,12 +62,13 @@ func redisVerifiedTokenKey(token string) string {
 // ─────────────────────────────────────────────
 
 func RegisterUser(input RegisterInput) (UserDTO, error) {
-	input.Name = strings.TrimSpace(input.Name)
+	// Force name ke lowercase dan hapus spasi (format username)
+	input.Name = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(input.Name), " ", ""))
 	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
 	input.Role = strings.TrimSpace(input.Role)
 
-	if input.Name == "" {
-		return UserDTO{}, fmt.Errorf("nama tidak boleh kosong")
+	if !utils.IsValidUsername(input.Name) {
+		return UserDTO{}, fmt.Errorf("username harus 3-30 karakter, hanya huruf kecil, angka, underscore, atau titik, tanpa spasi")
 	}
 	if !utils.IsValidEmail(input.Email) {
 		return UserDTO{}, fmt.Errorf("format email tidak valid")
@@ -79,9 +80,17 @@ func RegisterUser(input RegisterInput) (UserDTO, error) {
 		return UserDTO{}, fmt.Errorf("role harus 'admin' atau 'owner'")
 	}
 
-	var count int64
-	config.DB.Model(&models.User{}).Where("email = ?", input.Email).Count(&count)
-	if count > 0 {
+	// Cek duplikat username
+	var nameCount int64
+	config.DB.Model(&models.User{}).Where("name = ?", input.Name).Count(&nameCount)
+	if nameCount > 0 {
+		return UserDTO{}, fmt.Errorf("username sudah digunakan")
+	}
+
+	// Cek duplikat email
+	var emailCount int64
+	config.DB.Model(&models.User{}).Where("email = ?", input.Email).Count(&emailCount)
+	if emailCount > 0 {
 		return UserDTO{}, fmt.Errorf("email sudah terdaftar")
 	}
 
@@ -110,10 +119,11 @@ func RegisterUser(input RegisterInput) (UserDTO, error) {
 // ─────────────────────────────────────────────
 
 func LoginUser(input LoginInput) (LoginResult, error) {
-	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
+	// Force name ke lowercase (konsisten dengan register)
+	input.Name = strings.ToLower(strings.TrimSpace(input.Name))
 
-	if !utils.IsValidEmail(input.Email) {
-		return LoginResult{}, fmt.Errorf("format email tidak valid")
+	if input.Name == "" {
+		return LoginResult{}, fmt.Errorf("username tidak boleh kosong")
 	}
 	if input.Password == "" {
 		return LoginResult{}, fmt.Errorf("password tidak boleh kosong")
@@ -121,13 +131,13 @@ func LoginUser(input LoginInput) (LoginResult, error) {
 
 	var user models.User
 	if err := config.DB.Select("id, name, email, password, role").
-		Where("email = ?", input.Email).
+		Where("name = ?", input.Name).
 		First(&user).Error; err != nil {
-		return LoginResult{}, fmt.Errorf("email atau password salah")
+		return LoginResult{}, fmt.Errorf("username atau password salah")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		return LoginResult{}, fmt.Errorf("email atau password salah")
+		return LoginResult{}, fmt.Errorf("username atau password salah")
 	}
 
 	// Generate stateless JWT — tidak perlu simpan di Redis

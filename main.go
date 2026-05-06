@@ -88,7 +88,7 @@ func main() {
 	}))
 
 	// Swagger UI route
-	app.Get("/swagger/*", swagger.HandlerDefault)
+	app.Get("/api/docs/*", swagger.HandlerDefault)
 
 	// Register API routes
 	routes.SetupRoutes(app)

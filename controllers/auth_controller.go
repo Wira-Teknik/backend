@@ -13,7 +13,7 @@ import (
 
 // RegisterRequest adalah body untuk endpoint register.
 type RegisterRequest struct {
-	Name     string `json:"name"     example:"Budi Santoso"`
+	Name     string `json:"name"     example:"budi_santoso"`
 	Email    string `json:"email"    example:"budi@example.com"`
 	Password string `json:"password" example:"Password123"`
 	Role     string `json:"role"     example:"admin" enums:"admin,owner"`
@@ -21,7 +21,7 @@ type RegisterRequest struct {
 
 // LoginRequest adalah body untuk endpoint login.
 type LoginRequest struct {
-	Email    string `json:"email"    example:"budi@example.com"`
+	Name     string `json:"name"     example:"budi_santoso"`
 	Password string `json:"password" example:"Password123"`
 }
 
@@ -85,14 +85,14 @@ func Register(c *fiber.Ctx) error {
 
 // Login godoc
 // @Summary      Login
-// @Description  Login menggunakan email dan password. Mengembalikan **JWT** yang dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.
+// @Description  Login menggunakan username (name) dan password. Mengembalikan **JWT** yang dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
 // @Param        body  body      LoginRequest                                        true  "Kredensial login"
 // @Success      200   {object}  utils.Response{data=controllers.LoginResponseData}  "Login berhasil"
 // @Failure      400   {object}  utils.Response                                      "Format request tidak valid"
-// @Failure      401   {object}  utils.Response                                      "Email atau password salah"
+// @Failure      401   {object}  utils.Response                                      "Username atau password salah"
 // @Router       /auth/login [post]
 func Login(c *fiber.Ctx) error {
 	var req LoginRequest
@@ -101,7 +101,7 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	result, err := services.LoginUser(services.LoginInput{
-		Email:    req.Email,
+		Name:     req.Name,
 		Password: req.Password,
 	})
 	if err != nil {
