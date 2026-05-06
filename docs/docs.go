@@ -157,7 +157,7 @@ const docTemplate = `{
         },
         "/auth/login": {
             "post": {
-                "description": "Login menggunakan email dan password. Mengembalikan **JWT** yang dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.",
+                "description": "Login menggunakan username (name) dan password. Mengembalikan **JWT** yang dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.",
                 "consumes": [
                     "application/json"
                 ],
@@ -205,7 +205,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Email atau password salah",
+                        "description": "Username atau password salah",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -530,9 +530,9 @@ const docTemplate = `{
         "controllers.LoginRequest": {
             "type": "object",
             "properties": {
-                "email": {
+                "name": {
                     "type": "string",
-                    "example": "budi@example.com"
+                    "example": "budi_santoso"
                 },
                 "password": {
                     "type": "string",
@@ -561,7 +561,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
-                    "example": "Budi Santoso"
+                    "example": "budi_santoso"
                 },
                 "password": {
                     "type": "string",

@@ -29,8 +29,8 @@ definitions:
     type: object
   controllers.LoginRequest:
     properties:
-      email:
-        example: budi@example.com
+      name:
+        example: budi_santoso
         type: string
       password:
         example: Password123
@@ -50,7 +50,7 @@ definitions:
         example: budi@example.com
         type: string
       name:
-        example: Budi Santoso
+        example: budi_santoso
         type: string
       password:
         example: Password123
@@ -239,8 +239,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Login menggunakan email dan password. Mengembalikan **JWT** yang
-        dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.
+      description: Login menggunakan username (name) dan password. Mengembalikan **JWT**
+        yang dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara
+        otomatis.
       parameters:
       - description: Kredensial login
         in: body
@@ -265,7 +266,7 @@ paths:
           schema:
             $ref: '#/definitions/utils.Response'
         "401":
-          description: Email atau password salah
+          description: Username atau password salah
           schema:
             $ref: '#/definitions/utils.Response'
       summary: Login
