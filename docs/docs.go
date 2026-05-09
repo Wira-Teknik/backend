@@ -23,6 +23,132 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/attachments": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengunggah file lampiran (image/video/pdf) yang terkait dengan resource tertentu. Gunakan form-data dengan field: file, related_id, category. Kategori yang tersedia: shipment_delivery, shipment_received, invoice, payment_proof, bon, surat_jalan.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attachments"
+                ],
+                "summary": "Upload lampiran",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "File yang akan diunggah",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID resource terkait",
+                        "name": "related_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "shipment_delivery",
+                            "shipment_received",
+                            "invoice",
+                            "payment_proof",
+                            "bon",
+                            "surat_jalan"
+                        ],
+                        "type": "string",
+                        "description": "Kategori lampiran",
+                        "name": "category",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Attachment"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/attachments/{relatedId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar lampiran (foto/video/pdf) yang terkait dengan resource tertentu (shipment, invoice, payment, dll)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attachments"
+                ],
+                "summary": "Ambil semua lampiran berdasarkan related ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Related ID (Shipment ID, Invoice ID, dll)",
+                        "name": "relatedId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Attachment"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/auth/forgot-password/request": {
             "post": {
                 "description": "Mengirim kode OTP 6 digit ke email pengguna. OTP berlaku 15 menit. Response selalu sukses meski email tidak ditemukan (mencegah user enumeration).",
@@ -485,9 +611,826 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/invoices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar semua invoice. Invoice otomatis dibuat saat pengiriman dibuat.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invoices"
+                ],
+                "summary": "Ambil semua invoice",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Invoice"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/invoices/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil detail invoice berdasarkan ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invoices"
+                ],
+                "summary": "Ambil detail invoice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invoice ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Invoice"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar semua pesanan beserta item-itemnya",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Ambil semua pesanan",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Order"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Membuat pesanan baru dengan item. PPN 11% dan subtotal dihitung otomatis. remaining_qty diset sama dengan order_qty.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Buat pesanan baru",
+                "parameters": [
+                    {
+                        "description": "Data pesanan",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CreateOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Order"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil detail pesanan termasuk items dan shipments",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Ambil detail pesanan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Order"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengupdate data header pesanan (hanya jika status masih pending)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Update header pesanan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data pesanan",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.UpdateOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Order"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menghapus pesanan beserta item-itemnya (hanya jika status masih pending)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Hapus pesanan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{orderId}/shipments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar pengiriman beserta item-nya untuk order tertentu",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shipments"
+                ],
+                "summary": "Ambil semua pengiriman berdasarkan Order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "orderId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Shipment"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar semua pembayaran beserta detail alokasinya",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Ambil semua pembayaran",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Payment"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Membuat pembayaran baru dengan alokasi ke satu atau lebih invoice. Mendukung 3 skenario: lunas (allocated = total), cicilan (allocated \u003c total), dan kolektif (satu payment untuk beberapa invoice). payment_total dihitung otomatis dari sum allocated_amount.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Buat pembayaran baru",
+                "parameters": [
+                    {
+                        "description": "Data pembayaran",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CreatePaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Payment"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil detail pembayaran termasuk detail alokasi ke invoice",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Ambil detail pembayaran",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Payment"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shipments": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Membuat pengiriman baru dari order. Jumlah kirim tidak boleh melebihi sisa qty. Invoice otomatis di-generate. Status order diperbarui otomatis (partial/shipped).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shipments"
+                ],
+                "summary": "Buat pengiriman baru (partial shipment)",
+                "parameters": [
+                    {
+                        "description": "Data pengiriman",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CreateShipmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Shipment"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shipments/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil detail pengiriman termasuk item-itemnya",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shipments"
+                ],
+                "summary": "Ambil detail pengiriman",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shipment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Shipment"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shipments/{id}/received": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal penerimaan. Jika semua item terkirim dan semua shipment diterima, status order menjadi 'completed'.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shipments"
+                ],
+                "summary": "Konfirmasi penerimaan barang",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shipment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Shipment"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/shipments/{shipmentId}/invoice": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil invoice yang terkait dengan pengiriman tertentu",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invoices"
+                ],
+                "summary": "Ambil invoice berdasarkan Shipment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shipment ID",
+                        "name": "shipmentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Invoice"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "controllers.CreateOrderRequest": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.OrderItemRequestPayload"
+                    }
+                },
+                "order_date": {
+                    "type": "string",
+                    "example": "2026-05-09"
+                },
+                "po_no": {
+                    "type": "string",
+                    "example": "PO-2026-001"
+                },
+                "recipient_address": {
+                    "type": "string",
+                    "example": "Jl. Industri No. 10"
+                },
+                "recipient_email": {
+                    "type": "string",
+                    "example": "purchasing@majujaya.com"
+                },
+                "recipient_name": {
+                    "type": "string",
+                    "example": "PT Maju Jaya"
+                },
+                "recipient_phone": {
+                    "type": "string",
+                    "example": "081234567890"
+                }
+            }
+        },
+        "controllers.CreatePaymentRequest": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.PaymentDetailRequestPayload"
+                    }
+                },
+                "payment_date": {
+                    "type": "string",
+                    "example": "2026-05-15"
+                }
+            }
+        },
+        "controllers.CreateShipmentRequest": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.ShipmentItemRequestPayload"
+                    }
+                },
+                "order_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "shipping_date": {
+                    "type": "string",
+                    "example": "2026-05-10"
+                }
+            }
+        },
         "controllers.ForgotStep1Request": {
             "type": "object",
             "properties": {
@@ -552,6 +1495,36 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.OrderItemRequestPayload": {
+            "type": "object",
+            "properties": {
+                "order_qty": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "product_name": {
+                    "type": "string",
+                    "example": "Bearing SKF 6205"
+                },
+                "unit_price": {
+                    "type": "number",
+                    "example": 75000
+                }
+            }
+        },
+        "controllers.PaymentDetailRequestPayload": {
+            "type": "object",
+            "properties": {
+                "allocated_amount": {
+                    "type": "number",
+                    "example": 5000000
+                },
+                "invoice_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                }
+            }
+        },
         "controllers.RegisterRequest": {
             "type": "object",
             "properties": {
@@ -577,6 +1550,44 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.ShipmentItemRequestPayload": {
+            "type": "object",
+            "properties": {
+                "order_item_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "shipping_qty": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
+        "controllers.UpdateOrderRequest": {
+            "type": "object",
+            "properties": {
+                "po_no": {
+                    "type": "string",
+                    "example": "PO-2026-001"
+                },
+                "recipient_address": {
+                    "type": "string",
+                    "example": "Jl. Industri No. 10"
+                },
+                "recipient_email": {
+                    "type": "string",
+                    "example": "purchasing@majujaya.com"
+                },
+                "recipient_name": {
+                    "type": "string",
+                    "example": "PT Maju Jaya"
+                },
+                "recipient_phone": {
+                    "type": "string",
+                    "example": "081234567890"
+                }
+            }
+        },
         "controllers.VerifyTokenData": {
             "type": "object",
             "properties": {
@@ -586,38 +1597,346 @@ const docTemplate = `{
                 }
             }
         },
+        "models.Attachment": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/models.AttachmentCategory"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "file_type": {
+                    "$ref": "#/definitions/models.FileType"
+                },
+                "file_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "related_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.AttachmentCategory": {
+            "type": "string",
+            "enum": [
+                "shipment_delivery",
+                "shipment_received",
+                "invoice",
+                "payment_proof",
+                "bon",
+                "surat_jalan"
+            ],
+            "x-enum-varnames": [
+                "AttachmentCategoryShipmentDelivery",
+                "AttachmentCategoryShipmentReceived",
+                "AttachmentCategoryInvoice",
+                "AttachmentCategoryPaymentProof",
+                "AttachmentCategoryBon",
+                "AttachmentCategorySuratJalan"
+            ]
+        },
         "models.Customer": {
             "type": "object",
             "properties": {
-                "id": {
-                    "type": "string",
-                    "example": "uuid"
-                },
-                "customer_name": {
-                    "type": "string",
-                    "example": "Budi Santoso"
-                },
-                "customer_email": {
-                    "type": "string",
-                    "example": "budi.santoso@example.com"
-                },
-                "customer_phone": {
-                    "type": "string",
-                    "example": "08123456789"
+                "created_at": {
+                    "type": "string"
                 },
                 "customer_address": {
-                    "type": "string",
-                    "example": "Jl. Contoh No. 123"
+                    "type": "string"
                 },
-                "created_at": {
-                    "type": "string",
-                    "example": "2026-04-24T16:00:00Z"
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "customer_phone": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
                 },
                 "updated_at": {
-                    "type": "string",
-                    "example": "2026-04-24T16:00:00Z"
+                    "type": "string"
                 }
             }
+        },
+        "models.FileType": {
+            "type": "string",
+            "enum": [
+                "image",
+                "video",
+                "pdf"
+            ],
+            "x-enum-varnames": [
+                "FileTypeImage",
+                "FileTypeVideo",
+                "FileTypePdf"
+            ]
+        },
+        "models.Invoice": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoice_no": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "remaining_balance": {
+                    "type": "number"
+                },
+                "shipment_id": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Order": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OrderItem"
+                    }
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "order_status": {
+                    "$ref": "#/definitions/models.OrderStatus"
+                },
+                "po_no": {
+                    "type": "string"
+                },
+                "recipient_address": {
+                    "type": "string"
+                },
+                "recipient_email": {
+                    "type": "string"
+                },
+                "recipient_name": {
+                    "type": "string"
+                },
+                "recipient_phone": {
+                    "type": "string"
+                },
+                "shipments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Shipment"
+                    }
+                },
+                "transaction_no": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OrderItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "order_qty": {
+                    "type": "integer"
+                },
+                "ppn": {
+                    "type": "number"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "remaining_qty": {
+                    "type": "integer"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OrderStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "partial",
+                "shipped",
+                "completed"
+            ],
+            "x-enum-varnames": [
+                "OrderStatusPending",
+                "OrderStatusPartial",
+                "OrderStatusShipped",
+                "OrderStatusCompleted"
+            ]
+        },
+        "models.Payment": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PaymentDetail"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payment_date": {
+                    "type": "string"
+                },
+                "payment_total": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PaymentDetail": {
+            "type": "object",
+            "properties": {
+                "allocated_amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoice_id": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PaymentStatus": {
+            "type": "string",
+            "enum": [
+                "unpaid",
+                "partial",
+                "paid"
+            ],
+            "x-enum-varnames": [
+                "PaymentStatusUnpaid",
+                "PaymentStatusPartial",
+                "PaymentStatusPaid"
+            ]
+        },
+        "models.Shipment": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ShipmentItem"
+                    }
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "received_date": {
+                    "type": "string"
+                },
+                "shipping_date": {
+                    "type": "string"
+                },
+                "shipping_status": {
+                    "$ref": "#/definitions/models.ShippingStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ShipmentItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_item_id": {
+                    "type": "string"
+                },
+                "shipment_id": {
+                    "type": "string"
+                },
+                "shipping_qty": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ShippingStatus": {
+            "type": "string",
+            "enum": [
+                "dikirim",
+                "diterima"
+            ],
+            "x-enum-varnames": [
+                "ShippingStatusDikirim",
+                "ShippingStatusDiterima"
+            ]
         },
         "models.UserRole": {
             "type": "string",
@@ -633,21 +1952,17 @@ const docTemplate = `{
         "services.CustomerInput": {
             "type": "object",
             "properties": {
-                "customer_name": {
-                    "type": "string",
-                    "example": "Budi Santoso"   
+                "customer_address": {
+                    "type": "string"
                 },
                 "customer_email": {
-                    "type": "string",
-                    "example": "budi@example.com"
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
                 },
                 "customer_phone": {
-                    "type": "string",
-                    "example": "08123456789"
-                },
-                "customer_address": {
-                    "type": "string",
-                    "example": "Jl. Contoh No. 123"
+                    "type": "string"
                 }
             }
         },
@@ -704,9 +2019,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "wirateknik.backendify.my.id",
+	Host:             "",
 	BasePath:         "/api/v1",
-	Schemes:          []string{"https"},
+	Schemes:          []string{},
 	Title:            "Wira Teknik API",
 	Description:      "REST API untuk sistem manajemen Wira Teknik. Mendukung autentikasi, manajemen pengguna, dan fitur bisnis lainnya.",
 	InfoInstanceName: "swagger",

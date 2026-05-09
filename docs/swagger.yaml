@@ -1,5 +1,53 @@
 basePath: /api/v1
 definitions:
+  controllers.CreateOrderRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/controllers.OrderItemRequestPayload'
+        type: array
+      order_date:
+        example: "2026-05-09"
+        type: string
+      po_no:
+        example: PO-2026-001
+        type: string
+      recipient_address:
+        example: Jl. Industri No. 10
+        type: string
+      recipient_email:
+        example: purchasing@majujaya.com
+        type: string
+      recipient_name:
+        example: PT Maju Jaya
+        type: string
+      recipient_phone:
+        example: "081234567890"
+        type: string
+    type: object
+  controllers.CreatePaymentRequest:
+    properties:
+      details:
+        items:
+          $ref: '#/definitions/controllers.PaymentDetailRequestPayload'
+        type: array
+      payment_date:
+        example: "2026-05-15"
+        type: string
+    type: object
+  controllers.CreateShipmentRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/controllers.ShipmentItemRequestPayload'
+        type: array
+      order_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      shipping_date:
+        example: "2026-05-10"
+        type: string
+    type: object
   controllers.ForgotStep1Request:
     properties:
       email:
@@ -44,6 +92,27 @@ definitions:
       user:
         $ref: '#/definitions/services.UserDTO'
     type: object
+  controllers.OrderItemRequestPayload:
+    properties:
+      order_qty:
+        example: 100
+        type: integer
+      product_name:
+        example: Bearing SKF 6205
+        type: string
+      unit_price:
+        example: 75000
+        type: number
+    type: object
+  controllers.PaymentDetailRequestPayload:
+    properties:
+      allocated_amount:
+        example: 5000000
+        type: number
+      invoice_id:
+        example: 550e8400-e29b-41d4-a716-446655440002
+        type: string
+    type: object
   controllers.RegisterRequest:
     properties:
       email:
@@ -62,29 +131,272 @@ definitions:
         example: admin
         type: string
     type: object
+  controllers.ShipmentItemRequestPayload:
+    properties:
+      order_item_id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+      shipping_qty:
+        example: 50
+        type: integer
+    type: object
+  controllers.UpdateOrderRequest:
+    properties:
+      po_no:
+        example: PO-2026-001
+        type: string
+      recipient_address:
+        example: Jl. Industri No. 10
+        type: string
+      recipient_email:
+        example: purchasing@majujaya.com
+        type: string
+      recipient_name:
+        example: PT Maju Jaya
+        type: string
+      recipient_phone:
+        example: "081234567890"
+        type: string
+    type: object
   controllers.VerifyTokenData:
     properties:
       token:
         example: uuid-verified-token
         type: string
     type: object
-  models.Customer:
+  models.Attachment:
     properties:
+      category:
+        $ref: '#/definitions/models.AttachmentCategory'
+      created_at:
+        type: string
+      file_type:
+        $ref: '#/definitions/models.FileType'
+      file_url:
+        type: string
       id:
         type: string
-      customer_name:
-        type: string
-      customer_email:
-        type: string
-      customer_phone:
-        type: string
-      customer_address:
-        type: string
-      created_at:
+      related_id:
         type: string
       updated_at:
         type: string
     type: object
+  models.AttachmentCategory:
+    enum:
+    - shipment_delivery
+    - shipment_received
+    - invoice
+    - payment_proof
+    - bon
+    - surat_jalan
+    type: string
+    x-enum-varnames:
+    - AttachmentCategoryShipmentDelivery
+    - AttachmentCategoryShipmentReceived
+    - AttachmentCategoryInvoice
+    - AttachmentCategoryPaymentProof
+    - AttachmentCategoryBon
+    - AttachmentCategorySuratJalan
+  models.Customer:
+    properties:
+      created_at:
+        type: string
+      customer_address:
+        type: string
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      customer_phone:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.FileType:
+    enum:
+    - image
+    - video
+    - pdf
+    type: string
+    x-enum-varnames:
+    - FileTypeImage
+    - FileTypeVideo
+    - FileTypePdf
+  models.Invoice:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      invoice_no:
+        type: string
+      payment_status:
+        $ref: '#/definitions/models.PaymentStatus'
+      remaining_balance:
+        type: number
+      shipment_id:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  models.Order:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/models.OrderItem'
+        type: array
+      order_date:
+        type: string
+      order_status:
+        $ref: '#/definitions/models.OrderStatus'
+      po_no:
+        type: string
+      recipient_address:
+        type: string
+      recipient_email:
+        type: string
+      recipient_name:
+        type: string
+      recipient_phone:
+        type: string
+      shipments:
+        items:
+          $ref: '#/definitions/models.Shipment'
+        type: array
+      transaction_no:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.OrderItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      order_qty:
+        type: integer
+      ppn:
+        type: number
+      product_name:
+        type: string
+      remaining_qty:
+        type: integer
+      subtotal:
+        type: number
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  models.OrderStatus:
+    enum:
+    - pending
+    - partial
+    - shipped
+    - completed
+    type: string
+    x-enum-varnames:
+    - OrderStatusPending
+    - OrderStatusPartial
+    - OrderStatusShipped
+    - OrderStatusCompleted
+  models.Payment:
+    properties:
+      created_at:
+        type: string
+      details:
+        items:
+          $ref: '#/definitions/models.PaymentDetail'
+        type: array
+      id:
+        type: string
+      payment_date:
+        type: string
+      payment_total:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  models.PaymentDetail:
+    properties:
+      allocated_amount:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      invoice_id:
+        type: string
+      payment_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.PaymentStatus:
+    enum:
+    - unpaid
+    - partial
+    - paid
+    type: string
+    x-enum-varnames:
+    - PaymentStatusUnpaid
+    - PaymentStatusPartial
+    - PaymentStatusPaid
+  models.Shipment:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/models.ShipmentItem'
+        type: array
+      order_id:
+        type: string
+      received_date:
+        type: string
+      shipping_date:
+        type: string
+      shipping_status:
+        $ref: '#/definitions/models.ShippingStatus'
+      updated_at:
+        type: string
+    type: object
+  models.ShipmentItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      order_item_id:
+        type: string
+      shipment_id:
+        type: string
+      shipping_qty:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.ShippingStatus:
+    enum:
+    - dikirim
+    - diterima
+    type: string
+    x-enum-varnames:
+    - ShippingStatusDikirim
+    - ShippingStatusDiterima
   models.UserRole:
     enum:
     - admin
@@ -95,17 +407,13 @@ definitions:
     - RoleOwner
   services.CustomerInput:
     properties:
-      customer_name:
-        example: "Budi Santoso"
+      customer_address:
         type: string
       customer_email:
-        example: "budi.santoso@example.com"
+        type: string
+      customer_name:
         type: string
       customer_phone:
-        example: "08123456789"
-        type: string
-      customer_address:
-        example: "Jl. Contoh No. 123"
         type: string
     type: object
   services.UserDTO:
@@ -147,6 +455,87 @@ info:
   title: Wira Teknik API
   version: "1.0"
 paths:
+  /attachments:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Mengunggah file lampiran (image/video/pdf) yang terkait dengan
+        resource tertentu. Gunakan form-data dengan field: file, related_id, category.
+        Kategori yang tersedia: shipment_delivery, shipment_received, invoice, payment_proof,
+        bon, surat_jalan.'
+      parameters:
+      - description: File yang akan diunggah
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: ID resource terkait
+        in: formData
+        name: related_id
+        required: true
+        type: string
+      - description: Kategori lampiran
+        enum:
+        - shipment_delivery
+        - shipment_received
+        - invoice
+        - payment_proof
+        - bon
+        - surat_jalan
+        in: formData
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Attachment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Upload lampiran
+      tags:
+      - Attachments
+  /attachments/{relatedId}:
+    get:
+      description: Mengambil daftar lampiran (foto/video/pdf) yang terkait dengan
+        resource tertentu (shipment, invoice, payment, dll)
+      parameters:
+      - description: Related ID (Shipment ID, Invoice ID, dll)
+        in: path
+        name: relatedId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Attachment'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil semua lampiran berdasarkan related ID
+      tags:
+      - Attachments
   /auth/forgot-password/request:
     post:
       consumes:
@@ -429,6 +818,447 @@ paths:
       summary: Update data customer
       tags:
       - Customers
+  /invoices:
+    get:
+      description: Mengambil daftar semua invoice. Invoice otomatis dibuat saat pengiriman
+        dibuat.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Invoice'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil semua invoice
+      tags:
+      - Invoices
+  /invoices/{id}:
+    get:
+      description: Mengambil detail invoice berdasarkan ID
+      parameters:
+      - description: Invoice ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Invoice'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil detail invoice
+      tags:
+      - Invoices
+  /orders:
+    get:
+      description: Mengambil daftar semua pesanan beserta item-itemnya
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Order'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil semua pesanan
+      tags:
+      - Orders
+    post:
+      consumes:
+      - application/json
+      description: Membuat pesanan baru dengan item. PPN 11% dan subtotal dihitung
+        otomatis. remaining_qty diset sama dengan order_qty.
+      parameters:
+      - description: Data pesanan
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Order'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Buat pesanan baru
+      tags:
+      - Orders
+  /orders/{id}:
+    delete:
+      description: Menghapus pesanan beserta item-itemnya (hanya jika status masih
+        pending)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Hapus pesanan
+      tags:
+      - Orders
+    get:
+      description: Mengambil detail pesanan termasuk items dan shipments
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Order'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil detail pesanan
+      tags:
+      - Orders
+    put:
+      consumes:
+      - application/json
+      description: Mengupdate data header pesanan (hanya jika status masih pending)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data pesanan
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Order'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Update header pesanan
+      tags:
+      - Orders
+  /orders/{orderId}/shipments:
+    get:
+      description: Mengambil daftar pengiriman beserta item-nya untuk order tertentu
+      parameters:
+      - description: Order ID
+        in: path
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Shipment'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil semua pengiriman berdasarkan Order
+      tags:
+      - Shipments
+  /payments:
+    get:
+      description: Mengambil daftar semua pembayaran beserta detail alokasinya
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Payment'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil semua pembayaran
+      tags:
+      - Payments
+    post:
+      consumes:
+      - application/json
+      description: 'Membuat pembayaran baru dengan alokasi ke satu atau lebih invoice.
+        Mendukung 3 skenario: lunas (allocated = total), cicilan (allocated < total),
+        dan kolektif (satu payment untuk beberapa invoice). payment_total dihitung
+        otomatis dari sum allocated_amount.'
+      parameters:
+      - description: Data pembayaran
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreatePaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Payment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Buat pembayaran baru
+      tags:
+      - Payments
+  /payments/{id}:
+    get:
+      description: Mengambil detail pembayaran termasuk detail alokasi ke invoice
+      parameters:
+      - description: Payment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Payment'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil detail pembayaran
+      tags:
+      - Payments
+  /shipments:
+    post:
+      consumes:
+      - application/json
+      description: Membuat pengiriman baru dari order. Jumlah kirim tidak boleh melebihi
+        sisa qty. Invoice otomatis di-generate. Status order diperbarui otomatis (partial/shipped).
+      parameters:
+      - description: Data pengiriman
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateShipmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Shipment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Buat pengiriman baru (partial shipment)
+      tags:
+      - Shipments
+  /shipments/{id}:
+    get:
+      description: Mengambil detail pengiriman termasuk item-itemnya
+      parameters:
+      - description: Shipment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Shipment'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil detail pengiriman
+      tags:
+      - Shipments
+  /shipments/{id}/received:
+    patch:
+      description: Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal
+        penerimaan. Jika semua item terkirim dan semua shipment diterima, status order
+        menjadi 'completed'.
+      parameters:
+      - description: Shipment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Shipment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Konfirmasi penerimaan barang
+      tags:
+      - Shipments
+  /shipments/{shipmentId}/invoice:
+    get:
+      description: Mengambil invoice yang terkait dengan pengiriman tertentu
+      parameters:
+      - description: Shipment ID
+        in: path
+        name: shipmentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Invoice'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil invoice berdasarkan Shipment
+      tags:
+      - Invoices
 securityDefinitions:
   BearerAuth:
     description: 'Masukkan token dengan format: **Bearer &lt;token&gt;**'

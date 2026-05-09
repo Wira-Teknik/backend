@@ -19,11 +19,46 @@ func SetupRoutes(app *fiber.App) {
 	auth.Post("/forgot-password/verify", controllers.ForgotPasswordVerify)
 	auth.Post("/forgot-password/reset", controllers.ForgotPasswordReset)
 
-	// Customer routes (protected)
-	customers := api.Group("/customers", middlewares.RequireAuth)
+	// ─── Protected routes ────────────────────────
+	protected := api.Group("", middlewares.RequireAuth)
+
+	// Customer routes
+	customers := protected.Group("/customers")
 	customers.Get("/", controllers.GetAllCustomers)
 	customers.Get("/:id", controllers.GetCustomer)
 	customers.Post("/", controllers.CreateCustomer)
 	customers.Put("/:id", controllers.UpdateCustomer)
 	customers.Delete("/:id", controllers.DeleteCustomer)
+
+	// Order routes
+	orders := protected.Group("/orders")
+	orders.Get("/", controllers.GetAllOrders)
+	orders.Get("/:id", controllers.GetOrder)
+	orders.Post("/", controllers.CreateOrder)
+	orders.Put("/:id", controllers.UpdateOrder)
+	orders.Delete("/:id", controllers.DeleteOrder)
+	orders.Get("/:orderId/shipments", controllers.GetShipmentsByOrder)
+
+	// Shipment routes
+	shipments := protected.Group("/shipments")
+	shipments.Get("/:id", controllers.GetShipment)
+	shipments.Post("/", controllers.CreateShipment)
+	shipments.Patch("/:id/received", controllers.ConfirmShipmentReceived)
+	shipments.Get("/:shipmentId/invoice", controllers.GetInvoiceByShipment)
+
+	// Invoice routes
+	invoices := protected.Group("/invoices")
+	invoices.Get("/", controllers.GetAllInvoices)
+	invoices.Get("/:id", controllers.GetInvoice)
+
+	// Payment routes
+	payments := protected.Group("/payments")
+	payments.Get("/", controllers.GetAllPayments)
+	payments.Get("/:id", controllers.GetPayment)
+	payments.Post("/", controllers.CreatePayment)
+
+	// Attachment routes
+	attachments := protected.Group("/attachments")
+	attachments.Get("/:relatedId", controllers.GetAttachments)
+	attachments.Post("/", controllers.UploadAttachment)
 }
