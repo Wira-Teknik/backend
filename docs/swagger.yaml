@@ -38,19 +38,6 @@ definitions:
         example: "2026-05-15"
         type: string
     type: object
-  controllers.CreateShipmentRequest:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/controllers.ShipmentItemRequestPayload'
-        type: array
-      order_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      shipping_date:
-        example: "2026-05-10"
-        type: string
-    type: object
   controllers.ForgotStep1Request:
     properties:
       email:
@@ -133,15 +120,6 @@ definitions:
         - owner
         example: admin
         type: string
-    type: object
-  controllers.ShipmentItemRequestPayload:
-    properties:
-      order_item_id:
-        example: 550e8400-e29b-41d4-a716-446655440001
-        type: string
-      shipping_qty:
-        example: 50
-        type: integer
     type: object
   controllers.UpdateOrderRequest:
     properties:
@@ -1160,16 +1138,44 @@ paths:
   /shipments:
     post:
       consumes:
-      - application/json
+      - multipart/form-data
       description: Membuat pengiriman baru dari order. Jumlah kirim tidak boleh melebihi
         sisa qty. Invoice otomatis di-generate. Status order diperbarui otomatis (partial/shipped).
       parameters:
-      - description: Data pengiriman
-        in: body
-        name: body
+      - description: Order ID
+        in: formData
+        name: order_id
         required: true
-        schema:
-          $ref: '#/definitions/controllers.CreateShipmentRequest'
+        type: string
+      - description: Shipping Date (YYYY-MM-DD)
+        in: formData
+        name: shipping_date
+        required: true
+        type: string
+      - description: JSON string of array of items e.g. [{'order_item_id':'...', 'shipping_qty':50}]
+        in: formData
+        name: items
+        required: true
+        type: string
+      - description: File Bukti Kirim
+        in: formData
+        name: bukti_kirim
+        required: true
+        type: file
+      - description: File Surat Jalan
+        in: formData
+        name: surat_jalan
+        required: true
+        type: file
+      - description: File Bon Pesanan
+        in: formData
+        name: bon_pesanan
+        required: true
+        type: file
+      - description: File Invoice
+        in: formData
+        name: invoice_file
+        type: file
       produces:
       - application/json
       responses:

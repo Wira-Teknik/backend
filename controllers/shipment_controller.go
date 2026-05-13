@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"teknik/services"
 	"teknik/utils"
 
@@ -77,17 +78,44 @@ func GetShipment(c *fiber.Ctx) error {
 // @Summary      Buat pengiriman baru (partial shipment)
 // @Description  Membuat pengiriman baru dari order. Jumlah kirim tidak boleh melebihi sisa qty. Invoice otomatis di-generate. Status order diperbarui otomatis (partial/shipped).
 // @Tags         Shipments
-// @Accept       json
+// @Accept       multipart/form-data
 // @Produce      json
-// @Param        body  body      CreateShipmentRequest  true  "Data pengiriman"
+// @Param        order_id      formData  string  true  "Order ID"
+// @Param        shipping_date formData  string  true  "Shipping Date (YYYY-MM-DD)"
+// @Param        items         formData  string  true  "JSON string of array of items e.g. [{'order_item_id':'...', 'shipping_qty':50}]"
+// @Param        bukti_kirim   formData  file    true  "File Bukti Kirim"
+// @Param        surat_jalan   formData  file    true  "File Surat Jalan"
+// @Param        bon_pesanan   formData  file    true  "File Bon Pesanan"
+// @Param        invoice_file  formData  file    false "File Invoice"
 // @Success      201   {object}  utils.Response{data=models.Shipment}
 // @Failure      400   {object}  utils.Response
 // @Router       /shipments [post]
 // @Security     BearerAuth
 func CreateShipment(c *fiber.Ctx) error {
-	var req CreateShipmentRequest
-	if err := c.BodyParser(&req); err != nil {
-		return utils.JSONError(c, fiber.StatusBadRequest, "Format request tidak valid")
+	orderID := c.FormValue("order_id")
+	shippingDate := c.FormValue("shipping_date")
+	itemsJSON := c.FormValue("items")
+
+	var itemsPayload []ShipmentItemRequestPayload
+	if itemsJSON != "" {
+		if err := json.Unmarshal([]byte(itemsJSON), &itemsPayload); err != nil {
+			return utils.JSONError(c, fiber.StatusBadRequest, "Format items tidak valid. Harus berupa array JSON.")
+		}
+	}
+
+	buktiKirim, errBukti := c.FormFile("bukti_kirim")
+	if errBukti != nil || buktiKirim == nil {
+		return utils.JSONError(c, fiber.StatusBadRequest, "File Bukti Kirim wajib dilampirkan")
+	}
+
+	suratJalan, errSurat := c.FormFile("surat_jalan")
+	if errSurat != nil || suratJalan == nil {
+		return utils.JSONError(c, fiber.StatusBadRequest, "File Surat Jalan wajib dilampirkan")
+	}
+
+	bonPesanan, errBon := c.FormFile("bon_pesanan")
+	if errBon != nil || bonPesanan == nil {
+		return utils.JSONError(c, fiber.StatusBadRequest, "File Bon Pesanan wajib dilampirkan")
 	}
 
 	userID, err := services.ParseUserID(c.Locals("userID").(string))
@@ -96,7 +124,7 @@ func CreateShipment(c *fiber.Ctx) error {
 	}
 
 	var items []services.ShipmentItemInput
-	for _, item := range req.Items {
+	for _, item := range itemsPayload {
 		items = append(items, services.ShipmentItemInput{
 			OrderItemID: item.OrderItemID,
 			ShippingQty: item.ShippingQty,
@@ -104,12 +132,27 @@ func CreateShipment(c *fiber.Ctx) error {
 	}
 
 	shipment, err := services.CreateShipment(services.CreateShipmentInput{
-		OrderID:      req.OrderID,
-		ShippingDate: req.ShippingDate,
+		OrderID:      orderID,
+		ShippingDate: shippingDate,
 		Items:        items,
 	}, userID)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	// ─────────────────────────────────────────────
+	// Handle File Uploads
+	// ─────────────────────────────────────────────
+	shipmentIDStr := shipment.ID.String()
+
+	services.UploadAttachment(buktiKirim, shipmentIDStr, "shipment_delivery", userID)
+	services.UploadAttachment(suratJalan, shipmentIDStr, "surat_jalan", userID)
+	services.UploadAttachment(bonPesanan, shipmentIDStr, "bon", userID)
+
+	if invoiceFile, err := c.FormFile("invoice_file"); err == nil && invoiceFile != nil {
+		if invoice, err := services.GetInvoiceByShipmentID(shipmentIDStr); err == nil {
+			services.UploadAttachment(invoiceFile, invoice.ID.String(), "invoice", userID)
+		}
 	}
 
 	return utils.JSONCreated(c, "Pengiriman berhasil dibuat dan invoice otomatis di-generate", shipment)

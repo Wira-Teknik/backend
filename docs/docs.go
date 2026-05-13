@@ -1193,7 +1193,7 @@ const docTemplate = `{
                 ],
                 "description": "Membuat pengiriman baru dari order. Jumlah kirim tidak boleh melebihi sisa qty. Invoice otomatis di-generate. Status order diperbarui otomatis (partial/shipped).",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1204,13 +1204,52 @@ const docTemplate = `{
                 "summary": "Buat pengiriman baru (partial shipment)",
                 "parameters": [
                     {
-                        "description": "Data pengiriman",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CreateShipmentRequest"
-                        }
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "order_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Shipping Date (YYYY-MM-DD)",
+                        "name": "shipping_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JSON string of array of items e.g. [{'order_item_id':'...', 'shipping_qty':50}]",
+                        "name": "items",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File Bukti Kirim",
+                        "name": "bukti_kirim",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File Surat Jalan",
+                        "name": "surat_jalan",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File Bon Pesanan",
+                        "name": "bon_pesanan",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File Invoice",
+                        "name": "invoice_file",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -1453,25 +1492,6 @@ const docTemplate = `{
                 }
             }
         },
-        "controllers.CreateShipmentRequest": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/controllers.ShipmentItemRequestPayload"
-                    }
-                },
-                "order_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "shipping_date": {
-                    "type": "string",
-                    "example": "2026-05-10"
-                }
-            }
-        },
         "controllers.ForgotStep1Request": {
             "type": "object",
             "properties": {
@@ -1588,19 +1608,6 @@ const docTemplate = `{
                         "owner"
                     ],
                     "example": "admin"
-                }
-            }
-        },
-        "controllers.ShipmentItemRequestPayload": {
-            "type": "object",
-            "properties": {
-                "order_item_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440001"
-                },
-                "shipping_qty": {
-                    "type": "integer",
-                    "example": 50
                 }
             }
         },
