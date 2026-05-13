@@ -33,6 +33,7 @@ func SetupRoutes(app *fiber.App) {
 	// Order routes
 	orders := protected.Group("/orders")
 	orders.Get("/", controllers.GetAllOrders)
+	orders.Get("/next-trx", controllers.GetNextTransactionNo)
 	orders.Get("/:id", controllers.GetOrder)
 	orders.Post("/", controllers.CreateOrder)
 	orders.Put("/:id", controllers.UpdateOrder)

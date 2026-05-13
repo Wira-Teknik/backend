@@ -120,7 +120,7 @@ func main() {
 	}
 
 	log.Printf("Server %s berjalan di port %s", os.Getenv("APP_NAME"), port)
-	log.Printf("Swagger UI: http://localhost:%s/swagger/index.html", port)
+	log.Printf("Swagger UI: http://localhost:%s/api/docs/index.html", port)
 
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatalf("Server error: %v", err)

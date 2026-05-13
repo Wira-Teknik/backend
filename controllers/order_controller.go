@@ -13,6 +13,7 @@ import (
 
 // CreateOrderRequest adalah body untuk membuat pesanan baru.
 type CreateOrderRequest struct {
+	TransactionNo    string                    `json:"transaction_no"     example:"NF/WT/1/2026"`
 	PoNo             string                    `json:"po_no"              example:"PO-2026-001"`
 	OrderDate        string                    `json:"order_date"         example:"2026-05-09"`
 	RecipientName    string                    `json:"recipient_name"     example:"PT Maju Jaya"`
@@ -82,6 +83,25 @@ func GetOrder(c *fiber.Ctx) error {
 }
 
 // ─────────────────────────────────────────────
+// Get Next Transaction No
+// ─────────────────────────────────────────────
+
+// GetNextTransactionNo godoc
+// @Summary      Pratinjau nomor transaksi berikutnya
+// @Description  Mengambil format nomor transaksi yang akan digunakan untuk pesanan baru
+// @Tags         Orders
+// @Produce      json
+// @Success      200  {object}  utils.Response{data=string}
+// @Router       /orders/next-trx [get]
+// @Security     BearerAuth
+func GetNextTransactionNo(c *fiber.Ctx) error {
+	nextTrx := services.GenerateTransactionNo()
+	return utils.JSONSuccess(c, "Nomor transaksi berikutnya berhasil diambil", map[string]string{
+		"transaction_no": nextTrx,
+	})
+}
+
+// ─────────────────────────────────────────────
 // Create Order
 // ─────────────────────────────────────────────
 
@@ -118,6 +138,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	}
 
 	order, err := services.CreateOrder(services.CreateOrderInput{
+		TransactionNo:    req.TransactionNo,
 		PoNo:             req.PoNo,
 		OrderDate:        req.OrderDate,
 		RecipientName:    req.RecipientName,

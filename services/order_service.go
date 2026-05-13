@@ -24,6 +24,7 @@ type OrderItemInput struct {
 }
 
 type CreateOrderInput struct {
+	TransactionNo    string           `json:"transaction_no"`
 	PoNo             string           `json:"po_no"`
 	OrderDate        string           `json:"order_date"` // format: "2006-01-02"
 	RecipientName    string           `json:"recipient_name"`
@@ -47,17 +48,19 @@ type UpdateOrderInput struct {
 
 const ppnRate = 0.11
 
-// generateTransactionNo menghasilkan nomor transaksi unik: TRX-YYYYMMDD-XXXX.
-func generateTransactionNo() string {
-	dateStr := time.Now().Format("20060102")
-	prefix := fmt.Sprintf("TRX-%s-", dateStr)
+// GenerateTransactionNo menghasilkan nomor transaksi unik: NF/WT/<banyaknya_order_tahun_ini>/<tahun>
+func GenerateTransactionNo() string {
+	year := time.Now().Year()
 
 	var count int64
+	startOfYear := time.Date(year, time.January, 1, 0, 0, 0, 0, time.Local)
+	endOfYear := time.Date(year, time.December, 31, 23, 59, 59, 999999999, time.Local)
+
 	config.DB.Model(&models.Order{}).
-		Where("transaction_no LIKE ?", prefix+"%").
+		Where("created_at >= ? AND created_at <= ?", startOfYear, endOfYear).
 		Count(&count)
 
-	return fmt.Sprintf("%s%04d", prefix, count+1)
+	return fmt.Sprintf("NF/WT/%d/%d", count+1, year)
 }
 
 // roundTwo pembulatan 2 desimal.
@@ -96,7 +99,11 @@ func GetOrderByID(id string) (models.Order, error) {
 
 func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error) {
 	input.RecipientName = strings.TrimSpace(input.RecipientName)
+	input.TransactionNo = strings.TrimSpace(input.TransactionNo)
 
+	if input.TransactionNo == "" {
+		return models.Order{}, fmt.Errorf("nomor transaksi tidak boleh kosong")
+	}
 	if input.RecipientName == "" {
 		return models.Order{}, fmt.Errorf("nama penerima tidak boleh kosong")
 	}
@@ -140,7 +147,7 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 
 	order := models.Order{
 		ID:               orderID,
-		TransactionNo:    generateTransactionNo(),
+		TransactionNo:    input.TransactionNo,
 		PoNo:             strings.TrimSpace(input.PoNo),
 		OrderDate:        orderDate,
 		RecipientName:    input.RecipientName,

@@ -799,6 +799,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/orders/next-trx": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil format nomor transaksi yang akan digunakan untuk pesanan baru",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Pratinjau nomor transaksi berikutnya",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/orders/{id}": {
             "get": {
                 "security": [
@@ -1394,6 +1431,10 @@ const docTemplate = `{
                 "recipient_phone": {
                     "type": "string",
                     "example": "081234567890"
+                },
+                "transaction_no": {
+                    "type": "string",
+                    "example": "NF/WT/1/2026"
                 }
             }
         },

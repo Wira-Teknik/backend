@@ -24,6 +24,9 @@ definitions:
       recipient_phone:
         example: "081234567890"
         type: string
+      transaction_no:
+        example: NF/WT/1/2026
+        type: string
     type: object
   controllers.CreatePaymentRequest:
     properties:
@@ -1046,6 +1049,27 @@ paths:
       summary: Ambil semua pengiriman berdasarkan Order
       tags:
       - Shipments
+  /orders/next-trx:
+    get:
+      description: Mengambil format nomor transaksi yang akan digunakan untuk pesanan
+        baru
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Pratinjau nomor transaksi berikutnya
+      tags:
+      - Orders
   /payments:
     get:
       description: Mengambil daftar semua pembayaran beserta detail alokasinya
