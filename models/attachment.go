@@ -1,7 +1,7 @@
 package models
 
 import (
-	"time"
+	"teknik/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -32,7 +32,7 @@ type Attachment struct {
 	Category  AttachmentCategory `gorm:"type:varchar(50);not null;check:category IN ('shipment_delivery', 'shipment_received', 'invoice', 'payment_proof', 'bon', 'surat_jalan')" json:"category"`
 	FileType  FileType           `gorm:"type:varchar(20);not null;check:file_type IN ('image', 'video', 'pdf')" json:"file_type"`
 	FileURL   string             `gorm:"type:varchar(255);not null" json:"file_url"`
-	CreatedAt time.Time          `json:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
+	CreatedAt utils.JSONDateTime `json:"created_at"`
+	UpdatedAt utils.JSONDateTime `json:"updated_at"`
 	DeletedAt gorm.DeletedAt     `gorm:"index" json:"-"`
 }

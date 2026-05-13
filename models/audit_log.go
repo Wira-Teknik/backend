@@ -1,9 +1,8 @@
 package models
 
 import (
-	"time"
-
 	"github.com/google/uuid"
+	"teknik/utils"
 )
 
 type AuditAction string
@@ -24,5 +23,5 @@ type AuditLog struct {
 	ResourceID uuid.UUID      `gorm:"type:uuid" json:"resource_id"`
 	OldValue   string         `gorm:"type:json" json:"old_value"`
 	NewValue   string         `gorm:"type:json" json:"new_value"`
-	CreatedAt  time.Time      `json:"created_at"`
+	CreatedAt  utils.JSONDateTime `json:"created_at"`
 }

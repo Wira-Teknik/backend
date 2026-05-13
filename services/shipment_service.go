@@ -6,6 +6,7 @@ import (
 
 	"teknik/config"
 	"teknik/models"
+	"teknik/utils"
 
 	"github.com/google/uuid"
 )
@@ -155,7 +156,7 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 	shipment := models.Shipment{
 		ID:             shipmentID,
 		OrderID:        orderID,
-		ShippingDate:   shippingDate,
+		ShippingDate:   utils.JSONDate(shippingDate),
 		ShippingStatus: models.ShippingStatusDikirim,
 		Items:          shipmentItems,
 	}
@@ -232,7 +233,7 @@ func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, erro
 
 	oldShipment := shipment
 
-	now := time.Now()
+	now := utils.JSONDate(time.Now())
 	shipment.ReceivedDate = &now
 	shipment.ShippingStatus = models.ShippingStatusDiterima
 

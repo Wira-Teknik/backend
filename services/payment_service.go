@@ -6,6 +6,7 @@ import (
 
 	"teknik/config"
 	"teknik/models"
+	"teknik/utils"
 
 	"github.com/google/uuid"
 )
@@ -128,7 +129,7 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 	payment := models.Payment{
 		ID:           paymentID,
 		PaymentTotal: paymentTotal,
-		PaymentDate:  paymentDate,
+		PaymentDate:  utils.JSONDate(paymentDate),
 		Details:      details,
 	}
 

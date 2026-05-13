@@ -1,7 +1,7 @@
 package models
 
 import (
-	"time"
+	"teknik/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,7 +12,7 @@ type PaymentDetail struct {
 	PaymentID       uuid.UUID      `gorm:"type:uuid;not null;index" json:"payment_id"`
 	InvoiceID       uuid.UUID      `gorm:"type:uuid;not null;index" json:"invoice_id"`
 	AllocatedAmount float64        `gorm:"not null" json:"allocated_amount"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	CreatedAt       utils.JSONDateTime `json:"created_at"`
+	UpdatedAt       utils.JSONDateTime `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }

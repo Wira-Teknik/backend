@@ -8,6 +8,7 @@ import (
 
 	"teknik/config"
 	"teknik/models"
+	"teknik/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -149,7 +150,7 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 		ID:               orderID,
 		TransactionNo:    input.TransactionNo,
 		PoNo:             strings.TrimSpace(input.PoNo),
-		OrderDate:        orderDate,
+		OrderDate:        utils.JSONDate(orderDate),
 		RecipientName:    input.RecipientName,
 		RecipientAddress: strings.TrimSpace(input.RecipientAddress),
 		RecipientPhone:   strings.TrimSpace(input.RecipientPhone),

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"time"
+	"teknik/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -22,7 +22,7 @@ type User struct {
 	Email     string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	Password  string         `gorm:"type:varchar(255);not null" json:"-"`
 	Role      UserRole       `gorm:"type:varchar(10);not null;default:'admin';check:role IN ('admin','owner')" json:"role"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	CreatedAt utils.JSONDateTime `json:"created_at"`
+	UpdatedAt utils.JSONDateTime `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
