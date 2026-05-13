@@ -57,7 +57,7 @@ func GenerateTransactionNo() string {
 	startOfYear := time.Date(year, time.January, 1, 0, 0, 0, 0, time.Local)
 	endOfYear := time.Date(year, time.December, 31, 23, 59, 59, 999999999, time.Local)
 
-	config.DB.Model(&models.Order{}).
+	config.DB.Unscoped().Model(&models.Order{}).
 		Where("created_at >= ? AND created_at <= ?", startOfYear, endOfYear).
 		Count(&count)
 
