@@ -15,7 +15,7 @@ func (j JSONDate) MarshalJSON() ([]byte, error) {
 	if t.IsZero() {
 		return []byte("null"), nil
 	}
-	return []byte(fmt.Sprintf("\"%s\"", t.Format("2006-01-02"))), nil
+	return []byte(fmt.Sprintf("\"%s\"", t.Local().Format("2006-01-02"))), nil
 }
 
 // Value mengimplementasikan driver.Valuer agar GORM bisa menyimpan ke database.
@@ -49,7 +49,7 @@ func (j JSONDateTime) MarshalJSON() ([]byte, error) {
 	if t.IsZero() {
 		return []byte("null"), nil
 	}
-	return []byte(fmt.Sprintf("\"%s\"", t.Format("2006-01-02 15:04:05"))), nil
+	return []byte(fmt.Sprintf("\"%s\"", t.Local().Format("2006-01-02 15:04:05"))), nil
 }
 
 // Value mengimplementasikan driver.Valuer.
