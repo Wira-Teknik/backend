@@ -76,6 +76,8 @@ func roundTwo(val float64) float64 {
 func GetAllOrders() ([]models.Order, error) {
 	var orders []models.Order
 	err := config.DB.Preload("Items").
+		Preload("Shipments").
+		Preload("Shipments.Items").
 		Order("created_at DESC").
 		Find(&orders).Error
 	return orders, err

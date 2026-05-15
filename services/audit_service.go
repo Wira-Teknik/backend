@@ -14,7 +14,7 @@ import (
 // CreateAuditLog mencatat perubahan data ke tabel audit_logs.
 // oldData dan newData bisa nil jika tidak relevan (misal: DELETE hanya perlu oldData, CREATE hanya newData).
 func CreateAuditLog(userID, resourceID uuid.UUID, action models.AuditAction, tableName string, oldData, newData interface{}) {
-	var oldJSON, newJSON string
+	var oldJSON, newJSON string = "null", "null"
 
 	if oldData != nil {
 		b, err := json.Marshal(oldData)

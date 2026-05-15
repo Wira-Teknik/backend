@@ -71,6 +71,7 @@ func main() {
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
 		AppName:      os.Getenv("APP_NAME"),
+		BodyLimit:    100 * 1024 * 1024, // Set limit to 100 MB
 		ErrorHandler: customErrorHandler,
 	})
 
@@ -101,6 +102,9 @@ func main() {
 
 	// Swagger UI route
 	app.Get("/api/docs/*", swagger.HandlerDefault)
+
+	// Static files serving
+	app.Static("/uploads", "./uploads")
 
 	// Register API routes
 	routes.SetupRoutes(app)
