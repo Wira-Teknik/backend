@@ -73,13 +73,58 @@ func roundTwo(val float64) float64 {
 // Get All Orders
 // ─────────────────────────────────────────────
 
+// computeOrderPaymentInfo menghitung status pembayaran, total, dan sisa tagihan untuk suatu pesanan.
+func computeOrderPaymentInfo(order *models.Order) {
+	var totalOrderAmount float64
+
+	// 1. Hitung total biaya keseluruhan pesanan dari items (Subtotal sudah termasuk PPN)
+	for _, item := range order.Items {
+		totalOrderAmount += item.Subtotal
+	}
+	totalOrderAmount = roundTwo(totalOrderAmount)
+
+	// 2. Hitung total yang sudah dibayar dari invoice yang telah di-generate
+	var totalPaid float64
+	for _, shipment := range order.Shipments {
+		if shipment.Invoice != nil {
+			paidForInvoice := roundTwo(shipment.Invoice.TotalAmount - shipment.Invoice.RemainingBalance)
+			totalPaid += paidForInvoice
+		}
+	}
+	totalPaid = roundTwo(totalPaid)
+
+	// 3. Hitung sisa yang harus dibayar untuk keseluruhan pesanan
+	remaining := roundTwo(totalOrderAmount - totalPaid)
+
+	order.TotalAmountToPay = totalOrderAmount
+	order.RemainingBalance = remaining
+
+	if totalOrderAmount == 0 {
+		order.PaymentStatus = models.PaymentStatusUnpaid
+	} else if remaining <= 0 {
+		order.PaymentStatus = models.PaymentStatusPaid
+		order.RemainingBalance = 0 // cegah nilai negatif
+	} else if remaining < totalOrderAmount {
+		order.PaymentStatus = models.PaymentStatusPartial
+	} else {
+		order.PaymentStatus = models.PaymentStatusUnpaid
+	}
+}
+
 func GetAllOrders() ([]models.Order, error) {
 	var orders []models.Order
 	err := config.DB.Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
+		Preload("Shipments.Invoice").
 		Order("created_at DESC").
 		Find(&orders).Error
+	
+	if err == nil {
+		for i := range orders {
+			computeOrderPaymentInfo(&orders[i])
+		}
+	}
 	return orders, err
 }
 
@@ -92,7 +137,12 @@ func GetOrderByID(id string) (models.Order, error) {
 	err := config.DB.Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
+		Preload("Shipments.Invoice").
 		First(&order, "id = ?", id).Error
+
+	if err == nil {
+		computeOrderPaymentInfo(&order)
+	}
 	return order, err
 }
 

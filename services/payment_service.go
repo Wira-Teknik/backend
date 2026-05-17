@@ -29,6 +29,58 @@ type CreatePaymentInput struct {
 // Get All Payments
 // ─────────────────────────────────────────────
 
+type CustomerPaymentSummary struct {
+	CustomerName string         `json:"customer_name"`
+	Orders       []models.Order `json:"orders"`
+	TotalTagihan float64        `json:"total_tagihan"`
+}
+
+// SearchCustomerPayments mencari customer berdasarkan nama (dari data pesanan) dan menghitung tagihannya.
+func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
+	var orders []models.Order
+
+	query := config.DB.Preload("Items").
+		Preload("Shipments").
+		Preload("Shipments.Items").
+		Preload("Shipments.Invoice").
+		Order("created_at DESC")
+
+	if name != "" {
+		query = query.Where("recipient_name ILIKE ?", "%"+name+"%")
+	}
+
+	if err := query.Find(&orders).Error; err != nil {
+		return nil, err
+	}
+
+	// Group by recipient_name
+	customerMap := make(map[string]*CustomerPaymentSummary)
+
+	for i := range orders {
+		computeOrderPaymentInfo(&orders[i])
+
+		custName := orders[i].RecipientName
+		if _, exists := customerMap[custName]; !exists {
+			customerMap[custName] = &CustomerPaymentSummary{
+				CustomerName: custName,
+				Orders:       []models.Order{},
+				TotalTagihan: 0,
+			}
+		}
+
+		customerMap[custName].Orders = append(customerMap[custName].Orders, orders[i])
+		customerMap[custName].TotalTagihan += orders[i].RemainingBalance
+	}
+
+	var results []CustomerPaymentSummary
+	for _, summary := range customerMap {
+		summary.TotalTagihan = roundTwo(summary.TotalTagihan)
+		results = append(results, *summary)
+	}
+
+	return results, nil
+}
+
 func GetAllPayments() ([]models.Payment, error) {
 	var payments []models.Payment
 	err := config.DB.Preload("Details").

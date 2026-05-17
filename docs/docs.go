@@ -1132,6 +1132,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/payments/search-customer": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mencari customer dan mengembalikan daftar pesanan serta total sisa tagihan yang harus dibayar.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Cari pembayaran berdasarkan nama customer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Nama Customer",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/services.CustomerPaymentSummary"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/payments/{id}": {
             "get": {
                 "security": [
@@ -1779,6 +1827,9 @@ const docTemplate = `{
                 "order_status": {
                     "$ref": "#/definitions/models.OrderStatus"
                 },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
                 "po_no": {
                     "type": "string"
                 },
@@ -1794,11 +1845,17 @@ const docTemplate = `{
                 "recipient_phone": {
                     "type": "string"
                 },
+                "remaining_balance": {
+                    "type": "number"
+                },
                 "shipments": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.Shipment"
                     }
+                },
+                "total_amount_to_pay": {
+                    "type": "number"
                 },
                 "transaction_no": {
                     "type": "string"
@@ -1929,6 +1986,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "invoice": {
+                    "$ref": "#/definitions/models.Invoice"
+                },
                 "items": {
                     "type": "array",
                     "items": {
@@ -2011,6 +2071,23 @@ const docTemplate = `{
                 },
                 "customer_phone": {
                     "type": "string"
+                }
+            }
+        },
+        "services.CustomerPaymentSummary": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Order"
+                    }
+                },
+                "total_tagihan": {
+                    "type": "number"
                 }
             }
         },

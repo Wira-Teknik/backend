@@ -55,6 +55,7 @@ func SetupRoutes(app *fiber.App) {
 	// Payment routes
 	payments := protected.Group("/payments")
 	payments.Get("/", controllers.GetAllPayments)
+	payments.Get("/search-customer", controllers.SearchCustomerPayments)
 	payments.Get("/:id", controllers.GetPayment)
 	payments.Post("/", controllers.CreatePayment)
 

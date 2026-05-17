@@ -238,6 +238,8 @@ definitions:
         type: string
       order_status:
         $ref: '#/definitions/models.OrderStatus'
+      payment_status:
+        $ref: '#/definitions/models.PaymentStatus'
       po_no:
         type: string
       recipient_address:
@@ -248,10 +250,14 @@ definitions:
         type: string
       recipient_phone:
         type: string
+      remaining_balance:
+        type: number
       shipments:
         items:
           $ref: '#/definitions/models.Shipment'
         type: array
+      total_amount_to_pay:
+        type: number
       transaction_no:
         type: string
       updated_at:
@@ -340,6 +346,8 @@ definitions:
         type: string
       id:
         type: string
+      invoice:
+        $ref: '#/definitions/models.Invoice'
       items:
         items:
           $ref: '#/definitions/models.ShipmentItem'
@@ -396,6 +404,17 @@ definitions:
         type: string
       customer_phone:
         type: string
+    type: object
+  services.CustomerPaymentSummary:
+    properties:
+      customer_name:
+        type: string
+      orders:
+        items:
+          $ref: '#/definitions/models.Order'
+        type: array
+      total_tagihan:
+        type: number
     type: object
   services.UserDTO:
     properties:
@@ -1133,6 +1152,34 @@ paths:
       security:
       - BearerAuth: []
       summary: Ambil detail pembayaran
+      tags:
+      - Payments
+  /payments/search-customer:
+    get:
+      description: Mencari customer dan mengembalikan daftar pesanan serta total sisa
+        tagihan yang harus dibayar.
+      parameters:
+      - description: Nama Customer
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/services.CustomerPaymentSummary'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Cari pembayaran berdasarkan nama customer
       tags:
       - Payments
   /shipments:

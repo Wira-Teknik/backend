@@ -21,6 +21,7 @@ type Shipment struct {
 	ReceivedDate   *utils.JSONDate `gorm:"type:timestamp" json:"received_date"`
 	ShippingStatus ShippingStatus `gorm:"type:varchar(20);not null;default:'dikirim';check:shipping_status IN ('dikirim', 'diterima')" json:"shipping_status"`
 	Items          []ShipmentItem `gorm:"foreignKey:ShipmentID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"items"`
+	Invoice        *Invoice       `gorm:"foreignKey:ShipmentID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"invoice"`
 	CreatedAt      utils.JSONDateTime `json:"created_at"`
 	UpdatedAt      utils.JSONDateTime `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`

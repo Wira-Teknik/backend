@@ -44,6 +44,28 @@ func GetAllPayments(c *fiber.Ctx) error {
 }
 
 // ─────────────────────────────────────────────
+// Search Customer Payments
+// ─────────────────────────────────────────────
+
+// SearchCustomerPayments godoc
+// @Summary      Cari pembayaran berdasarkan nama customer
+// @Description  Mencari customer dan mengembalikan daftar pesanan serta total sisa tagihan yang harus dibayar.
+// @Tags         Payments
+// @Param        name query string false "Nama Customer"
+// @Produce      json
+// @Success      200  {object}  utils.Response{data=[]services.CustomerPaymentSummary}
+// @Router       /payments/search-customer [get]
+// @Security     BearerAuth
+func SearchCustomerPayments(c *fiber.Ctx) error {
+	name := c.Query("name")
+	results, err := services.SearchCustomerPayments(name)
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mencari data tagihan customer")
+	}
+	return utils.JSONSuccess(c, "Data tagihan customer berhasil diambil", results)
+}
+
+// ─────────────────────────────────────────────
 // Get Payment by ID
 // ─────────────────────────────────────────────
 
