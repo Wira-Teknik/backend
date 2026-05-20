@@ -15,14 +15,10 @@ import (
 // DTOs
 // ─────────────────────────────────────────────
 
-type PaymentDetailInput struct {
-	InvoiceID       string  `json:"invoice_id"`
-	AllocatedAmount float64 `json:"allocated_amount"`
-}
-
 type CreatePaymentInput struct {
-	PaymentDate string               `json:"payment_date"` // format: "2006-01-02"
-	Details     []PaymentDetailInput `json:"details"`
+	PaymentDate  string   `json:"payment_date"` // format: "2006-01-02"
+	PaymentTotal float64  `json:"payment_total"`
+	OrderIDs     []string `json:"order_ids"`
 }
 
 // ─────────────────────────────────────────────
@@ -111,8 +107,11 @@ func GetPaymentByID(id string) (models.Payment, error) {
 // 5. payment_total = sum(allocated_amount)
 
 func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, error) {
-	if len(input.Details) == 0 {
-		return models.Payment{}, fmt.Errorf("pembayaran harus memiliki minimal 1 detail alokasi")
+	if len(input.OrderIDs) == 0 {
+		return models.Payment{}, fmt.Errorf("pembayaran harus memiliki minimal 1 order ID")
+	}
+	if input.PaymentTotal <= 0 {
+		return models.Payment{}, fmt.Errorf("total pembayaran harus lebih dari 0")
 	}
 
 	paymentDate, err := time.Parse("2006-01-02", input.PaymentDate)
@@ -120,67 +119,77 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 		return models.Payment{}, fmt.Errorf("format tanggal tidak valid (gunakan YYYY-MM-DD)")
 	}
 
+	// 1. Ambil semua invoice terkait order_ids yang belum lunas
+	var invoices []models.Invoice
+
+	// Join melalui shipment. Order -> Shipment -> Invoice.
+	err = config.DB.Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+		Where("shipments.order_id IN ? AND invoices.payment_status != ?", input.OrderIDs, models.PaymentStatusPaid).
+		Order("invoices.created_at ASC"). // urutkan yang paling lama dahulu
+		Find(&invoices).Error
+
+	if err != nil {
+		return models.Payment{}, fmt.Errorf("gagal mengambil tagihan: %w", err)
+	}
+
+	if len(invoices) == 0 {
+		return models.Payment{}, fmt.Errorf("tidak ada tagihan yang belum lunas untuk order yang dipilih")
+	}
+
+	// 2. Validasi total payment <= total remaining balance
+	var totalTagihan float64
+	for _, inv := range invoices {
+		totalTagihan += inv.RemainingBalance
+	}
+
+	if input.PaymentTotal > totalTagihan {
+		return models.Payment{}, fmt.Errorf("jumlah pembayaran (%.2f) melebihi total sisa tagihan (%.2f)", input.PaymentTotal, totalTagihan)
+	}
+
+	// 3. Mulai alokasi dana secara otomatis
 	paymentID := uuid.New()
 	var details []models.PaymentDetail
-	var paymentTotal float64
 
-	// Pre-validasi semua invoice
 	type invoiceAlloc struct {
 		invoice         models.Invoice
 		allocatedAmount float64
 	}
 	var allocations []invoiceAlloc
 
-	for _, d := range input.Details {
-		invoiceID, err := uuid.Parse(d.InvoiceID)
-		if err != nil {
-			return models.Payment{}, fmt.Errorf("invoice ID tidak valid: %s", d.InvoiceID)
+	sisaPembayaran := input.PaymentTotal
+
+	for _, inv := range invoices {
+		if sisaPembayaran <= 0 {
+			break
 		}
 
-		if d.AllocatedAmount <= 0 {
-			return models.Payment{}, fmt.Errorf("jumlah alokasi harus lebih dari 0")
-		}
-
-		var invoice models.Invoice
-		if err := config.DB.First(&invoice, "id = ?", invoiceID).Error; err != nil {
-			return models.Payment{}, fmt.Errorf("invoice tidak ditemukan: %s", d.InvoiceID)
-		}
-
-		if invoice.PaymentStatus == models.PaymentStatusPaid {
-			return models.Payment{}, fmt.Errorf("invoice %s sudah lunas", invoice.InvoiceNo)
-		}
-
-		if d.AllocatedAmount > invoice.RemainingBalance {
-			return models.Payment{}, fmt.Errorf(
-				"jumlah alokasi (%.2f) melebihi sisa tagihan (%.2f) untuk invoice %s",
-				d.AllocatedAmount, invoice.RemainingBalance, invoice.InvoiceNo,
-			)
+		alokasi := sisaPembayaran
+		if alokasi > inv.RemainingBalance {
+			alokasi = inv.RemainingBalance
 		}
 
 		details = append(details, models.PaymentDetail{
 			ID:              uuid.New(),
 			PaymentID:       paymentID,
-			InvoiceID:       invoiceID,
-			AllocatedAmount: d.AllocatedAmount,
+			InvoiceID:       inv.ID,
+			AllocatedAmount: alokasi,
 		})
 
 		allocations = append(allocations, invoiceAlloc{
-			invoice:         invoice,
-			allocatedAmount: d.AllocatedAmount,
+			invoice:         inv,
+			allocatedAmount: alokasi,
 		})
 
-		paymentTotal += d.AllocatedAmount
+		sisaPembayaran -= alokasi
+		sisaPembayaran = roundTwo(sisaPembayaran)
 	}
 
-	paymentTotal = roundTwo(paymentTotal)
-
-	// Mulai transaksi database
+	// 4. Mulai transaksi database
 	tx := config.DB.Begin()
 
-	// 1. Buat payment
 	payment := models.Payment{
 		ID:           paymentID,
-		PaymentTotal: paymentTotal,
+		PaymentTotal: input.PaymentTotal,
 		PaymentDate:  utils.JSONDate(paymentDate),
 		Details:      details,
 	}
@@ -190,7 +199,7 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 		return models.Payment{}, fmt.Errorf("gagal membuat pembayaran: %w", err)
 	}
 
-	// 2. Update setiap invoice
+	// Update setiap invoice
 	for _, alloc := range allocations {
 		newBalance := roundTwo(alloc.invoice.RemainingBalance - alloc.allocatedAmount)
 
@@ -213,12 +222,10 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 		}
 	}
 
-	// Commit transaksi
 	if err := tx.Commit().Error; err != nil {
 		return models.Payment{}, fmt.Errorf("gagal menyimpan data pembayaran: %w", err)
 	}
 
-	// Audit log
 	CreateAuditLog(userID, paymentID, models.AuditActionCreate, "payments", nil, payment)
 
 	return payment, nil

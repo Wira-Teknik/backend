@@ -11,16 +11,16 @@ import (
 // Request DTOs (exported for Swagger)
 // ─────────────────────────────────────────────
 
-// CreatePaymentRequest adalah body untuk membuat pembayaran.
-type CreatePaymentRequest struct {
-	PaymentDate string                        `json:"payment_date" example:"2026-05-15"`
-	Details     []PaymentDetailRequestPayload `json:"details"`
+// PaymentDetailRequest berisi informasi order yang akan dibayar.
+type PaymentDetailRequest struct {
+	OrderID string `json:"order_id" example:"550e8400-e29b-41d4-a716-446655440001"`
 }
 
-// PaymentDetailRequestPayload adalah detail alokasi pembayaran ke invoice.
-type PaymentDetailRequestPayload struct {
-	InvoiceID       string  `json:"invoice_id"       example:"550e8400-e29b-41d4-a716-446655440002"`
-	AllocatedAmount float64 `json:"allocated_amount"  example:"5000000"`
+// CreatePaymentRequest adalah body untuk membuat pembayaran.
+type CreatePaymentRequest struct {
+	PaymentDate  string                 `json:"payment_date" example:"2026-05-15"`
+	PaymentTotal float64                `json:"payment_total" example:"10000000"`
+	Details      []PaymentDetailRequest `json:"details"`
 }
 
 // ─────────────────────────────────────────────
@@ -94,7 +94,7 @@ func GetPayment(c *fiber.Ctx) error {
 
 // CreatePayment godoc
 // @Summary      Buat pembayaran baru
-// @Description  Membuat pembayaran baru dengan alokasi ke satu atau lebih invoice. Mendukung 3 skenario: lunas (allocated = total), cicilan (allocated < total), dan kolektif (satu payment untuk beberapa invoice). payment_total dihitung otomatis dari sum allocated_amount.
+// @Description  Membuat pembayaran baru dengan alokasi otomatis berdasarkan daftar Order ID dari tagihan yang terlama. File bukti bayar dapat diunggah secara terpisah melalui API Attachments.
 // @Tags         Payments
 // @Accept       json
 // @Produce      json
@@ -114,18 +114,19 @@ func CreatePayment(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
 
-	var details []services.PaymentDetailInput
-	for _, d := range req.Details {
-		details = append(details, services.PaymentDetailInput{
-			InvoiceID:       d.InvoiceID,
-			AllocatedAmount: d.AllocatedAmount,
-		})
+	var orderIDs []string
+	for _, detail := range req.Details {
+		if detail.OrderID != "" {
+			orderIDs = append(orderIDs, detail.OrderID)
+		}
 	}
 
 	payment, err := services.CreatePayment(services.CreatePaymentInput{
-		PaymentDate: req.PaymentDate,
-		Details:     details,
+		PaymentDate:  req.PaymentDate,
+		PaymentTotal: req.PaymentTotal,
+		OrderIDs:     orderIDs,
 	}, userID)
+
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}

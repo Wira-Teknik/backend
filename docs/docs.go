@@ -799,6 +799,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/orders/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil riwayat transaksi dengan pencarian berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran (all, paid, partial)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Ambil Laporan Riwayat Transaksi",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cari nomor PO atau transaksi",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status (all, paid, partial)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/services.TransactionHistoryDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/orders/next-trx": {
             "get": {
                 "security": [
@@ -1082,7 +1136,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Membuat pembayaran baru dengan alokasi ke satu atau lebih invoice. Mendukung 3 skenario: lunas (allocated = total), cicilan (allocated \u003c total), dan kolektif (satu payment untuk beberapa invoice). payment_total dihitung otomatis dari sum allocated_amount.",
+                "description": "Membuat pembayaran baru dengan alokasi otomatis berdasarkan daftar Order ID dari tagihan yang terlama. File bukti bayar dapat diunggah secara terpisah melalui API Attachments.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1531,12 +1585,16 @@ const docTemplate = `{
                 "details": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/controllers.PaymentDetailRequestPayload"
+                        "$ref": "#/definitions/controllers.PaymentDetailRequest"
                     }
                 },
                 "payment_date": {
                     "type": "string",
                     "example": "2026-05-15"
+                },
+                "payment_total": {
+                    "type": "number",
+                    "example": 10000000
                 }
             }
         },
@@ -1621,16 +1679,12 @@ const docTemplate = `{
                 }
             }
         },
-        "controllers.PaymentDetailRequestPayload": {
+        "controllers.PaymentDetailRequest": {
             "type": "object",
             "properties": {
-                "allocated_amount": {
-                    "type": "number",
-                    "example": 5000000
-                },
-                "invoice_id": {
+                "order_id": {
                     "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
                 }
             }
         },
@@ -2088,6 +2142,43 @@ const docTemplate = `{
                 },
                 "total_tagihan": {
                     "type": "number"
+                }
+            }
+        },
+        "services.TransactionHistoryDTO": {
+            "type": "object",
+            "properties": {
+                "admin_name": {
+                    "type": "string",
+                    "example": "Admin - Dino"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "Nov 05, 2026 12:10"
+                },
+                "customer_name": {
+                    "type": "string",
+                    "example": "PT.KIRANA PERMATA"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "payment_status": {
+                    "type": "string",
+                    "example": "Partial"
+                },
+                "po_no": {
+                    "type": "string",
+                    "example": "P2152KPT22"
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 500000
+                },
+                "transaction_no": {
+                    "type": "string",
+                    "example": "NF/WT/1/2026"
                 }
             }
         },

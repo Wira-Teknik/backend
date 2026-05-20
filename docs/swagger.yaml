@@ -32,11 +32,14 @@ definitions:
     properties:
       details:
         items:
-          $ref: '#/definitions/controllers.PaymentDetailRequestPayload'
+          $ref: '#/definitions/controllers.PaymentDetailRequest'
         type: array
       payment_date:
         example: "2026-05-15"
         type: string
+      payment_total:
+        example: 10000000
+        type: number
     type: object
   controllers.ForgotStep1Request:
     properties:
@@ -94,13 +97,10 @@ definitions:
         example: 75000
         type: number
     type: object
-  controllers.PaymentDetailRequestPayload:
+  controllers.PaymentDetailRequest:
     properties:
-      allocated_amount:
-        example: 5000000
-        type: number
-      invoice_id:
-        example: 550e8400-e29b-41d4-a716-446655440002
+      order_id:
+        example: 550e8400-e29b-41d4-a716-446655440001
         type: string
     type: object
   controllers.RegisterRequest:
@@ -415,6 +415,33 @@ definitions:
         type: array
       total_tagihan:
         type: number
+    type: object
+  services.TransactionHistoryDTO:
+    properties:
+      admin_name:
+        example: Admin - Dino
+        type: string
+      created_at:
+        example: Nov 05, 2026 12:10
+        type: string
+      customer_name:
+        example: PT.KIRANA PERMATA
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+      payment_status:
+        example: Partial
+        type: string
+      po_no:
+        example: P2152KPT22
+        type: string
+      total_amount:
+        example: 500000
+        type: number
+      transaction_no:
+        example: NF/WT/1/2026
+        type: string
     type: object
   services.UserDTO:
     properties:
@@ -1046,6 +1073,38 @@ paths:
       summary: Ambil semua pengiriman berdasarkan Order
       tags:
       - Shipments
+  /orders/history:
+    get:
+      description: Mengambil riwayat transaksi dengan pencarian berdasarkan PO atau
+        nomor transaksi dan filter berdasarkan status pembayaran (all, paid, partial)
+      parameters:
+      - description: Cari nomor PO atau transaksi
+        in: query
+        name: search
+        type: string
+      - description: Filter status (all, paid, partial)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/services.TransactionHistoryDTO'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil Laporan Riwayat Transaksi
+      tags:
+      - Orders
   /orders/next-trx:
     get:
       description: Mengambil format nomor transaksi yang akan digunakan untuk pesanan
@@ -1092,10 +1151,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Membuat pembayaran baru dengan alokasi ke satu atau lebih invoice.
-        Mendukung 3 skenario: lunas (allocated = total), cicilan (allocated < total),
-        dan kolektif (satu payment untuk beberapa invoice). payment_total dihitung
-        otomatis dari sum allocated_amount.'
+      description: Membuat pembayaran baru dengan alokasi otomatis berdasarkan daftar
+        Order ID dari tagihan yang terlama. File bukti bayar dapat diunggah secara
+        terpisah melalui API Attachments.
       parameters:
       - description: Data pembayaran
         in: body

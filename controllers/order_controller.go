@@ -60,6 +60,31 @@ func GetAllOrders(c *fiber.Ctx) error {
 }
 
 // ─────────────────────────────────────────────
+// Transaction History Report
+// ─────────────────────────────────────────────
+
+// GetTransactionHistory godoc
+// @Summary      Ambil Laporan Riwayat Transaksi
+// @Description  Mengambil riwayat transaksi dengan pencarian berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran (all, paid, partial)
+// @Tags         Orders
+// @Produce      json
+// @Param        search query string false "Cari nomor PO atau transaksi"
+// @Param        status query string false "Filter status (all, paid, partial)"
+// @Success      200  {object}  utils.Response{data=[]services.TransactionHistoryDTO}
+// @Router       /orders/history [get]
+// @Security     BearerAuth
+func GetTransactionHistory(c *fiber.Ctx) error {
+	search := c.Query("search")
+	status := c.Query("status", "all")
+
+	history, err := services.GetTransactionHistory(search, status)
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil riwayat transaksi: "+err.Error())
+	}
+	return utils.JSONSuccess(c, "Riwayat transaksi berhasil diambil", history)
+}
+
+// ─────────────────────────────────────────────
 // Get Order by ID
 // ─────────────────────────────────────────────
 

@@ -310,3 +310,108 @@ func updateOrderStatus(tx *gorm.DB, orderID uuid.UUID) error {
 
 	return tx.Model(&models.Order{}).Where("id = ?", orderID).Update("order_status", newStatus).Error
 }
+
+// ─────────────────────────────────────────────
+// Transaction History Report
+// ─────────────────────────────────────────────
+
+type TransactionHistoryDTO struct {
+	ID            string  `json:"id" example:"550e8400-e29b-41d4-a716-446655440001"`
+	TransactionNo string  `json:"transaction_no" example:"NF/WT/1/2026"`
+	PoNo          string  `json:"po_no" example:"P2152KPT22"`
+	CustomerName  string  `json:"customer_name" example:"PT.KIRANA PERMATA"`
+	AdminName     string  `json:"admin_name" example:"Admin - Dino"`
+	CreatedAt     string  `json:"created_at" example:"Nov 05, 2026 12:10"`
+	TotalAmount   float64 `json:"total_amount" example:"500000"`
+	PaymentStatus string  `json:"payment_status" example:"Partial"`
+}
+
+func GetTransactionHistory(search string, statusFilter string) ([]TransactionHistoryDTO, error) {
+	var orders []models.Order
+	query := config.DB.Preload("Items").
+		Preload("Shipments").
+		Preload("Shipments.Items").
+		Preload("Shipments.Invoice")
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("transaction_no ILIKE ? OR po_no ILIKE ?", searchTerm, searchTerm)
+	}
+
+	err := query.Order("created_at DESC").Find(&orders).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if len(orders) == 0 {
+		return []TransactionHistoryDTO{}, nil
+	}
+
+	var orderIDs []uuid.UUID
+	for _, o := range orders {
+		orderIDs = append(orderIDs, o.ID)
+	}
+
+	type auditUser struct {
+		ResourceID uuid.UUID
+		AdminName  string
+	}
+	var auditUsers []auditUser
+	config.DB.Table("audit_logs").
+		Select("audit_logs.resource_id, users.name as admin_name").
+		Joins("JOIN users ON users.id = audit_logs.user_id").
+		Where("audit_logs.action = ? AND audit_logs.table_name = ? AND audit_logs.resource_id IN ?", models.AuditActionCreate, "orders", orderIDs).
+		Scan(&auditUsers)
+
+	adminMap := make(map[uuid.UUID]string)
+	for _, au := range auditUsers {
+		adminMap[au.ResourceID] = au.AdminName
+	}
+
+	var results []TransactionHistoryDTO
+	statusFilterLower := strings.ToLower(strings.TrimSpace(statusFilter))
+
+	for _, o := range orders {
+		computeOrderPaymentInfo(&o)
+
+		if statusFilterLower != "" && statusFilterLower != "all" {
+			if strings.ToLower(string(o.PaymentStatus)) != statusFilterLower {
+				continue
+			}
+		}
+
+		adminName := adminMap[o.ID]
+		if adminName == "" {
+			adminName = "Unknown"
+		} else {
+			adminName = "Admin - " + adminName
+		}
+
+		createdAtFormatted := time.Time(o.CreatedAt).Local().Format("Jan 02, 2006 15:04")
+
+		statusFormatted := "Unpaid"
+		switch o.PaymentStatus {
+		case models.PaymentStatusPaid:
+			statusFormatted = "Paid"
+		case models.PaymentStatusPartial:
+			statusFormatted = "Partial"
+		}
+
+		results = append(results, TransactionHistoryDTO{
+			ID:            o.ID.String(),
+			TransactionNo: o.TransactionNo,
+			PoNo:          o.PoNo,
+			CustomerName:  o.RecipientName,
+			AdminName:     adminName,
+			CreatedAt:     createdAtFormatted,
+			TotalAmount:   o.TotalAmountToPay,
+			PaymentStatus: statusFormatted,
+		})
+	}
+
+	if results == nil {
+		results = []TransactionHistoryDTO{}
+	}
+
+	return results, nil
+}
