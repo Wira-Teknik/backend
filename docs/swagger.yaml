@@ -459,6 +459,112 @@ definitions:
         example: 1284
         type: integer
     type: object
+  services.DetailPaidDTO:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/services.RecapInvoiceItemDTO'
+        type: array
+      total_count:
+        example: 134
+        type: integer
+      total_paid:
+        example: 32400000
+        type: number
+    type: object
+  services.DetailPendapatanDTO:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/services.RecapInvoiceItemDTO'
+        type: array
+      total_pendapatan:
+        example: 45200000
+        type: number
+      total_pesanan_count:
+        example: 142
+        type: integer
+    type: object
+  services.DetailPesananDTO:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/services.RecapOrderItemDTO'
+        type: array
+      total_pesanan_amount:
+        example: 45200000
+        type: number
+      total_pesanan_count:
+        example: 142
+        type: integer
+    type: object
+  services.DetailUnpaidDTO:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/services.RecapInvoiceItemDTO'
+        type: array
+      total_count:
+        example: 8
+        type: integer
+      total_unpaid:
+        example: 12800000
+        type: number
+    type: object
+  services.RecapInvoiceItemDTO:
+    properties:
+      customer_name:
+        example: PT.KIRANA PERMATA
+        type: string
+      date:
+        example: Oct 21, 2026
+        type: string
+      payment_status:
+        example: Unpaid
+        type: string
+      po_no:
+        example: P2152KPT22
+        type: string
+      total_amount:
+        example: 1120000
+        type: number
+    type: object
+  services.RecapOrderItemDTO:
+    properties:
+      customer_name:
+        example: PT.KIRANA PERMATA
+        type: string
+      date:
+        example: Oct 23, 2026
+        type: string
+      order_status:
+        example: Pending
+        type: string
+      po_no:
+        example: P5537XJJ22
+        type: string
+      total_amount:
+        example: 2000000
+        type: number
+    type: object
+  services.RecapSummaryDTO:
+    properties:
+      lunas_percentage:
+        example: 71.6
+        type: number
+      total_paid:
+        example: 32400000
+        type: number
+      total_pendapatan:
+        example: 45200000
+        type: number
+      total_pesanan_count:
+        example: 142
+        type: integer
+      total_unpaid:
+        example: 12800000
+        type: number
+    type: object
   services.TransactionHistoryDTO:
     properties:
       admin_name:
@@ -1194,6 +1300,203 @@ paths:
       summary: Pratinjau nomor transaksi berikutnya
       tags:
       - Orders
+  /payment-recap:
+    get:
+      description: 'Menampilkan metrik ringkasan: Total Pendapatan, Total Pesanan,
+        Total Unpaid, Total Paid, dan persentase pelunasan piutang pada periode tertentu.'
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.RecapSummaryDTO'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ringkasan Rekapitulasi Pembayaran
+      tags:
+      - Payment Recap
+  /payment-recap/detail-paid:
+    get:
+      description: Menampilkan daftar invoice yang sudah lunas pada periode tertentu.
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen atau PO
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.DetailPaidDTO'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Detail Total Paid
+      tags:
+      - Payment Recap
+  /payment-recap/detail-pendapatan:
+    get:
+      description: Menampilkan daftar invoice berdasarkan periode dan filter status
+        pembayaran (all, paid, unpaid).
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen
+        in: query
+        name: search
+        type: string
+      - description: 'Filter status: all, paid, unpaid'
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.DetailPendapatanDTO'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Detail Total Pendapatan
+      tags:
+      - Payment Recap
+  /payment-recap/detail-pesanan:
+    get:
+      description: Menampilkan daftar pesanan berdasarkan periode dan filter status
+        (all, pending, partial, shipped, completed).
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen atau PO
+        in: query
+        name: search
+        type: string
+      - description: 'Filter status: all, pending, partial, shipped, completed'
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.DetailPesananDTO'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Detail Total Pesanan
+      tags:
+      - Payment Recap
+  /payment-recap/detail-unpaid:
+    get:
+      description: Menampilkan daftar invoice yang belum/sebagian lunas pada periode
+        tertentu.
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen atau PO
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.DetailUnpaidDTO'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Detail Total Unpaid
+      tags:
+      - Payment Recap
   /payments:
     get:
       description: Mengambil daftar semua pembayaran beserta detail alokasinya

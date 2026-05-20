@@ -67,4 +67,12 @@ func SetupRoutes(app *fiber.App) {
 	attachments := protected.Group("/attachments")
 	attachments.Get("/:relatedId", controllers.GetAttachments)
 	attachments.Post("/", controllers.UploadAttachment)
+
+	// Payment Recap routes
+	recap := protected.Group("/payment-recap")
+	recap.Get("/", controllers.GetPaymentRecapSummary)
+	recap.Get("/detail-pendapatan", controllers.GetDetailPendapatan)
+	recap.Get("/detail-pesanan", controllers.GetDetailPesanan)
+	recap.Get("/detail-unpaid", controllers.GetDetailUnpaid)
+	recap.Get("/detail-paid", controllers.GetDetailPaid)
 }

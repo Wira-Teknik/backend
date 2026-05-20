@@ -1134,6 +1134,333 @@ const docTemplate = `{
                 }
             }
         },
+        "/payment-recap": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menampilkan metrik ringkasan: Total Pendapatan, Total Pesanan, Total Unpaid, Total Paid, dan persentase pelunasan piutang pada periode tertentu.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Ringkasan Rekapitulasi Pembayaran",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.RecapSummaryDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-recap/detail-paid": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menampilkan daftar invoice yang sudah lunas pada periode tertentu.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Detail Total Paid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen atau PO",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.DetailPaidDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-recap/detail-pendapatan": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menampilkan daftar invoice berdasarkan periode dan filter status pembayaran (all, paid, unpaid).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Detail Total Pendapatan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status: all, paid, unpaid",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.DetailPendapatanDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-recap/detail-pesanan": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menampilkan daftar pesanan berdasarkan periode dan filter status (all, pending, partial, shipped, completed).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Detail Total Pesanan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen atau PO",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status: all, pending, partial, shipped, completed",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.DetailPesananDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-recap/detail-unpaid": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menampilkan daftar invoice yang belum/sebagian lunas pada periode tertentu.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Detail Total Unpaid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen atau PO",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.DetailUnpaidDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/payments": {
             "get": {
                 "security": [
@@ -2245,6 +2572,157 @@ const docTemplate = `{
                 "total_pesanan_count": {
                     "type": "integer",
                     "example": 1284
+                }
+            }
+        },
+        "services.DetailPaidDTO": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.RecapInvoiceItemDTO"
+                    }
+                },
+                "total_count": {
+                    "type": "integer",
+                    "example": 134
+                },
+                "total_paid": {
+                    "type": "number",
+                    "example": 32400000
+                }
+            }
+        },
+        "services.DetailPendapatanDTO": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.RecapInvoiceItemDTO"
+                    }
+                },
+                "total_pendapatan": {
+                    "type": "number",
+                    "example": 45200000
+                },
+                "total_pesanan_count": {
+                    "type": "integer",
+                    "example": 142
+                }
+            }
+        },
+        "services.DetailPesananDTO": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.RecapOrderItemDTO"
+                    }
+                },
+                "total_pesanan_amount": {
+                    "type": "number",
+                    "example": 45200000
+                },
+                "total_pesanan_count": {
+                    "type": "integer",
+                    "example": 142
+                }
+            }
+        },
+        "services.DetailUnpaidDTO": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.RecapInvoiceItemDTO"
+                    }
+                },
+                "total_count": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "total_unpaid": {
+                    "type": "number",
+                    "example": 12800000
+                }
+            }
+        },
+        "services.RecapInvoiceItemDTO": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string",
+                    "example": "PT.KIRANA PERMATA"
+                },
+                "date": {
+                    "type": "string",
+                    "example": "Oct 21, 2026"
+                },
+                "payment_status": {
+                    "type": "string",
+                    "example": "Unpaid"
+                },
+                "po_no": {
+                    "type": "string",
+                    "example": "P2152KPT22"
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 1120000
+                }
+            }
+        },
+        "services.RecapOrderItemDTO": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string",
+                    "example": "PT.KIRANA PERMATA"
+                },
+                "date": {
+                    "type": "string",
+                    "example": "Oct 23, 2026"
+                },
+                "order_status": {
+                    "type": "string",
+                    "example": "Pending"
+                },
+                "po_no": {
+                    "type": "string",
+                    "example": "P5537XJJ22"
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 2000000
+                }
+            }
+        },
+        "services.RecapSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "lunas_percentage": {
+                    "type": "number",
+                    "example": 71.6
+                },
+                "total_paid": {
+                    "type": "number",
+                    "example": 32400000
+                },
+                "total_pendapatan": {
+                    "type": "number",
+                    "example": 45200000
+                },
+                "total_pesanan_count": {
+                    "type": "integer",
+                    "example": 142
+                },
+                "total_unpaid": {
+                    "type": "number",
+                    "example": 12800000
                 }
             }
         },
