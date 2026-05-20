@@ -612,6 +612,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil agregasi metrik untuk keperluan halaman Dashboard (mendukung format untuk Admin maupun Owner).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Ambil Metrik Dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.DashboardResponseDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/invoices": {
             "get": {
                 "security": [
@@ -2142,6 +2185,66 @@ const docTemplate = `{
                 },
                 "total_tagihan": {
                     "type": "number"
+                }
+            }
+        },
+        "services.DashboardActivityDTO": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string",
+                    "example": "Oct 23, 2026"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Pesanan P2397DJJ22 dikirim"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Pengiriman Terkonfirmasi"
+                }
+            }
+        },
+        "services.DashboardResponseDTO": {
+            "type": "object",
+            "properties": {
+                "aktivitas_terakhir": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.DashboardActivityDTO"
+                    }
+                },
+                "belum_bayar_amount": {
+                    "type": "number",
+                    "example": 12300000
+                },
+                "belum_bayar_count": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "dikirim_count": {
+                    "type": "integer",
+                    "example": 42
+                },
+                "pengiriman_berlangsung_count": {
+                    "type": "integer",
+                    "example": 142
+                },
+                "pengiriman_selesai_count": {
+                    "type": "integer",
+                    "example": 1204
+                },
+                "pesanan_diproses_count": {
+                    "type": "integer",
+                    "example": 28
+                },
+                "pesanan_selesai_count": {
+                    "type": "integer",
+                    "example": 1156
+                },
+                "total_pesanan_count": {
+                    "type": "integer",
+                    "example": 1284
                 }
             }
         },

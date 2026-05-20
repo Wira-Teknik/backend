@@ -22,6 +22,9 @@ func SetupRoutes(app *fiber.App) {
 	// ─── Protected routes ────────────────────────
 	protected := api.Group("", middlewares.RequireAuth)
 
+	// Dashboard route
+	protected.Get("/dashboard", controllers.GetDashboard)
+
 	// Customer routes
 	customers := protected.Group("/customers")
 	customers.Get("/", controllers.GetAllCustomers)

@@ -416,6 +416,49 @@ definitions:
       total_tagihan:
         type: number
     type: object
+  services.DashboardActivityDTO:
+    properties:
+      date:
+        example: Oct 23, 2026
+        type: string
+      description:
+        example: Pesanan P2397DJJ22 dikirim
+        type: string
+      title:
+        example: Pengiriman Terkonfirmasi
+        type: string
+    type: object
+  services.DashboardResponseDTO:
+    properties:
+      aktivitas_terakhir:
+        items:
+          $ref: '#/definitions/services.DashboardActivityDTO'
+        type: array
+      belum_bayar_amount:
+        example: 12300000
+        type: number
+      belum_bayar_count:
+        example: 8
+        type: integer
+      dikirim_count:
+        example: 42
+        type: integer
+      pengiriman_berlangsung_count:
+        example: 142
+        type: integer
+      pengiriman_selesai_count:
+        example: 1204
+        type: integer
+      pesanan_diproses_count:
+        example: 28
+        type: integer
+      pesanan_selesai_count:
+        example: 1156
+        type: integer
+      total_pesanan_count:
+        example: 1284
+        type: integer
+    type: object
   services.TransactionHistoryDTO:
     properties:
       admin_name:
@@ -845,6 +888,31 @@ paths:
       summary: Update data customer
       tags:
       - Customers
+  /dashboard:
+    get:
+      description: Mengambil agregasi metrik untuk keperluan halaman Dashboard (mendukung
+        format untuk Admin maupun Owner).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.DashboardResponseDTO'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil Metrik Dashboard
+      tags:
+      - Dashboard
   /invoices:
     get:
       description: Mengambil daftar semua invoice. Invoice otomatis dibuat saat pengiriman
