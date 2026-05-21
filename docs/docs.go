@@ -149,6 +149,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/audit": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar log audit aktivitas admin. Khusus untuk role owner.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audits"
+                ],
+                "summary": "Ambil audit logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cari nama admin",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/services.AuditLogDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/forgot-password/request": {
             "post": {
                 "description": "Mengirim kode OTP 6 digit ke email pengguna. OTP berlaku 15 menit. Response selalu sukses meski email tidak ditemukan (mencegah user enumeration).",
@@ -2471,6 +2525,29 @@ const docTemplate = `{
                 "RoleAdmin",
                 "RoleOwner"
             ]
+        },
+        "services.AuditLogDTO": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "action_raw": {
+                    "type": "string"
+                },
+                "admin_name": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
         },
         "services.CustomerInput": {
             "type": "object",

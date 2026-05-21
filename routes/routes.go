@@ -75,4 +75,8 @@ func SetupRoutes(app *fiber.App) {
 	recap.Get("/detail-pesanan", controllers.GetDetailPesanan)
 	recap.Get("/detail-unpaid", controllers.GetDetailUnpaid)
 	recap.Get("/detail-paid", controllers.GetDetailPaid)
+
+	// Audit routes (Owner only)
+	audit := protected.Group("/audit", middlewares.RequireRole("owner"))
+	audit.Get("/", controllers.GetAuditLogs)
 }

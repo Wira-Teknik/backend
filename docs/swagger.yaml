@@ -375,6 +375,21 @@ definitions:
     x-enum-varnames:
     - RoleAdmin
     - RoleOwner
+  services.AuditLogDTO:
+    properties:
+      action:
+        type: string
+      action_raw:
+        type: string
+      admin_name:
+        type: string
+      date:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+    type: object
   services.CustomerInput:
     properties:
       customer_address:
@@ -693,6 +708,37 @@ paths:
       summary: Ambil semua lampiran berdasarkan related ID
       tags:
       - Attachments
+  /audit:
+    get:
+      description: Mengambil daftar log audit aktivitas admin. Khusus untuk role owner.
+      parameters:
+      - description: Cari nama admin
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/services.AuditLogDTO'
+                  type: array
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil audit logs
+      tags:
+      - Audits
   /auth/forgot-password/request:
     post:
       consumes:
