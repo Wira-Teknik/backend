@@ -1508,7 +1508,7 @@ const docTemplate = `{
                 ],
                 "description": "Membuat pembayaran baru dengan alokasi otomatis berdasarkan daftar Order ID dari tagihan yang terlama. File bukti bayar dapat diunggah secara terpisah melalui API Attachments.",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1519,13 +1519,32 @@ const docTemplate = `{
                 "summary": "Buat pembayaran baru",
                 "parameters": [
                     {
-                        "description": "Data pembayaran",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CreatePaymentRequest"
-                        }
+                        "type": "string",
+                        "description": "Payment Date (YYYY-MM-DD)",
+                        "name": "payment_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Total transfer amount (untuk auto-allocation via order_id)",
+                        "name": "payment_total",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JSON string of array of details e.g. [{'order_id':'...'}]",
+                        "name": "details",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File Bukti Pembayaran",
+                        "name": "bukti_bayar",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1949,25 +1968,6 @@ const docTemplate = `{
                 }
             }
         },
-        "controllers.CreatePaymentRequest": {
-            "type": "object",
-            "properties": {
-                "details": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/controllers.PaymentDetailRequest"
-                    }
-                },
-                "payment_date": {
-                    "type": "string",
-                    "example": "2026-05-15"
-                },
-                "payment_total": {
-                    "type": "number",
-                    "example": 10000000
-                }
-            }
-        },
         "controllers.ForgotStep1Request": {
             "type": "object",
             "properties": {
@@ -2046,15 +2046,6 @@ const docTemplate = `{
                 "unit_price": {
                     "type": "number",
                     "example": 75000
-                }
-            }
-        },
-        "controllers.PaymentDetailRequest": {
-            "type": "object",
-            "properties": {
-                "order_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440001"
                 }
             }
         },

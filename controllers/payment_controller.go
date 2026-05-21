@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"encoding/json"
+	"strconv"
 	"teknik/services"
 	"teknik/utils"
 
@@ -96,17 +98,38 @@ func GetPayment(c *fiber.Ctx) error {
 // @Summary      Buat pembayaran baru
 // @Description  Membuat pembayaran baru dengan alokasi otomatis berdasarkan daftar Order ID dari tagihan yang terlama. File bukti bayar dapat diunggah secara terpisah melalui API Attachments.
 // @Tags         Payments
-// @Accept       json
+// @Accept       multipart/form-data
 // @Produce      json
-// @Param        body  body      CreatePaymentRequest  true  "Data pembayaran"
+// @Param        payment_date  formData  string  true  "Payment Date (YYYY-MM-DD)"
+// @Param        payment_total formData  number  true  "Total transfer amount (untuk auto-allocation via order_id)"
+// @Param        details       formData  string  true  "JSON string of array of details e.g. [{'order_id':'...'}]"
+// @Param        bukti_bayar   formData  file    true  "File Bukti Pembayaran"
 // @Success      201   {object}  utils.Response{data=models.Payment}
 // @Failure      400   {object}  utils.Response
 // @Router       /payments [post]
 // @Security     BearerAuth
 func CreatePayment(c *fiber.Ctx) error {
-	var req CreatePaymentRequest
-	if err := c.BodyParser(&req); err != nil {
-		return utils.JSONError(c, fiber.StatusBadRequest, "Format request tidak valid")
+	paymentDate := c.FormValue("payment_date")
+	detailsJSON := c.FormValue("details")
+	paymentTotalStr := c.FormValue("payment_total")
+
+	var detailsPayload []PaymentDetailRequest
+	if detailsJSON != "" {
+		if err := json.Unmarshal([]byte(detailsJSON), &detailsPayload); err != nil {
+			return utils.JSONError(c, fiber.StatusBadRequest, "Format details tidak valid. Harus berupa array JSON.")
+		}
+	} else {
+		return utils.JSONError(c, fiber.StatusBadRequest, "Details pembayaran tidak boleh kosong")
+	}
+
+	paymentTotal, errTotal := strconv.ParseFloat(paymentTotalStr, 64)
+	if errTotal != nil || paymentTotal <= 0 {
+		return utils.JSONError(c, fiber.StatusBadRequest, "Total pembayaran harus berupa angka valid dan lebih dari 0")
+	}
+
+	buktiBayar, errBukti := c.FormFile("bukti_bayar")
+	if errBukti != nil || buktiBayar == nil {
+		return utils.JSONError(c, fiber.StatusBadRequest, "File Bukti Pembayaran wajib dilampirkan")
 	}
 
 	userID, err := services.ParseUserID(c.Locals("userID").(string))
@@ -115,21 +138,24 @@ func CreatePayment(c *fiber.Ctx) error {
 	}
 
 	var orderIDs []string
-	for _, detail := range req.Details {
+	for _, detail := range detailsPayload {
 		if detail.OrderID != "" {
 			orderIDs = append(orderIDs, detail.OrderID)
 		}
 	}
 
 	payment, err := services.CreatePayment(services.CreatePaymentInput{
-		PaymentDate:  req.PaymentDate,
-		PaymentTotal: req.PaymentTotal,
+		PaymentDate:  paymentDate,
+		PaymentTotal: paymentTotal,
 		OrderIDs:     orderIDs,
 	}, userID)
 
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
+
+	// Upload file bukti_bayar
+	services.UploadAttachment(buktiBayar, payment.ID.String(), "payment_proof", userID)
 
 	return utils.JSONCreated(c, "Pembayaran berhasil dicatat", payment)
 }
