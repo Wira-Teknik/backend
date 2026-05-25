@@ -102,7 +102,7 @@ func GetPayment(c *fiber.Ctx) error {
 // @Produce      json
 // @Param        payment_date  formData  string  true  "Payment Date (YYYY-MM-DD)"
 // @Param        payment_total formData  number  true  "Total transfer amount (untuk auto-allocation via order_id)"
-// @Param        details       formData  string  true  "JSON string of array of details e.g. [{'order_id':'...'}]"
+// @Param        details       formData  string  true  "JSON string of array of details e.g. [ { ''order_id'': ''uuid'' } ] (NOTE: Ganti '' dengan tanda kutip dua)"
 // @Param        bukti_bayar   formData  file    true  "File Bukti Pembayaran"
 // @Success      201   {object}  utils.Response{data=models.Payment}
 // @Failure      400   {object}  utils.Response

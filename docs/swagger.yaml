@@ -1563,7 +1563,8 @@ paths:
         name: payment_total
         required: true
         type: number
-      - description: JSON string of array of details e.g. [{'order_id':'...'}]
+      - description: 'JSON string of array of details e.g. [ { ''''order_id'''': ''''uuid''''
+          } ] (NOTE: Ganti '''' dengan tanda kutip dua)'
         in: formData
         name: details
         required: true

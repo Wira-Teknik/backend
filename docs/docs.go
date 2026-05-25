@@ -1588,7 +1588,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "JSON string of array of details e.g. [{'order_id':'...'}]",
+                        "description": "JSON string of array of details e.g. [ { ''order_id'': ''uuid'' } ] (NOTE: Ganti '' dengan tanda kutip dua)",
                         "name": "details",
                         "in": "formData",
                         "required": true
