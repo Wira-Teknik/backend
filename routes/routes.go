@@ -62,6 +62,7 @@ func SetupRoutes(app *fiber.App) {
 	payments.Get("/search-customer", controllers.SearchCustomerPayments)
 	payments.Get("/:id", controllers.GetPayment)
 	payments.Post("/", controllers.CreatePayment)
+	payments.Put("/:id", controllers.UpdatePaymentTotal)
 
 	// Attachment routes
 	attachments := protected.Group("/attachments")

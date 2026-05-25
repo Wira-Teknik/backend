@@ -120,6 +120,12 @@ definitions:
         example: "081234567890"
         type: string
     type: object
+  controllers.UpdatePaymentTotalRequest:
+    properties:
+      payment_total:
+        example: 7500000
+        type: number
+    type: object
   controllers.VerifyTokenData:
     properties:
       token:
@@ -1623,6 +1629,49 @@ paths:
       security:
       - BearerAuth: []
       summary: Ambil detail pembayaran
+      tags:
+      - Payments
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui jumlah total pembayaran (payment_total) dan secara
+        otomatis mengalokasikan ulang sisa saldo ke invoice yang bersangkutan secara
+        kronologis.
+      parameters:
+      - description: Payment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Request Body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdatePaymentTotalRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Payment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Edit total pembayaran
       tags:
       - Payments
   /payments/search-customer:
