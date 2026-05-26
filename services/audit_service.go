@@ -67,7 +67,7 @@ func GetAuditLogs(searchAdminName string) ([]AuditLogDTO, error) {
 	var logs []models.AuditLog
 
 	query := config.DB.Preload("User").
-		Joins("LEFT JOIN users ON users.id = audit_logs.user_id").
+		Joins("LEFT JOIN users ON users.id = audit_logs.user_id AND users.deleted_at IS NULL").
 		Order("audit_logs.created_at DESC")
 
 	if searchAdminName != "" {
@@ -78,7 +78,7 @@ func GetAuditLogs(searchAdminName string) ([]AuditLogDTO, error) {
 		return nil, err
 	}
 
-	var dtos []AuditLogDTO
+	dtos := []AuditLogDTO{}
 	for _, logVal := range logs {
 		adminName := "Unknown Admin"
 		if logVal.User.ID != uuid.Nil {
