@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -13,6 +14,12 @@ import (
 	"teknik/models"
 
 	"github.com/google/uuid"
+)
+
+// Sentinel errors for Attachment service
+var (
+	ErrAttachmentInvalidRelatedID = errors.New("ID resource terkait tidak valid")
+	ErrAttachmentInvalidCategory  = errors.New("kategori lampiran tidak valid")
 )
 
 // ─────────────────────────────────────────────
@@ -55,10 +62,17 @@ var extToFileType = map[string]models.FileType{
 // ─────────────────────────────────────────────
 
 func GetAttachmentsByRelatedID(relatedID string) ([]models.Attachment, error) {
+	if _, err := uuid.Parse(relatedID); err != nil {
+		return nil, ErrAttachmentInvalidRelatedID
+	}
+
 	var attachments []models.Attachment
 	err := config.DB.Where("related_id = ?", relatedID).
 		Order("created_at DESC").
 		Find(&attachments).Error
+	if attachments == nil {
+		attachments = []models.Attachment{}
+	}
 	return attachments, err
 }
 
@@ -70,12 +84,12 @@ func UploadAttachment(file *multipart.FileHeader, relatedID, category string, us
 	// Validasi related_id
 	relID, err := uuid.Parse(relatedID)
 	if err != nil {
-		return models.Attachment{}, fmt.Errorf("related ID tidak valid")
+		return models.Attachment{}, ErrAttachmentInvalidRelatedID
 	}
 
 	// Validasi category
 	if !allowedCategories[category] {
-		return models.Attachment{}, fmt.Errorf("kategori tidak valid")
+		return models.Attachment{}, ErrAttachmentInvalidCategory
 	}
 
 	// Deteksi file type dari ekstensi

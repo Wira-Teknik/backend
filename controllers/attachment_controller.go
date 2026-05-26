@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"errors"
+
 	"teknik/services"
 	"teknik/utils"
 
@@ -24,6 +26,9 @@ func GetAttachments(c *fiber.Ctx) error {
 	relatedID := c.Params("relatedId")
 	attachments, err := services.GetAttachmentsByRelatedID(relatedID)
 	if err != nil {
+		if errors.Is(err, services.ErrAttachmentInvalidRelatedID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data lampiran")
 	}
 	return utils.JSONSuccess(c, "Data lampiran berhasil diambil", attachments)
@@ -62,6 +67,9 @@ func UploadAttachment(c *fiber.Ctx) error {
 
 	attachment, err := services.UploadAttachment(file, relatedID, category, userID)
 	if err != nil {
+		if errors.Is(err, services.ErrAttachmentInvalidRelatedID) || errors.Is(err, services.ErrAttachmentInvalidCategory) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
