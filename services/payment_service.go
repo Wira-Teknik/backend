@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,13 @@ import (
 	"teknik/utils"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// Sentinel errors for Payment service
+var (
+	ErrPaymentInvalidUUID = errors.New("ID pembayaran tidak valid")
+	ErrPaymentNotFound    = errors.New("pembayaran tidak ditemukan")
 )
 
 // ─────────────────────────────────────────────
@@ -99,15 +107,17 @@ func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
 			Order("payments.payment_date ASC, payments.created_at ASC").
 			Find(&payments).Error
 
-		if err == nil {
-			for _, p := range payments {
-				addedToOrder := make(map[int]bool)
-				for _, detail := range p.Details {
-					if orderIdx, exists := invoiceToOrderMap[detail.InvoiceID]; exists {
-						if !addedToOrder[orderIdx] {
-							orders[orderIdx].Payments = append(orders[orderIdx].Payments, p)
-							addedToOrder[orderIdx] = true
-						}
+		if err != nil {
+			return nil, err
+		}
+
+		for _, p := range payments {
+			addedToOrder := make(map[int]bool)
+			for _, detail := range p.Details {
+				if orderIdx, exists := invoiceToOrderMap[detail.InvoiceID]; exists {
+					if !addedToOrder[orderIdx] {
+						orders[orderIdx].Payments = append(orders[orderIdx].Payments, p)
+						addedToOrder[orderIdx] = true
 					}
 				}
 			}
@@ -153,10 +163,20 @@ func GetAllPayments() ([]models.Payment, error) {
 // ─────────────────────────────────────────────
 
 func GetPaymentByID(id string) (models.Payment, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return models.Payment{}, ErrPaymentInvalidUUID
+	}
+
 	var payment models.Payment
 	err := config.DB.Preload("Details").
 		First(&payment, "id = ?", id).Error
-	return payment, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Payment{}, ErrPaymentNotFound
+		}
+		return models.Payment{}, err
+	}
+	return payment, nil
 }
 
 // ─────────────────────────────────────────────
@@ -182,12 +202,22 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 		return models.Payment{}, fmt.Errorf("format tanggal tidak valid (gunakan YYYY-MM-DD)")
 	}
 
+	// Validasi dan parsing semua OrderIDs ke UUID untuk mencegah PostgreSQL parsing crash
+	var parsedOrderIDs []uuid.UUID
+	for _, idStr := range input.OrderIDs {
+		parsedID, err := uuid.Parse(idStr)
+		if err != nil {
+			return models.Payment{}, fmt.Errorf("ID order %s tidak valid", idStr)
+		}
+		parsedOrderIDs = append(parsedOrderIDs, parsedID)
+	}
+
 	// 1. Ambil semua invoice terkait order_ids yang belum lunas
 	var invoices []models.Invoice
 
 	// Join melalui shipment. Order -> Shipment -> Invoice.
 	err = config.DB.Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
-		Where("shipments.order_id IN ? AND invoices.payment_status != ?", input.OrderIDs, models.PaymentStatusPaid).
+		Where("shipments.order_id IN ? AND invoices.payment_status != ?", parsedOrderIDs, models.PaymentStatusPaid).
 		Order("invoices.created_at ASC"). // urutkan yang paling lama dahulu
 		Find(&invoices).Error
 
@@ -298,7 +328,7 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID) (models.Payment, error) {
 	paymentID, err := uuid.Parse(paymentIDStr)
 	if err != nil {
-		return models.Payment{}, fmt.Errorf("ID pembayaran tidak valid")
+		return models.Payment{}, ErrPaymentInvalidUUID
 	}
 
 	if newTotal <= 0 {
@@ -542,17 +572,19 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 			Order("payments.payment_date ASC, payments.created_at ASC").
 			Find(&payments).Error
 
-		if err == nil {
-			for _, p := range payments {
-				for _, detail := range p.Details {
-					if orderIdx, exists := invoiceToOrderIndexMap[detail.InvoiceID]; exists {
-						// Tambah ke riwayat pembayaran order yang sesuai
-						orderDTOs[orderIdx].Payments = append(orderDTOs[orderIdx].Payments, OrderPaymentDTO{
-							PaymentID:       p.ID,
-							PaymentDate:     p.PaymentDate,
-							AllocatedAmount: detail.AllocatedAmount,
-						})
-					}
+		if err != nil {
+			return CustomerPaymentDetailResponse{}, err
+		}
+
+		for _, p := range payments {
+			for _, detail := range p.Details {
+				if orderIdx, exists := invoiceToOrderIndexMap[detail.InvoiceID]; exists {
+					// Tambah ke riwayat pembayaran order yang sesuai
+					orderDTOs[orderIdx].Payments = append(orderDTOs[orderIdx].Payments, OrderPaymentDTO{
+						PaymentID:       p.ID,
+						PaymentDate:     p.PaymentDate,
+						AllocatedAmount: detail.AllocatedAmount,
+					})
 				}
 			}
 		}

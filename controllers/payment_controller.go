@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/url"
 	"strconv"
 	"teknik/services"
@@ -71,7 +72,13 @@ func GetPayment(c *fiber.Ctx) error {
 	id := c.Params("id")
 	payment, err := services.GetPaymentByID(id)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusNotFound, "Pembayaran tidak ditemukan")
+		if errors.Is(err, services.ErrPaymentInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrPaymentNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail pembayaran")
 	}
 	return utils.JSONSuccess(c, "Detail pembayaran berhasil diambil", payment)
 }
@@ -181,6 +188,12 @@ func UpdatePaymentTotal(c *fiber.Ctx) error {
 
 	payment, err := services.UpdatePaymentTotal(id, req.PaymentTotal, userID)
 	if err != nil {
+		if errors.Is(err, services.ErrPaymentInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrPaymentNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
@@ -221,5 +234,3 @@ func GetCustomerPaymentDetail(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, "Detail pembayaran customer berhasil diambil", detail)
 }
-
-
