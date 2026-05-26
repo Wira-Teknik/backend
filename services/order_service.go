@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -12,6 +13,13 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+)
+
+// Sentinel errors for Order service
+var (
+	ErrOrderInvalidUUID            = errors.New("ID pesanan tidak valid")
+	ErrOrderNotFound               = errors.New("pesanan tidak ditemukan")
+	ErrOrderDuplicateTransactionNo = errors.New("nomor transaksi sudah terdaftar")
 )
 
 // ─────────────────────────────────────────────
@@ -133,6 +141,10 @@ func GetAllOrders() ([]models.Order, error) {
 // ─────────────────────────────────────────────
 
 func GetOrderByID(id string) (models.Order, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return models.Order{}, ErrOrderInvalidUUID
+	}
+
 	var order models.Order
 	err := config.DB.Preload("Items").
 		Preload("Shipments").
@@ -140,10 +152,15 @@ func GetOrderByID(id string) (models.Order, error) {
 		Preload("Shipments.Invoice").
 		First(&order, "id = ?", id).Error
 
-	if err == nil {
-		computeOrderPaymentInfo(&order)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Order{}, ErrOrderNotFound
+		}
+		return models.Order{}, err
 	}
-	return order, err
+
+	computeOrderPaymentInfo(&order)
+	return order, nil
 }
 
 // ─────────────────────────────────────────────
@@ -153,6 +170,9 @@ func GetOrderByID(id string) (models.Order, error) {
 func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error) {
 	input.RecipientName = strings.TrimSpace(input.RecipientName)
 	input.TransactionNo = strings.TrimSpace(input.TransactionNo)
+	input.RecipientPhone = strings.TrimSpace(input.RecipientPhone)
+	input.RecipientAddress = strings.TrimSpace(input.RecipientAddress)
+	input.RecipientEmail = strings.TrimSpace(strings.ToLower(input.RecipientEmail))
 
 	if input.TransactionNo == "" {
 		return models.Order{}, fmt.Errorf("nomor transaksi tidak boleh kosong")
@@ -162,6 +182,19 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 	}
 	if len(input.Items) == 0 {
 		return models.Order{}, fmt.Errorf("pesanan harus memiliki minimal 1 item")
+	}
+
+	if input.RecipientEmail != "" && !utils.IsValidEmail(input.RecipientEmail) {
+		return models.Order{}, fmt.Errorf("format email penerima tidak valid")
+	}
+
+	// Cek preemptif apakah nomor transaksi sudah terdaftar
+	var count int64
+	if err := config.DB.Model(&models.Order{}).Where("transaction_no = ?", input.TransactionNo).Count(&count).Error; err != nil {
+		return models.Order{}, err
+	}
+	if count > 0 {
+		return models.Order{}, ErrOrderDuplicateTransactionNo
 	}
 
 	orderDate, err := time.Parse("2006-01-02", input.OrderDate)
@@ -204,9 +237,9 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 		PoNo:             strings.TrimSpace(input.PoNo),
 		OrderDate:        utils.JSONDate(orderDate),
 		RecipientName:    input.RecipientName,
-		RecipientAddress: strings.TrimSpace(input.RecipientAddress),
-		RecipientPhone:   strings.TrimSpace(input.RecipientPhone),
-		RecipientEmail:   strings.TrimSpace(input.RecipientEmail),
+		RecipientAddress: input.RecipientAddress,
+		RecipientPhone:   input.RecipientPhone,
+		RecipientEmail:   input.RecipientEmail,
 		OrderStatus:      models.OrderStatusPending,
 		Items:            items,
 	}
@@ -228,20 +261,30 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 func UpdateOrder(id string, input UpdateOrderInput, userID uuid.UUID) (models.Order, error) {
 	order, err := GetOrderByID(id)
 	if err != nil {
-		return models.Order{}, fmt.Errorf("pesanan tidak ditemukan")
+		return models.Order{}, err
 	}
 
 	if order.OrderStatus != models.OrderStatusPending {
 		return models.Order{}, fmt.Errorf("pesanan yang sudah diproses tidak dapat diubah")
 	}
 
+	input.RecipientName = strings.TrimSpace(input.RecipientName)
+	if input.RecipientName == "" {
+		return models.Order{}, fmt.Errorf("nama penerima tidak boleh kosong")
+	}
+
+	input.RecipientEmail = strings.TrimSpace(strings.ToLower(input.RecipientEmail))
+	if input.RecipientEmail != "" && !utils.IsValidEmail(input.RecipientEmail) {
+		return models.Order{}, fmt.Errorf("format email penerima tidak valid")
+	}
+
 	oldOrder := order // snapshot untuk audit
 
 	order.PoNo = strings.TrimSpace(input.PoNo)
-	order.RecipientName = strings.TrimSpace(input.RecipientName)
+	order.RecipientName = input.RecipientName
 	order.RecipientAddress = strings.TrimSpace(input.RecipientAddress)
 	order.RecipientPhone = strings.TrimSpace(input.RecipientPhone)
-	order.RecipientEmail = strings.TrimSpace(input.RecipientEmail)
+	order.RecipientEmail = input.RecipientEmail
 
 	if err := config.DB.Save(&order).Error; err != nil {
 		return models.Order{}, fmt.Errorf("gagal mengupdate pesanan")
@@ -259,7 +302,7 @@ func UpdateOrder(id string, input UpdateOrderInput, userID uuid.UUID) (models.Or
 func DeleteOrder(id string, userID uuid.UUID) error {
 	order, err := GetOrderByID(id)
 	if err != nil {
-		return fmt.Errorf("pesanan tidak ditemukan")
+		return err
 	}
 
 	if order.OrderStatus != models.OrderStatusPending {
@@ -357,11 +400,13 @@ func GetTransactionHistory(search string, statusFilter string) ([]TransactionHis
 		AdminName  string
 	}
 	var auditUsers []auditUser
-	config.DB.Table("audit_logs").
+	if err := config.DB.Table("audit_logs").
 		Select("audit_logs.resource_id, users.name as admin_name").
-		Joins("JOIN users ON users.id = audit_logs.user_id").
+		Joins("JOIN users ON users.id = audit_logs.user_id AND users.deleted_at IS NULL").
 		Where("audit_logs.action = ? AND audit_logs.table_name = ? AND audit_logs.resource_id IN ?", models.AuditActionCreate, "orders", orderIDs).
-		Scan(&auditUsers)
+		Scan(&auditUsers).Error; err != nil {
+		return nil, err
+	}
 
 	adminMap := make(map[uuid.UUID]string)
 	for _, au := range auditUsers {

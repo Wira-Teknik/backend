@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"errors"
+
 	"teknik/services"
 	"teknik/utils"
 
@@ -95,14 +97,20 @@ func GetTransactionHistory(c *fiber.Ctx) error {
 // @Param        id   path      string  true  "Order ID"
 // @Produce      json
 // @Success      200  {object}  utils.Response{data=models.Order}
-// @Failure      404  {object}  utils.Response
+// @Failure      440  {object}  utils.Response
 // @Router       /orders/{id} [get]
 // @Security     BearerAuth
 func GetOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
 	order, err := services.GetOrderByID(id)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusNotFound, "Pesanan tidak ditemukan")
+		if errors.Is(err, services.ErrOrderInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrOrderNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail pesanan")
 	}
 	return utils.JSONSuccess(c, "Detail pesanan berhasil diambil", order)
 }
@@ -173,6 +181,9 @@ func CreateOrder(c *fiber.Ctx) error {
 		Items:            items,
 	}, userID)
 	if err != nil {
+		if errors.Is(err, services.ErrOrderDuplicateTransactionNo) {
+			return utils.JSONError(c, fiber.StatusConflict, err.Error()) // 409 Conflict
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
@@ -215,6 +226,12 @@ func UpdateOrder(c *fiber.Ctx) error {
 		RecipientEmail:   req.RecipientEmail,
 	}, userID)
 	if err != nil {
+		if errors.Is(err, services.ErrOrderInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrOrderNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
@@ -243,6 +260,12 @@ func DeleteOrder(c *fiber.Ctx) error {
 	}
 
 	if err := services.DeleteOrder(id, userID); err != nil {
+		if errors.Is(err, services.ErrOrderInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrOrderNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
