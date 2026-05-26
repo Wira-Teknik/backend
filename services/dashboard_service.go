@@ -38,51 +38,78 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 	var resp DashboardResponseDTO
 
 	// 1. Total Pesanan
-	config.DB.Model(&models.Order{}).Count(&resp.TotalPesananCount)
+	if err := config.DB.Model(&models.Order{}).Count(&resp.TotalPesananCount).Error; err != nil {
+		return resp, err
+	}
 
 	// 2. Pesanan Selesai
-	config.DB.Model(&models.Order{}).Where("order_status = ?", models.OrderStatusCompleted).Count(&resp.PesananSelesaiCount)
+	if err := config.DB.Model(&models.Order{}).Where("order_status = ?", models.OrderStatusCompleted).Count(&resp.PesananSelesaiCount).Error; err != nil {
+		return resp, err
+	}
 
-	// 3. Pesanan Di Proses (Pending + Partial)
-	config.DB.Model(&models.Order{}).Where("order_status IN ?", []models.OrderStatus{models.OrderStatusPending, models.OrderStatusPartial}).Count(&resp.PesananDiprosesCount)
+	// 3. Pesanan Di Proses (Pending + Partial + Shipped)
+	if err := config.DB.Model(&models.Order{}).Where("order_status IN ?", []models.OrderStatus{models.OrderStatusPending, models.OrderStatusPartial, models.OrderStatusShipped}).Count(&resp.PesananDiprosesCount).Error; err != nil {
+		return resp, err
+	}
 
 	// 4. Pengiriman Berlangsung / Dikirim
-	config.DB.Model(&models.Shipment{}).Where("shipping_status = ?", models.ShippingStatusDikirim).Count(&resp.DikirimCount)
+	if err := config.DB.Model(&models.Shipment{}).Where("shipping_status = ?", models.ShippingStatusDikirim).Count(&resp.DikirimCount).Error; err != nil {
+		return resp, err
+	}
 	resp.PengirimanBerlangsungCount = resp.DikirimCount
 
 	// 5. Pengiriman Selesai
-	config.DB.Model(&models.Shipment{}).Where("shipping_status = ?", models.ShippingStatusDiterima).Count(&resp.PengirimanSelesaiCount)
-
-	// 6. Belum Bayar (Amount & Count)
-	var unpaidInvoices []models.Invoice
-	config.DB.Where("payment_status IN ?", []models.PaymentStatus{models.PaymentStatusUnpaid, models.PaymentStatusPartial}).Find(&unpaidInvoices)
-
-	resp.BelumBayarCount = int64(len(unpaidInvoices))
-	for _, inv := range unpaidInvoices {
-		resp.BelumBayarAmount += inv.RemainingBalance
+	if err := config.DB.Model(&models.Shipment{}).Where("shipping_status = ?", models.ShippingStatusDiterima).Count(&resp.PengirimanSelesaiCount).Error; err != nil {
+		return resp, err
 	}
 
-	// 7. Aktivitas Terakhir (Mengambil 5 Shipment terbaru)
+	// 6. Belum Bayar (Amount & Count) - Dioptimalkan dengan agregasi tingkat database untuk performa maksimal
+	var unpaidStats struct {
+		Count  int64
+		Amount float64
+	}
+	if err := config.DB.Model(&models.Invoice{}).
+		Select("COUNT(*) AS count, COALESCE(SUM(remaining_balance), 0) AS amount").
+		Where("payment_status IN ?", []models.PaymentStatus{models.PaymentStatusUnpaid, models.PaymentStatusPartial}).
+		Scan(&unpaidStats).Error; err != nil {
+		return resp, err
+	}
+	resp.BelumBayarCount = unpaidStats.Count
+	resp.BelumBayarAmount = unpaidStats.Amount
+
+	// 7. Aktivitas Terakhir (Mengambil 10 Shipment terbaru yang tidak di-soft-delete)
 	type shipmentActivity struct {
 		ShippingStatus string
 		UpdatedAt      time.Time
 		PoNo           string
+		TransactionNo  string
 	}
 	var recents []shipmentActivity
-	config.DB.Table("shipments").
-		Select("shipments.shipping_status, shipments.updated_at, orders.po_no").
-		Joins("JOIN orders ON orders.id = shipments.order_id").
+	if err := config.DB.Model(&models.Shipment{}).
+		Select("shipments.shipping_status, shipments.updated_at, orders.po_no, orders.transaction_no").
+		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
 		Order("shipments.updated_at DESC").
-		Limit(5).
-		Scan(&recents)
+		Limit(10).
+		Scan(&recents).Error; err != nil {
+		return resp, err
+	}
 
 	for _, s := range recents {
 		title := "Pengiriman Terkonfirmasi"
-		desc := fmt.Sprintf("Pesanan %s dikirim", s.PoNo)
+		
+		// Gunakan transaction_no sebagai identitas utama, jika ada po_no tampilkan juga
+		var identifier string
+		if s.PoNo != "" {
+			identifier = fmt.Sprintf("%s (PO: %s)", s.TransactionNo, s.PoNo)
+		} else {
+			identifier = s.TransactionNo
+		}
+		
+		desc := fmt.Sprintf("Pesanan %s dikirim", identifier)
 
 		if s.ShippingStatus == string(models.ShippingStatusDiterima) {
 			title = "Pengiriman Selesai"
-			desc = fmt.Sprintf("Pesanan %s diterima", s.PoNo)
+			desc = fmt.Sprintf("Pesanan %s diterima", identifier)
 		}
 
 		resp.AktivitasTerakhir = append(resp.AktivitasTerakhir, DashboardActivityDTO{
