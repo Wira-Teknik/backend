@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"net/url"
 	"strconv"
 	"teknik/services"
 	"teknik/utils"
@@ -185,4 +186,40 @@ func UpdatePaymentTotal(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, "Total pembayaran berhasil diperbarui", payment)
 }
+
+// GetCustomerPaymentDetail godoc
+// @Summary      Ambil detail pembayaran customer dengan filter
+// @Description  Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi dan status pembayaran (all, paid, partial, unpaid).
+// @Tags         Payments
+// @Param        name    path      string  true   "Customer Name"
+// @Param        po_no   query     string  false  "Cari nomor PO atau Transaksi"
+// @Param        status  query     string  false  "Filter status (all, paid, partial, unpaid)"
+// @Produce      json
+// @Success      200     {object}  utils.Response{data=services.CustomerPaymentDetailResponse}
+// @Failure      404     {object}  utils.Response
+// @Router       /payments/customer/{name} [get]
+// @Security     BearerAuth
+func GetCustomerPaymentDetail(c *fiber.Ctx) error {
+	name := c.Params("name")
+	if name == "" {
+		return utils.JSONError(c, fiber.StatusBadRequest, "Nama customer tidak boleh kosong")
+	}
+
+	// Lakukan URL Path Unescape agar parameter dengan spasi (seperti %20) kembali ke teks aslinya
+	unescapedName, errEsc := url.PathUnescape(name)
+	if errEsc == nil {
+		name = unescapedName
+	}
+
+	poNo := c.Query("po_no")
+	status := c.Query("status")
+
+	detail, err := services.GetCustomerPaymentDetail(name, poNo, status)
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+	}
+
+	return utils.JSONSuccess(c, "Detail pembayaran customer berhasil diambil", detail)
+}
+
 

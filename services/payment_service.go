@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"teknik/config"
@@ -29,6 +30,29 @@ type CustomerPaymentSummary struct {
 	CustomerName string         `json:"customer_name"`
 	Orders       []models.Order `json:"orders"`
 	TotalTagihan float64        `json:"total_tagihan"`
+}
+
+type OrderPaymentDTO struct {
+	PaymentID       uuid.UUID      `json:"payment_id"`
+	PaymentDate     utils.JSONDate `json:"payment_date"`
+	AllocatedAmount float64        `json:"allocated_amount"`
+}
+
+type OrderWithPaymentsDTO struct {
+	ID               uuid.UUID            `json:"id"`
+	TransactionNo    string               `json:"transaction_no"`
+	PoNo             string               `json:"po_no"`
+	OrderDate        utils.JSONDate       `json:"order_date"`
+	TotalAmountToPay float64              `json:"total_amount_to_pay"`
+	RemainingBalance float64              `json:"remaining_balance"`
+	PaymentStatus    models.PaymentStatus `json:"payment_status"`
+	Payments         []OrderPaymentDTO    `json:"payments"`
+}
+
+type CustomerPaymentDetailResponse struct {
+	CustomerName     string                 `json:"customer_name"`
+	RemainingBalance float64                `json:"remaining_balance"`
+	Orders           []OrderWithPaymentsDTO `json:"orders"`
 }
 
 // SearchCustomerPayments mencari customer berdasarkan nama (dari data pesanan) dan menghitung tagihannya.
@@ -72,7 +96,7 @@ func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
 			Joins("JOIN payment_details ON payment_details.payment_id = payments.id").
 			Where("payment_details.invoice_id IN ?", allInvoiceIDs).
 			Group("payments.id").
-			Order("payments.payment_date DESC, payments.created_at DESC").
+			Order("payments.payment_date ASC, payments.created_at ASC").
 			Find(&payments).Error
 
 		if err == nil {
@@ -432,4 +456,113 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 
 	return payment, nil
 }
+
+// GetCustomerPaymentDetail menarik ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya dengan filter opsional.
+func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilter string) (CustomerPaymentDetailResponse, error) {
+	var orders []models.Order
+
+	// 1. Ambil seluruh pesanan untuk customerName tersebut
+	err := config.DB.Preload("Items").
+		Preload("Shipments").
+		Preload("Shipments.Items").
+		Preload("Shipments.Invoice").
+		Where("recipient_name = ?", customerName).
+		Order("order_date DESC, created_at DESC").
+		Find(&orders).Error
+
+	if err != nil {
+		return CustomerPaymentDetailResponse{}, err
+	}
+
+	if len(orders) == 0 {
+		return CustomerPaymentDetailResponse{}, fmt.Errorf("customer tidak ditemukan atau tidak memiliki riwayat pesanan")
+	}
+
+	// 2. Hitung status finansial untuk seluruh order dan hitung akumulasi saldo asli customer
+	var grandRemainingBalance float64
+	for i := range orders {
+		computeOrderPaymentInfo(&orders[i])
+		grandRemainingBalance += orders[i].RemainingBalance
+	}
+
+	// 3. Terapkan filter Nomor PO / Transaksi dan Status Pembayaran di memori Go
+	var filteredOrders []models.Order
+	for i := range orders {
+		// Filter PO No / Transaction No (case-insensitive)
+		if poNoFilter != "" {
+			poMatch := strings.Contains(strings.ToLower(orders[i].PoNo), strings.ToLower(poNoFilter))
+			trxMatch := strings.Contains(strings.ToLower(orders[i].TransactionNo), strings.ToLower(poNoFilter))
+			if !poMatch && !trxMatch {
+				continue
+			}
+		}
+
+		// Filter Status Pembayaran (case-insensitive, skip jika status == "all" atau kosong)
+		if statusFilter != "" && strings.ToLower(statusFilter) != "all" {
+			if strings.ToLower(string(orders[i].PaymentStatus)) != strings.ToLower(statusFilter) {
+				continue
+			}
+		}
+
+		filteredOrders = append(filteredOrders, orders[i])
+	}
+
+	// 4. Susun DTO hasil untuk pesanan yang lolos filter
+	var invoiceIDs []uuid.UUID
+	invoiceToOrderIndexMap := make(map[uuid.UUID]int) // memetakan ID Invoice ke index Order di dalam slice filteredOrders
+	orderDTOs := make([]OrderWithPaymentsDTO, len(filteredOrders))
+
+	for i := range filteredOrders {
+		orderDTOs[i] = OrderWithPaymentsDTO{
+			ID:               filteredOrders[i].ID,
+			TransactionNo:    filteredOrders[i].TransactionNo,
+			PoNo:             filteredOrders[i].PoNo,
+			OrderDate:        filteredOrders[i].OrderDate,
+			TotalAmountToPay: filteredOrders[i].TotalAmountToPay,
+			RemainingBalance: filteredOrders[i].RemainingBalance,
+			PaymentStatus:    filteredOrders[i].PaymentStatus,
+			Payments:         []OrderPaymentDTO{},
+		}
+
+		for _, shp := range filteredOrders[i].Shipments {
+			if shp.Invoice != nil {
+				invoiceIDs = append(invoiceIDs, shp.Invoice.ID)
+				invoiceToOrderIndexMap[shp.Invoice.ID] = i
+			}
+		}
+	}
+
+	// 5. Tarik semua Payment yang membayar invoice pesanan terfilter (Single query)
+	if len(invoiceIDs) > 0 {
+		var payments []models.Payment
+		err := config.DB.Preload("Details").
+			Joins("JOIN payment_details ON payment_details.payment_id = payments.id").
+			Where("payment_details.invoice_id IN ?", invoiceIDs).
+			Group("payments.id").
+			Order("payments.payment_date ASC, payments.created_at ASC").
+			Find(&payments).Error
+
+		if err == nil {
+			for _, p := range payments {
+				for _, detail := range p.Details {
+					if orderIdx, exists := invoiceToOrderIndexMap[detail.InvoiceID]; exists {
+						// Tambah ke riwayat pembayaran order yang sesuai
+						orderDTOs[orderIdx].Payments = append(orderDTOs[orderIdx].Payments, OrderPaymentDTO{
+							PaymentID:       p.ID,
+							PaymentDate:     p.PaymentDate,
+							AllocatedAmount: detail.AllocatedAmount,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	return CustomerPaymentDetailResponse{
+		CustomerName:     customerName,
+		RemainingBalance: roundTwo(grandRemainingBalance),
+		Orders:           orderDTOs,
+	}, nil
+}
+
 

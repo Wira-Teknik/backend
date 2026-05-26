@@ -411,6 +411,17 @@ definitions:
       customer_phone:
         type: string
     type: object
+  services.CustomerPaymentDetailResponse:
+    properties:
+      customer_name:
+        type: string
+      orders:
+        items:
+          $ref: '#/definitions/services.OrderWithPaymentsDTO'
+        type: array
+      remaining_balance:
+        type: number
+    type: object
   services.CustomerPaymentSummary:
     properties:
       customer_name:
@@ -516,6 +527,36 @@ definitions:
       total_unpaid:
         example: 12800000
         type: number
+    type: object
+  services.OrderPaymentDTO:
+    properties:
+      allocated_amount:
+        type: number
+      payment_date:
+        type: string
+      payment_id:
+        type: string
+    type: object
+  services.OrderWithPaymentsDTO:
+    properties:
+      id:
+        type: string
+      order_date:
+        type: string
+      payment_status:
+        $ref: '#/definitions/models.PaymentStatus'
+      payments:
+        items:
+          $ref: '#/definitions/services.OrderPaymentDTO'
+        type: array
+      po_no:
+        type: string
+      remaining_balance:
+        type: number
+      total_amount_to_pay:
+        type: number
+      transaction_no:
+        type: string
     type: object
   services.RecapInvoiceItemDTO:
     properties:
@@ -1682,6 +1723,46 @@ paths:
       security:
       - BearerAuth: []
       summary: Edit total pembayaran
+      tags:
+      - Payments
+  /payments/customer/{name}:
+    get:
+      description: Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap
+        dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi
+        dan status pembayaran (all, paid, partial, unpaid).
+      parameters:
+      - description: Customer Name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Cari nomor PO atau Transaksi
+        in: query
+        name: po_no
+        type: string
+      - description: Filter status (all, paid, partial, unpaid)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.CustomerPaymentDetailResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil detail pembayaran customer dengan filter
       tags:
       - Payments
   /shipments:

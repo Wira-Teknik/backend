@@ -1637,6 +1637,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/payments/customer/{name}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi dan status pembayaran (all, paid, partial, unpaid).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Ambil detail pembayaran customer dengan filter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Customer Name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari nomor PO atau Transaksi",
+                        "name": "po_no",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status (all, paid, partial, unpaid)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.CustomerPaymentDetailResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/payments/{id}": {
             "get": {
                 "security": [
@@ -2609,6 +2673,23 @@ const docTemplate = `{
                 }
             }
         },
+        "services.CustomerPaymentDetailResponse": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.OrderWithPaymentsDTO"
+                    }
+                },
+                "remaining_balance": {
+                    "type": "number"
+                }
+            }
+        },
         "services.CustomerPaymentSummary": {
             "type": "object",
             "properties": {
@@ -2759,6 +2840,52 @@ const docTemplate = `{
                 "total_unpaid": {
                     "type": "number",
                     "example": 12800000
+                }
+            }
+        },
+        "services.OrderPaymentDTO": {
+            "type": "object",
+            "properties": {
+                "allocated_amount": {
+                    "type": "number"
+                },
+                "payment_date": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.OrderWithPaymentsDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "payments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.OrderPaymentDTO"
+                    }
+                },
+                "po_no": {
+                    "type": "string"
+                },
+                "remaining_balance": {
+                    "type": "number"
+                },
+                "total_amount_to_pay": {
+                    "type": "number"
+                },
+                "transaction_no": {
+                    "type": "string"
                 }
             }
         },
