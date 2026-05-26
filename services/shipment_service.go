@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,14 @@ import (
 	"teknik/utils"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// Sentinel errors for Shipment service
+var (
+	ErrShipmentInvalidUUID    = errors.New("ID pengiriman tidak valid")
+	ErrShipmentInvalidOrderID = errors.New("ID pesanan tidak valid")
+	ErrShipmentNotFound       = errors.New("pengiriman tidak ditemukan")
 )
 
 // ─────────────────────────────────────────────
@@ -31,12 +40,12 @@ type CreateShipmentInput struct {
 // ─────────────────────────────────────────────
 
 // generateInvoiceNo menghasilkan nomor invoice: INV-YYYYMMDD-XXXX.
-func generateInvoiceNo() string {
+func generateInvoiceNo(tx *gorm.DB) string {
 	dateStr := time.Now().Format("20060102")
 	prefix := fmt.Sprintf("INV-%s-", dateStr)
 
 	var count int64
-	config.DB.Model(&models.Invoice{}).
+	tx.Model(&models.Invoice{}).
 		Where("invoice_no LIKE ?", prefix+"%").
 		Count(&count)
 
@@ -48,11 +57,18 @@ func generateInvoiceNo() string {
 // ─────────────────────────────────────────────
 
 func GetShipmentsByOrderID(orderID string) ([]models.Shipment, error) {
+	if _, err := uuid.Parse(orderID); err != nil {
+		return nil, ErrShipmentInvalidOrderID
+	}
+
 	var shipments []models.Shipment
 	err := config.DB.Preload("Items").
 		Where("order_id = ?", orderID).
 		Order("created_at DESC").
 		Find(&shipments).Error
+	if shipments == nil {
+		shipments = []models.Shipment{}
+	}
 	return shipments, err
 }
 
@@ -61,22 +77,25 @@ func GetShipmentsByOrderID(orderID string) ([]models.Shipment, error) {
 // ─────────────────────────────────────────────
 
 func GetShipmentByID(id string) (models.Shipment, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return models.Shipment{}, ErrShipmentInvalidUUID
+	}
+
 	var shipment models.Shipment
 	err := config.DB.Preload("Items").
 		First(&shipment, "id = ?", id).Error
-	return shipment, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Shipment{}, ErrShipmentNotFound
+		}
+		return models.Shipment{}, err
+	}
+	return shipment, nil
 }
 
 // ─────────────────────────────────────────────
 // Create Shipment (Partial Shipment)
 // ─────────────────────────────────────────────
-// Alur:
-// 1. Validasi order exists dan status bukan 'shipped'/'completed'
-// 2. Validasi shipping_qty <= remaining_qty per item
-// 3. Buat Shipment + ShipmentItems dalam transaksi
-// 4. Kurangi remaining_qty di OrderItems
-// 5. Update status order (partial/shipped)
-// 6. Auto-generate Invoice
 
 func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipment, error) {
 	if len(input.Items) == 0 {
@@ -85,7 +104,7 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 
 	orderID, err := uuid.Parse(input.OrderID)
 	if err != nil {
-		return models.Shipment{}, fmt.Errorf("order ID tidak valid")
+		return models.Shipment{}, ErrShipmentInvalidOrderID
 	}
 
 	shippingDate, err := time.Parse("2006-01-02", input.ShippingDate)
@@ -96,7 +115,10 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 	// Validasi order
 	var order models.Order
 	if err := config.DB.Preload("Items").First(&order, "id = ?", orderID).Error; err != nil {
-		return models.Shipment{}, fmt.Errorf("pesanan tidak ditemukan")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Shipment{}, ErrOrderNotFound
+		}
+		return models.Shipment{}, err
 	}
 
 	if order.OrderStatus == models.OrderStatusShipped || order.OrderStatus == models.OrderStatusCompleted {
@@ -194,7 +216,7 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 	invoice := models.Invoice{
 		ID:               uuid.New(),
 		ShipmentID:       shipmentID,
-		InvoiceNo:        generateInvoiceNo(),
+		InvoiceNo:        generateInvoiceNo(tx),
 		TotalAmount:      invoiceTotalAmount,
 		RemainingBalance: invoiceTotalAmount,
 		PaymentStatus:    models.PaymentStatusUnpaid,
@@ -218,16 +240,27 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 }
 
 // ─────────────────────────────────────────────
-// Confirm Received
+// Confirm Received (Atomic Transaction)
 // ─────────────────────────────────────────────
 
 func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return models.Shipment{}, ErrShipmentInvalidUUID
+	}
+
 	var shipment models.Shipment
-	if err := config.DB.Preload("Items").First(&shipment, "id = ?", id).Error; err != nil {
-		return models.Shipment{}, fmt.Errorf("pengiriman tidak ditemukan")
+	tx := config.DB.Begin()
+
+	if err := tx.Preload("Items").First(&shipment, "id = ?", id).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Shipment{}, ErrShipmentNotFound
+		}
+		return models.Shipment{}, err
 	}
 
 	if shipment.ShippingStatus == models.ShippingStatusDiterima {
+		tx.Rollback()
 		return models.Shipment{}, fmt.Errorf("pengiriman sudah dikonfirmasi diterima")
 	}
 
@@ -237,20 +270,24 @@ func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, erro
 	shipment.ReceivedDate = &now
 	shipment.ShippingStatus = models.ShippingStatusDiterima
 
-	if err := config.DB.Save(&shipment).Error; err != nil {
-		return models.Shipment{}, fmt.Errorf("gagal mengkonfirmasi penerimaan")
+	if err := tx.Save(&shipment).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal mengkonfirmasi penerimaan: %w", err)
 	}
 
 	// Cek apakah semua shipment untuk order ini sudah diterima
 	var pendingCount int64
-	config.DB.Model(&models.Shipment{}).
+	if err := tx.Model(&models.Shipment{}).
 		Where("order_id = ? AND shipping_status = ?", shipment.OrderID, models.ShippingStatusDikirim).
-		Count(&pendingCount)
+		Count(&pendingCount).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal memeriksa status pengiriman: %w", err)
+	}
 
 	// Jika semua shipment diterima DAN semua item terkirim, update ke completed
 	if pendingCount == 0 {
 		var order models.Order
-		if err := config.DB.Preload("Items").First(&order, "id = ?", shipment.OrderID).Error; err == nil {
+		if err := tx.Preload("Items").First(&order, "id = ?", shipment.OrderID).Error; err == nil {
 			allShipped := true
 			for _, item := range order.Items {
 				if item.RemainingQty > 0 {
@@ -259,11 +296,18 @@ func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, erro
 				}
 			}
 			if allShipped {
-				config.DB.Model(&models.Order{}).
+				if err := tx.Model(&models.Order{}).
 					Where("id = ?", shipment.OrderID).
-					Update("order_status", models.OrderStatusCompleted)
+					Update("order_status", models.OrderStatusCompleted).Error; err != nil {
+					tx.Rollback()
+					return models.Shipment{}, fmt.Errorf("gagal memperbarui status pesanan: %w", err)
+				}
 			}
 		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return models.Shipment{}, fmt.Errorf("gagal menyimpan data penerimaan: %w", err)
 	}
 
 	CreateAuditLog(userID, shipment.ID, models.AuditActionUpdate, "shipments", oldShipment, shipment)

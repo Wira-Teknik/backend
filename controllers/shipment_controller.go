@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"teknik/services"
 	"teknik/utils"
 
@@ -42,6 +43,9 @@ func GetShipmentsByOrder(c *fiber.Ctx) error {
 	orderID := c.Params("orderId")
 	shipments, err := services.GetShipmentsByOrderID(orderID)
 	if err != nil {
+		if errors.Is(err, services.ErrShipmentInvalidOrderID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data pengiriman")
 	}
 	return utils.JSONSuccess(c, "Data pengiriman berhasil diambil", shipments)
@@ -65,7 +69,13 @@ func GetShipment(c *fiber.Ctx) error {
 	id := c.Params("id")
 	shipment, err := services.GetShipmentByID(id)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusNotFound, "Pengiriman tidak ditemukan")
+		if errors.Is(err, services.ErrShipmentInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrShipmentNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail pengiriman")
 	}
 	return utils.JSONSuccess(c, "Detail pengiriman berhasil diambil", shipment)
 }
@@ -137,6 +147,12 @@ func CreateShipment(c *fiber.Ctx) error {
 		Items:        items,
 	}, userID)
 	if err != nil {
+		if errors.Is(err, services.ErrShipmentInvalidOrderID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrOrderNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
@@ -181,6 +197,12 @@ func ConfirmShipmentReceived(c *fiber.Ctx) error {
 
 	shipment, err := services.ConfirmShipmentReceived(id, userID)
 	if err != nil {
+		if errors.Is(err, services.ErrShipmentInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrShipmentNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
