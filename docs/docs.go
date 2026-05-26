@@ -1314,6 +1314,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/payment-recap/detail-paid/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengunduh file CSV berisi detail total paid berdasarkan periode.",
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Export Detail Total Paid ke CSV",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen atau PO",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File CSV",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/payment-recap/detail-pendapatan": {
             "get": {
                 "security": [
@@ -1372,6 +1423,63 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-recap/detail-pendapatan/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengunduh file CSV berisi detail total pendapatan berdasarkan periode dan filter status pembayaran.",
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Export Detail Total Pendapatan ke CSV",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status: all, paid, unpaid",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File CSV",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "500": {
@@ -1452,6 +1560,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/payment-recap/detail-pesanan/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengunduh file CSV berisi detail total pesanan berdasarkan periode dan filter status.",
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Export Detail Total Pesanan ke CSV",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen atau PO",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status: all, pending, partial, shipped, completed",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File CSV",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/payment-recap/detail-unpaid": {
             "get": {
                 "security": [
@@ -1504,6 +1669,57 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-recap/detail-unpaid/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengunduh file CSV berisi detail total unpaid berdasarkan periode.",
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "Payment Recap"
+                ],
+                "summary": "Export Detail Total Unpaid ke CSV",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan nama konsumen atau PO",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File CSV",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "500": {
@@ -2783,6 +2999,10 @@ const docTemplate = `{
                 "total_paid": {
                     "type": "number",
                     "example": 32400000
+                },
+                "total_pesanan_count": {
+                    "type": "integer",
+                    "example": 142
                 }
             }
         },
@@ -2836,6 +3056,10 @@ const docTemplate = `{
                 "total_count": {
                     "type": "integer",
                     "example": 8
+                },
+                "total_pesanan_count": {
+                    "type": "integer",
+                    "example": 142
                 },
                 "total_unpaid": {
                     "type": "number",
@@ -2911,6 +3135,10 @@ const docTemplate = `{
                 "total_amount": {
                     "type": "number",
                     "example": 1120000
+                },
+                "transaction_no": {
+                    "type": "string",
+                    "example": "T10001"
                 }
             }
         },
@@ -2936,6 +3164,10 @@ const docTemplate = `{
                 "total_amount": {
                     "type": "number",
                     "example": 2000000
+                },
+                "transaction_no": {
+                    "type": "string",
+                    "example": "T10001"
                 }
             }
         },

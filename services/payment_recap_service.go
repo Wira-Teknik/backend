@@ -29,6 +29,7 @@ type RecapSummaryDTO struct {
 }
 
 type RecapInvoiceItemDTO struct {
+	TransactionNo string  `json:"transaction_no" example:"T10001"`
 	PoNo          string  `json:"po_no" example:"P2152KPT22"`
 	CustomerName  string  `json:"customer_name" example:"PT.KIRANA PERMATA"`
 	Date          string  `json:"date" example:"Oct 21, 2026"`
@@ -37,6 +38,7 @@ type RecapInvoiceItemDTO struct {
 }
 
 type RecapOrderItemDTO struct {
+	TransactionNo string  `json:"transaction_no" example:"T10001"`
 	PoNo         string  `json:"po_no" example:"P5537XJJ22"`
 	CustomerName string  `json:"customer_name" example:"PT.KIRANA PERMATA"`
 	Date         string  `json:"date" example:"Oct 23, 2026"`
@@ -57,15 +59,17 @@ type DetailPesananDTO struct {
 }
 
 type DetailUnpaidDTO struct {
-	TotalUnpaid float64               `json:"total_unpaid" example:"12800000"`
-	TotalCount  int64                 `json:"total_count" example:"8"`
-	Items       []RecapInvoiceItemDTO `json:"items"`
+	TotalUnpaid       float64               `json:"total_unpaid" example:"12800000"`
+	TotalCount        int64                 `json:"total_count" example:"8"`
+	TotalPesananCount int64                 `json:"total_pesanan_count" example:"142"`
+	Items             []RecapInvoiceItemDTO `json:"items"`
 }
 
 type DetailPaidDTO struct {
-	TotalPaid  float64               `json:"total_paid" example:"32400000"`
-	TotalCount int64                 `json:"total_count" example:"134"`
-	Items      []RecapInvoiceItemDTO `json:"items"`
+	TotalPaid         float64               `json:"total_paid" example:"32400000"`
+	TotalCount        int64                 `json:"total_count" example:"134"`
+	TotalPesananCount int64                 `json:"total_pesanan_count" example:"142"`
+	Items             []RecapInvoiceItemDTO `json:"items"`
 }
 
 // ─────────────────────────────────────────────
@@ -95,6 +99,7 @@ func parseRecapDates(f RecapFilter) (time.Time, time.Time, error) {
 }
 
 type invoiceRaw struct {
+	TransactionNo    string
 	PoNo             string
 	CustomerName     string
 	OrderDate        time.Time
@@ -106,7 +111,7 @@ type invoiceRaw struct {
 func queryInvoices(start, end time.Time, search string, statusFilter ...models.PaymentStatus) ([]invoiceRaw, error) {
 	var rows []invoiceRaw
 	q := config.DB.Table("invoices").
-		Select("orders.po_no, orders.recipient_name AS customer_name, orders.order_date, " +
+		Select("orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, orders.order_date, " +
 			"invoices.total_amount, invoices.remaining_balance, invoices.payment_status").
 		Joins("JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL").
 		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
@@ -203,6 +208,25 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 		return resp, err
 	}
 
+	// 1. Hitung Total Pendapatan Asli (berdasarkan Tanggal dan Pencarian, tanpa filter Status)
+	unfilteredRows, err := queryInvoices(start, end, f.Search)
+	if err != nil {
+		return resp, err
+	}
+	for _, r := range unfilteredRows {
+		resp.TotalPendapatan += r.TotalAmount
+	}
+	resp.TotalPendapatan = roundTwo(resp.TotalPendapatan)
+
+	// 2. Hitung Total Pesanan (berdasarkan Tanggal dan Pencarian, tanpa filter Status)
+	orderQ := config.DB.Model(&models.Order{}).Where("order_date >= ? AND order_date <= ?", start, end).Where("deleted_at IS NULL")
+	if f.Search != "" {
+		s := "%" + strings.ToLower(f.Search) + "%"
+		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
+	}
+	orderQ.Count(&resp.TotalPesananCount)
+
+	// 3. Tarik data Invoice yang sudah difilter berdasarkan Status untuk list item
 	var statusFilter []models.PaymentStatus
 	switch strings.ToLower(f.Status) {
 	case "paid":
@@ -216,12 +240,10 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 		return resp, err
 	}
 
-	// Count total orders (unfiltered by status for summary)
-	config.DB.Model(&models.Order{}).Where("order_date >= ? AND order_date <= ?", start, end).Count(&resp.TotalPesananCount)
-
+	resp.Items = []RecapInvoiceItemDTO{}
 	for _, r := range rows {
-		resp.TotalPendapatan += r.TotalAmount
 		resp.Items = append(resp.Items, RecapInvoiceItemDTO{
+			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
 			CustomerName:  r.CustomerName,
 			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
@@ -229,10 +251,7 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 			PaymentStatus: mapPaymentStatus(r.PaymentStatus),
 		})
 	}
-	resp.TotalPendapatan = roundTwo(resp.TotalPendapatan)
-	if resp.Items == nil {
-		resp.Items = []RecapInvoiceItemDTO{}
-	}
+
 	return resp, nil
 }
 
@@ -249,25 +268,53 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
 	}
 
 	type orderRaw struct {
-		PoNo        string
-		CustomerName string
-		OrderDate   time.Time
-		OrderStatus string
-		TotalAmount float64
+		TransactionNo string
+		PoNo          string
+		CustomerName  string
+		OrderDate     time.Time
+		OrderStatus   string
+		TotalAmount   float64
 	}
 
-	q := config.DB.Table("orders").
-		Select("orders.po_no, orders.recipient_name AS customer_name, orders.order_date, "+
+	// 1. Hitung Total Pesanan & Nominal Kotor untuk Header (tanpa filter Status)
+	overallQ := config.DB.Table("orders").
+		Select("orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, orders.order_date, "+
 			"orders.order_status, COALESCE(SUM(items.subtotal), 0) AS total_amount").
 		Joins("LEFT JOIN order_items items ON items.order_id = orders.id AND items.deleted_at IS NULL").
 		Where("orders.order_date >= ? AND orders.order_date <= ?", start, end).
 		Where("orders.deleted_at IS NULL").
-		Group("orders.id, orders.po_no, orders.recipient_name, orders.order_date, orders.order_status")
+		Group("orders.id, orders.transaction_no, orders.po_no, orders.recipient_name, orders.order_date, orders.order_status")
+
+	if f.Search != "" {
+		s := "%" + strings.ToLower(f.Search) + "%"
+		overallQ = overallQ.Where("LOWER(orders.recipient_name) LIKE ? OR LOWER(orders.po_no) LIKE ?", s, s)
+	}
+
+	var overallRows []orderRaw
+	if err := overallQ.Scan(&overallRows).Error; err != nil {
+		return resp, err
+	}
+
+	resp.TotalPesananCount = int64(len(overallRows))
+	for _, r := range overallRows {
+		resp.TotalPesananAmount += r.TotalAmount
+	}
+	resp.TotalPesananAmount = roundTwo(resp.TotalPesananAmount)
+
+	// 2. Tarik daftar pesanan terfilter status untuk List Item di bawahnya
+	q := config.DB.Table("orders").
+		Select("orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, orders.order_date, "+
+			"orders.order_status, COALESCE(SUM(items.subtotal), 0) AS total_amount").
+		Joins("LEFT JOIN order_items items ON items.order_id = orders.id AND items.deleted_at IS NULL").
+		Where("orders.order_date >= ? AND orders.order_date <= ?", start, end).
+		Where("orders.deleted_at IS NULL").
+		Group("orders.id, orders.transaction_no, orders.po_no, orders.recipient_name, orders.order_date, orders.order_status")
 
 	if f.Search != "" {
 		s := "%" + strings.ToLower(f.Search) + "%"
 		q = q.Where("LOWER(orders.recipient_name) LIKE ? OR LOWER(orders.po_no) LIKE ?", s, s)
 	}
+
 	statusLower := strings.ToLower(f.Status)
 	if statusLower != "" && statusLower != "all" {
 		q = q.Where("orders.order_status = ?", statusLower)
@@ -278,21 +325,18 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
 		return resp, err
 	}
 
-	resp.TotalPesananCount = int64(len(rows))
+	resp.Items = []RecapOrderItemDTO{}
 	for _, r := range rows {
-		resp.TotalPesananAmount += r.TotalAmount
 		resp.Items = append(resp.Items, RecapOrderItemDTO{
-			PoNo:         r.PoNo,
-			CustomerName: r.CustomerName,
-			Date:         r.OrderDate.Local().Format("Jan 02, 2006"),
-			TotalAmount:  r.TotalAmount,
-			OrderStatus:  mapOrderStatus(r.OrderStatus),
+			TransactionNo: r.TransactionNo,
+			PoNo:          r.PoNo,
+			CustomerName:  r.CustomerName,
+			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
+			TotalAmount:   r.TotalAmount,
+			OrderStatus:   mapOrderStatus(r.OrderStatus),
 		})
 	}
-	resp.TotalPesananAmount = roundTwo(resp.TotalPesananAmount)
-	if resp.Items == nil {
-		resp.Items = []RecapOrderItemDTO{}
-	}
+
 	return resp, nil
 }
 
@@ -308,15 +352,26 @@ func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, error) {
 		return resp, err
 	}
 
+	// 1. Hitung Total Pesanan (berdasarkan Tanggal dan Pencarian) untuk Header Badge
+	orderQ := config.DB.Model(&models.Order{}).Where("order_date >= ? AND order_date <= ?", start, end).Where("deleted_at IS NULL")
+	if f.Search != "" {
+		s := "%" + strings.ToLower(f.Search) + "%"
+		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
+	}
+	orderQ.Count(&resp.TotalPesananCount)
+
+	// 2. Tarik daftar invoice Unpaid & Partial
 	rows, err := queryInvoices(start, end, f.Search, models.PaymentStatusUnpaid, models.PaymentStatusPartial)
 	if err != nil {
 		return resp, err
 	}
 
 	resp.TotalCount = int64(len(rows))
+	resp.Items = []RecapInvoiceItemDTO{}
 	for _, r := range rows {
 		resp.TotalUnpaid += r.RemainingBalance
 		resp.Items = append(resp.Items, RecapInvoiceItemDTO{
+			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
 			CustomerName:  r.CustomerName,
 			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
@@ -325,9 +380,6 @@ func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, error) {
 		})
 	}
 	resp.TotalUnpaid = roundTwo(resp.TotalUnpaid)
-	if resp.Items == nil {
-		resp.Items = []RecapInvoiceItemDTO{}
-	}
 	return resp, nil
 }
 
@@ -343,15 +395,26 @@ func GetDetailPaid(f RecapFilter) (DetailPaidDTO, error) {
 		return resp, err
 	}
 
+	// 1. Hitung Total Pesanan (berdasarkan Tanggal dan Pencarian) untuk Header Badge
+	orderQ := config.DB.Model(&models.Order{}).Where("order_date >= ? AND order_date <= ?", start, end).Where("deleted_at IS NULL")
+	if f.Search != "" {
+		s := "%" + strings.ToLower(f.Search) + "%"
+		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
+	}
+	orderQ.Count(&resp.TotalPesananCount)
+
+	// 2. Tarik daftar invoice Paid
 	rows, err := queryInvoices(start, end, f.Search, models.PaymentStatusPaid)
 	if err != nil {
 		return resp, err
 	}
 
 	resp.TotalCount = int64(len(rows))
+	resp.Items = []RecapInvoiceItemDTO{}
 	for _, r := range rows {
 		resp.TotalPaid += r.TotalAmount
 		resp.Items = append(resp.Items, RecapInvoiceItemDTO{
+			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
 			CustomerName:  r.CustomerName,
 			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
@@ -360,8 +423,5 @@ func GetDetailPaid(f RecapFilter) (DetailPaidDTO, error) {
 		})
 	}
 	resp.TotalPaid = roundTwo(resp.TotalPaid)
-	if resp.Items == nil {
-		resp.Items = []RecapInvoiceItemDTO{}
-	}
 	return resp, nil
 }

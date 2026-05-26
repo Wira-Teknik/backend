@@ -498,8 +498,8 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 		}
 
 		// Filter Status Pembayaran (case-insensitive, skip jika status == "all" atau kosong)
-		if statusFilter != "" && strings.ToLower(statusFilter) != "all" {
-			if strings.ToLower(string(orders[i].PaymentStatus)) != strings.ToLower(statusFilter) {
+		if statusFilter != "" && !strings.EqualFold(statusFilter, "all") {
+			if !strings.EqualFold(string(orders[i].PaymentStatus), statusFilter) {
 				continue
 			}
 		}

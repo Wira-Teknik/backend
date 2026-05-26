@@ -488,6 +488,9 @@ definitions:
       total_paid:
         example: 32400000
         type: number
+      total_pesanan_count:
+        example: 142
+        type: integer
     type: object
   services.DetailPendapatanDTO:
     properties:
@@ -523,6 +526,9 @@ definitions:
         type: array
       total_count:
         example: 8
+        type: integer
+      total_pesanan_count:
+        example: 142
         type: integer
       total_unpaid:
         example: 12800000
@@ -575,6 +581,9 @@ definitions:
       total_amount:
         example: 1120000
         type: number
+      transaction_no:
+        example: T10001
+        type: string
     type: object
   services.RecapOrderItemDTO:
     properties:
@@ -593,6 +602,9 @@ definitions:
       total_amount:
         example: 2000000
         type: number
+      transaction_no:
+        example: T10001
+        type: string
     type: object
   services.RecapSummaryDTO:
     properties:
@@ -1453,6 +1465,38 @@ paths:
       summary: Detail Total Paid
       tags:
       - Payment Recap
+  /payment-recap/detail-paid/export:
+    get:
+      description: Mengunduh file CSV berisi detail total paid berdasarkan periode.
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen atau PO
+        in: query
+        name: search
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: File CSV
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Export Detail Total Paid ke CSV
+      tags:
+      - Payment Recap
   /payment-recap/detail-pendapatan:
     get:
       description: Menampilkan daftar invoice berdasarkan periode dan filter status
@@ -1493,6 +1537,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Detail Total Pendapatan
+      tags:
+      - Payment Recap
+  /payment-recap/detail-pendapatan/export:
+    get:
+      description: Mengunduh file CSV berisi detail total pendapatan berdasarkan periode
+        dan filter status pembayaran.
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen
+        in: query
+        name: search
+        type: string
+      - description: 'Filter status: all, paid, unpaid'
+        in: query
+        name: status
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: File CSV
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Export Detail Total Pendapatan ke CSV
       tags:
       - Payment Recap
   /payment-recap/detail-pesanan:
@@ -1537,6 +1618,43 @@ paths:
       summary: Detail Total Pesanan
       tags:
       - Payment Recap
+  /payment-recap/detail-pesanan/export:
+    get:
+      description: Mengunduh file CSV berisi detail total pesanan berdasarkan periode
+        dan filter status.
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen atau PO
+        in: query
+        name: search
+        type: string
+      - description: 'Filter status: all, pending, partial, shipped, completed'
+        in: query
+        name: status
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: File CSV
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Export Detail Total Pesanan ke CSV
+      tags:
+      - Payment Recap
   /payment-recap/detail-unpaid:
     get:
       description: Menampilkan daftar invoice yang belum/sebagian lunas pada periode
@@ -1573,6 +1691,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Detail Total Unpaid
+      tags:
+      - Payment Recap
+  /payment-recap/detail-unpaid/export:
+    get:
+      description: Mengunduh file CSV berisi detail total unpaid berdasarkan periode.
+      parameters:
+      - description: Tanggal awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Cari berdasarkan nama konsumen atau PO
+        in: query
+        name: search
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: File CSV
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Export Detail Total Unpaid ke CSV
       tags:
       - Payment Recap
   /payments:
