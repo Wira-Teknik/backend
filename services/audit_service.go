@@ -86,7 +86,7 @@ func GetAuditLogs(searchAdminName string) ([]AuditLogDTO, error) {
 		}
 
 		t := time.Time(logVal.CreatedAt).Local()
-		formattedDate := t.Format("Jan 02, 2006 15:04")
+		formattedDate := t.Format("2006-01-02 15:04")
 
 		dtos = append(dtos, AuditLogDTO{
 			ID:          logVal.ID.String(),

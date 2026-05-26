@@ -432,7 +432,7 @@ func GetTransactionHistory(search string, statusFilter string) ([]TransactionHis
 			adminName = "Admin - " + adminName
 		}
 
-		createdAtFormatted := time.Time(o.CreatedAt).Local().Format("Jan 02, 2006 15:04")
+		createdAtFormatted := time.Time(o.CreatedAt).Local().Format("2006-01-02 15:04")
 
 		statusFormatted := "Unpaid"
 		switch o.PaymentStatus {

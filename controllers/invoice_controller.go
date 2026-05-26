@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"errors"
+
 	"teknik/services"
 	"teknik/utils"
 
@@ -45,7 +47,13 @@ func GetInvoice(c *fiber.Ctx) error {
 	id := c.Params("id")
 	invoice, err := services.GetInvoiceByID(id)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusNotFound, "Invoice tidak ditemukan")
+		if errors.Is(err, services.ErrInvoiceInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrInvoiceNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail invoice")
 	}
 	return utils.JSONSuccess(c, "Detail invoice berhasil diambil", invoice)
 }
@@ -68,7 +76,13 @@ func GetInvoiceByShipment(c *fiber.Ctx) error {
 	shipmentID := c.Params("shipmentId")
 	invoice, err := services.GetInvoiceByShipmentID(shipmentID)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		if errors.Is(err, services.ErrInvoiceInvalidShipmentID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrInvoiceNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil invoice")
 	}
 	return utils.JSONSuccess(c, "Invoice berhasil diambil", invoice)
 }

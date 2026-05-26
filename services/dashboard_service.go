@@ -115,7 +115,7 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 		resp.AktivitasTerakhir = append(resp.AktivitasTerakhir, DashboardActivityDTO{
 			Title:       title,
 			Description: desc,
-			Date:        s.UpdatedAt.Format("Jan 02, 2006"),
+			Date:        s.UpdatedAt.Local().Format("2006-01-02"),
 		})
 	}
 

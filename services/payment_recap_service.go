@@ -250,7 +250,7 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
 			CustomerName:  r.CustomerName,
-			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
+			Date:          r.OrderDate.Local().Format("2006-01-02"),
 			TotalAmount:   r.TotalAmount,
 			PaymentStatus: mapPaymentStatus(r.PaymentStatus),
 		})
@@ -335,7 +335,7 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
 			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
 			CustomerName:  r.CustomerName,
-			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
+			Date:          r.OrderDate.Local().Format("2006-01-02"),
 			TotalAmount:   r.TotalAmount,
 			OrderStatus:   mapOrderStatus(r.OrderStatus),
 		})
@@ -380,7 +380,7 @@ func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, error) {
 			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
 			CustomerName:  r.CustomerName,
-			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
+			Date:          r.OrderDate.Local().Format("2006-01-02"),
 			TotalAmount:   r.RemainingBalance,
 			PaymentStatus: mapPaymentStatus(r.PaymentStatus),
 		})
@@ -425,7 +425,7 @@ func GetDetailPaid(f RecapFilter) (DetailPaidDTO, error) {
 			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
 			CustomerName:  r.CustomerName,
-			Date:          r.OrderDate.Local().Format("Jan 02, 2006"),
+			Date:          r.OrderDate.Local().Format("2006-01-02"),
 			TotalAmount:   r.TotalAmount,
 			PaymentStatus: "Paid",
 		})
