@@ -35,41 +35,21 @@ type UpdatePaymentTotalRequest struct {
 // ─────────────────────────────────────────────
 
 // GetAllPayments godoc
-// @Summary      Ambil semua pembayaran
-// @Description  Mengambil daftar semua pembayaran beserta detail alokasinya
+// @Summary      Ambil daftar pembayaran & tagihan customer
+// @Description  Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer.
 // @Tags         Payments
+// @Param        name query string false "Nama Customer (opsional)"
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=[]models.Payment}
+// @Success      200  {object}  utils.Response{data=[]services.CustomerPaymentSummary}
 // @Router       /payments [get]
 // @Security     BearerAuth
 func GetAllPayments(c *fiber.Ctx) error {
-	payments, err := services.GetAllPayments()
-	if err != nil {
-		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data pembayaran")
-	}
-	return utils.JSONSuccess(c, "Data pembayaran berhasil diambil", payments)
-}
-
-// ─────────────────────────────────────────────
-// Search Customer Payments
-// ─────────────────────────────────────────────
-
-// SearchCustomerPayments godoc
-// @Summary      Cari pembayaran berdasarkan nama customer
-// @Description  Mencari customer dan mengembalikan daftar pesanan serta total sisa tagihan yang harus dibayar.
-// @Tags         Payments
-// @Param        name query string false "Nama Customer"
-// @Produce      json
-// @Success      200  {object}  utils.Response{data=[]services.CustomerPaymentSummary}
-// @Router       /payments/search-customer [get]
-// @Security     BearerAuth
-func SearchCustomerPayments(c *fiber.Ctx) error {
 	name := c.Query("name")
 	results, err := services.SearchCustomerPayments(name)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mencari data tagihan customer")
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data tagihan dan pembayaran customer")
 	}
-	return utils.JSONSuccess(c, "Data tagihan customer berhasil diambil", results)
+	return utils.JSONSuccess(c, "Data tagihan dan pembayaran customer berhasil diambil", results)
 }
 
 // ─────────────────────────────────────────────

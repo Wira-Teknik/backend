@@ -31,6 +31,7 @@ type Order struct {
 	TotalAmountToPay   float64        `gorm:"-" json:"total_amount_to_pay"`
 	RemainingBalance   float64        `gorm:"-" json:"remaining_balance"`
 	PaymentStatus      PaymentStatus  `gorm:"-" json:"payment_status"`
+	Payments           []Payment      `gorm:"-" json:"payments"`
 	CreatedAt        utils.JSONDateTime `json:"created_at"`
 	UpdatedAt        utils.JSONDateTime `json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`

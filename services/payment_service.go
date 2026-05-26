@@ -49,12 +49,51 @@ func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
 		return nil, err
 	}
 
-	// Group by recipient_name
+	// 1. Kumpulkan semua ID Invoice dari order yang ditemukan dan inisialisasi slice Payments kosong
+	var allInvoiceIDs []uuid.UUID
+	invoiceToOrderMap := make(map[uuid.UUID]int) // memetakan ID Invoice ke index Order di dalam slice orders
+
+	for i := range orders {
+		orders[i].Payments = []models.Payment{} // inisialisasi slice kosong
+		computeOrderPaymentInfo(&orders[i])
+
+		for _, shp := range orders[i].Shipments {
+			if shp.Invoice != nil {
+				allInvoiceIDs = append(allInvoiceIDs, shp.Invoice.ID)
+				invoiceToOrderMap[shp.Invoice.ID] = i
+			}
+		}
+	}
+
+	// 2. Tarik semua Payment yang membayar invoice tersebut (Optimasi performa menghindari N+1 query)
+	if len(allInvoiceIDs) > 0 {
+		var payments []models.Payment
+		err := config.DB.Preload("Details").
+			Joins("JOIN payment_details ON payment_details.payment_id = payments.id").
+			Where("payment_details.invoice_id IN ?", allInvoiceIDs).
+			Group("payments.id").
+			Order("payments.payment_date DESC, payments.created_at DESC").
+			Find(&payments).Error
+
+		if err == nil {
+			for _, p := range payments {
+				addedToOrder := make(map[int]bool)
+				for _, detail := range p.Details {
+					if orderIdx, exists := invoiceToOrderMap[detail.InvoiceID]; exists {
+						if !addedToOrder[orderIdx] {
+							orders[orderIdx].Payments = append(orders[orderIdx].Payments, p)
+							addedToOrder[orderIdx] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 3. Group by recipient_name
 	customerMap := make(map[string]*CustomerPaymentSummary)
 
 	for i := range orders {
-		computeOrderPaymentInfo(&orders[i])
-
 		custName := orders[i].RecipientName
 		if _, exists := customerMap[custName]; !exists {
 			customerMap[custName] = &CustomerPaymentSummary{

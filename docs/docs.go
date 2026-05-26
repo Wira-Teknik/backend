@@ -1522,14 +1522,22 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar semua pembayaran beserta detail alokasinya",
+                "description": "Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Payments"
                 ],
-                "summary": "Ambil semua pembayaran",
+                "summary": "Ambil daftar pembayaran \u0026 tagihan customer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Nama Customer (opsional)",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1544,7 +1552,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/models.Payment"
+                                                "$ref": "#/definitions/services.CustomerPaymentSummary"
                                             }
                                         }
                                     }
@@ -1624,54 +1632,6 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/payments/search-customer": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Mencari customer dan mengembalikan daftar pesanan serta total sisa tagihan yang harus dibayar.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Payments"
-                ],
-                "summary": "Cari pembayaran berdasarkan nama customer",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Nama Customer",
-                        "name": "name",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/services.CustomerPaymentSummary"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
                         }
                     }
                 }
@@ -2375,6 +2335,12 @@ const docTemplate = `{
                 },
                 "payment_status": {
                     "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "payments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Payment"
+                    }
                 },
                 "po_no": {
                     "type": "string"

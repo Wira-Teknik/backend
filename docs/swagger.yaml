@@ -227,6 +227,10 @@ definitions:
         $ref: '#/definitions/models.OrderStatus'
       payment_status:
         $ref: '#/definitions/models.PaymentStatus'
+      payments:
+        items:
+          $ref: '#/definitions/models.Payment'
+        type: array
       po_no:
         type: string
       recipient_address:
@@ -1532,7 +1536,13 @@ paths:
       - Payment Recap
   /payments:
     get:
-      description: Mengambil daftar semua pembayaran beserta detail alokasinya
+      description: Mengambil daftar customer beserta detail pesanan, total tagihan,
+        dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer.
+      parameters:
+      - description: Nama Customer (opsional)
+        in: query
+        name: name
+        type: string
       produces:
       - application/json
       responses:
@@ -1544,12 +1554,12 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/models.Payment'
+                    $ref: '#/definitions/services.CustomerPaymentSummary'
                   type: array
               type: object
       security:
       - BearerAuth: []
-      summary: Ambil semua pembayaran
+      summary: Ambil daftar pembayaran & tagihan customer
       tags:
       - Payments
     post:
@@ -1672,34 +1682,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Edit total pembayaran
-      tags:
-      - Payments
-  /payments/search-customer:
-    get:
-      description: Mencari customer dan mengembalikan daftar pesanan serta total sisa
-        tagihan yang harus dibayar.
-      parameters:
-      - description: Nama Customer
-        in: query
-        name: name
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/services.CustomerPaymentSummary'
-                  type: array
-              type: object
-      security:
-      - BearerAuth: []
-      summary: Cari pembayaran berdasarkan nama customer
       tags:
       - Payments
   /shipments:
