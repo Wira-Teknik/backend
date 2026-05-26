@@ -187,7 +187,9 @@ func GetPaymentRecapSummary(f RecapFilter) (RecapSummaryDTO, error) {
 		s := "%" + strings.ToLower(f.Search) + "%"
 		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
 	}
-	orderQ.Count(&resp.TotalPesananCount)
+	if err := orderQ.Count(&resp.TotalPesananCount).Error; err != nil {
+		return resp, err
+	}
 
 	if resp.TotalPendapatan > 0 {
 		resp.LunasPercentage = roundTwo((resp.TotalPaid / resp.TotalPendapatan) * 100)
@@ -224,7 +226,9 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 		s := "%" + strings.ToLower(f.Search) + "%"
 		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
 	}
-	orderQ.Count(&resp.TotalPesananCount)
+	if err := orderQ.Count(&resp.TotalPesananCount).Error; err != nil {
+		return resp, err
+	}
 
 	// 3. Tarik data Invoice yang sudah difilter berdasarkan Status untuk list item
 	var statusFilter []models.PaymentStatus
@@ -358,7 +362,9 @@ func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, error) {
 		s := "%" + strings.ToLower(f.Search) + "%"
 		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
 	}
-	orderQ.Count(&resp.TotalPesananCount)
+	if err := orderQ.Count(&resp.TotalPesananCount).Error; err != nil {
+		return resp, err
+	}
 
 	// 2. Tarik daftar invoice Unpaid & Partial
 	rows, err := queryInvoices(start, end, f.Search, models.PaymentStatusUnpaid, models.PaymentStatusPartial)
@@ -401,7 +407,9 @@ func GetDetailPaid(f RecapFilter) (DetailPaidDTO, error) {
 		s := "%" + strings.ToLower(f.Search) + "%"
 		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
 	}
-	orderQ.Count(&resp.TotalPesananCount)
+	if err := orderQ.Count(&resp.TotalPesananCount).Error; err != nil {
+		return resp, err
+	}
 
 	// 2. Tarik daftar invoice Paid
 	rows, err := queryInvoices(start, end, f.Search, models.PaymentStatusPaid)
