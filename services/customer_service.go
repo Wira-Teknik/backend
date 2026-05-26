@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,14 @@ import (
 	"teknik/utils"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// Sentinel errors for Customer service (prefixed to avoid package-level namespace clashes)
+var (
+	ErrCustomerInvalidUUID      = errors.New("ID customer tidak valid")
+	ErrCustomerNotFound         = errors.New("customer tidak ditemukan")
+	ErrCustomerDuplicateEmail   = errors.New("email customer sudah terdaftar")
 )
 
 type CustomerInput struct {
@@ -20,30 +29,57 @@ type CustomerInput struct {
 
 func GetAllCustomers() ([]models.Customer, error) {
 	var customers []models.Customer
-	// Hanya mengambil kolom yang diperlukan
-	err := config.DB.Select("id, customer_name, customer_email, customer_phone, customer_address").Find(&customers).Error
-	return customers, err
+	if err := config.DB.Select("id, customer_name, customer_email, customer_phone, customer_address").Find(&customers).Error; err != nil {
+		return nil, err
+	}
+	if customers == nil {
+		customers = []models.Customer{}
+	}
+	return customers, nil
 }
 
 func GetCustomerByID(id string) (models.Customer, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return models.Customer{}, ErrCustomerInvalidUUID
+	}
+
 	var customer models.Customer
 	err := config.DB.First(&customer, "id = ?", id).Error
-	return customer, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Customer{}, ErrCustomerNotFound
+		}
+		return models.Customer{}, err
+	}
+	return customer, nil
 }
 
 func CreateCustomer(input CustomerInput) (models.Customer, error) {
-	input.CustomerEmail = strings.TrimSpace(strings.ToLower(input.CustomerEmail))
+	input.CustomerName = strings.TrimSpace(input.CustomerName)
+	if input.CustomerName == "" {
+		return models.Customer{}, fmt.Errorf("nama customer tidak boleh kosong")
+	}
 
+	input.CustomerEmail = strings.TrimSpace(strings.ToLower(input.CustomerEmail))
 	if !utils.IsValidEmail(input.CustomerEmail) {
 		return models.Customer{}, fmt.Errorf("format email tidak valid")
+	}
+
+	// Cek apakah email sudah terdaftar
+	var count int64
+	if err := config.DB.Model(&models.Customer{}).Where("customer_email = ?", input.CustomerEmail).Count(&count).Error; err != nil {
+		return models.Customer{}, err
+	}
+	if count > 0 {
+		return models.Customer{}, ErrCustomerDuplicateEmail
 	}
 
 	customer := models.Customer{
 		ID:              uuid.New(),
 		CustomerName:    input.CustomerName,
 		CustomerEmail:   input.CustomerEmail,
-		CustomerPhone:   input.CustomerPhone,
-		CustomerAddress: input.CustomerAddress,
+		CustomerPhone:   strings.TrimSpace(input.CustomerPhone),
+		CustomerAddress: strings.TrimSpace(input.CustomerAddress),
 	}
 
 	if err := config.DB.Create(&customer).Error; err != nil {
@@ -56,7 +92,12 @@ func CreateCustomer(input CustomerInput) (models.Customer, error) {
 func UpdateCustomer(id string, input CustomerInput) (models.Customer, error) {
 	customer, err := GetCustomerByID(id)
 	if err != nil {
-		return models.Customer{}, fmt.Errorf("customer tidak ditemukan")
+		return models.Customer{}, err
+	}
+
+	input.CustomerName = strings.TrimSpace(input.CustomerName)
+	if input.CustomerName == "" {
+		return models.Customer{}, fmt.Errorf("nama customer tidak boleh kosong")
 	}
 
 	if input.CustomerEmail != "" {
@@ -64,12 +105,23 @@ func UpdateCustomer(id string, input CustomerInput) (models.Customer, error) {
 		if !utils.IsValidEmail(input.CustomerEmail) {
 			return models.Customer{}, fmt.Errorf("format email tidak valid")
 		}
+
+		// Cek duplikasi email diluar ID customer yang sedang diupdate
+		var count int64
+		if err := config.DB.Model(&models.Customer{}).
+			Where("customer_email = ? AND id != ?", input.CustomerEmail, customer.ID).
+			Count(&count).Error; err != nil {
+			return models.Customer{}, err
+		}
+		if count > 0 {
+			return models.Customer{}, ErrCustomerDuplicateEmail
+		}
 		customer.CustomerEmail = input.CustomerEmail
 	}
 
 	customer.CustomerName = input.CustomerName
-	customer.CustomerPhone = input.CustomerPhone
-	customer.CustomerAddress = input.CustomerAddress
+	customer.CustomerPhone = strings.TrimSpace(input.CustomerPhone)
+	customer.CustomerAddress = strings.TrimSpace(input.CustomerAddress)
 
 	if err := config.DB.Save(&customer).Error; err != nil {
 		return models.Customer{}, err
@@ -79,5 +131,16 @@ func UpdateCustomer(id string, input CustomerInput) (models.Customer, error) {
 }
 
 func DeleteCustomer(id string) error {
-	return config.DB.Delete(&models.Customer{}, "id = ?", id).Error
+	if _, err := uuid.Parse(id); err != nil {
+		return ErrCustomerInvalidUUID
+	}
+
+	tx := config.DB.Delete(&models.Customer{}, "id = ?", id)
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return ErrCustomerNotFound
+	}
+	return nil
 }

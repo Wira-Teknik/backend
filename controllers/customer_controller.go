@@ -1,11 +1,17 @@
 package controllers
 
 import (
+	"errors"
+
 	"teknik/services"
 	"teknik/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+// ─────────────────────────────────────────────
+// Customers
+// ─────────────────────────────────────────────
 
 // GetAllCustomers godoc
 // @Summary      Ambil semua customer
@@ -34,7 +40,13 @@ func GetCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	customer, err := services.GetCustomerByID(id)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusNotFound, "Customer tidak ditemukan")
+		if errors.Is(err, services.ErrCustomerInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrCustomerNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail customer")
 	}
 	return utils.JSONSuccess(c, "Detail customer berhasil diambil", customer)
 }
@@ -56,6 +68,9 @@ func CreateCustomer(c *fiber.Ctx) error {
 
 	customer, err := services.CreateCustomer(input)
 	if err != nil {
+		if errors.Is(err, services.ErrCustomerDuplicateEmail) {
+			return utils.JSONError(c, fiber.StatusConflict, err.Error()) // 409 Conflict
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
@@ -80,6 +95,15 @@ func UpdateCustomer(c *fiber.Ctx) error {
 
 	customer, err := services.UpdateCustomer(id, input)
 	if err != nil {
+		if errors.Is(err, services.ErrCustomerInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrCustomerNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		if errors.Is(err, services.ErrCustomerDuplicateEmail) {
+			return utils.JSONError(c, fiber.StatusConflict, err.Error()) // 409 Conflict
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
@@ -97,6 +121,12 @@ func UpdateCustomer(c *fiber.Ctx) error {
 func DeleteCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := services.DeleteCustomer(id); err != nil {
+		if errors.Is(err, services.ErrCustomerInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrCustomerNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal menghapus customer")
 	}
 	return utils.JSONSuccess(c, "Customer berhasil dihapus", nil)
