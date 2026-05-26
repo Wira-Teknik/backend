@@ -44,6 +44,16 @@ type UserDTO struct {
 }
 
 // ─────────────────────────────────────────────
+// Sentinel errors (digunakan controller untuk mapping ke HTTP status)
+// ─────────────────────────────────────────────
+
+var (
+	ErrDuplicateUsername = fmt.Errorf("username sudah digunakan")
+	ErrDuplicateEmail    = fmt.Errorf("email sudah terdaftar")
+	ErrInvalidRole       = fmt.Errorf("role harus 'admin' atau 'owner'")
+)
+
+// ─────────────────────────────────────────────
 // Redis key helpers
 // ─────────────────────────────────────────────
 
@@ -55,18 +65,20 @@ func redisVerifiedTokenKey(token string) string {
 	return fmt.Sprintf("verified:forgot:%s", token)
 }
 
-
-
 // ─────────────────────────────────────────────
 // Register
 // ─────────────────────────────────────────────
 
 func RegisterUser(input RegisterInput) (UserDTO, error) {
-	// Force name ke lowercase dan hapus spasi (format username)
+	// Normalize input
 	input.Name = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(input.Name), " ", ""))
 	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
 	input.Role = strings.TrimSpace(input.Role)
 
+	// Validasi field wajib
+	if input.Name == "" || input.Email == "" || input.Password == "" {
+		return UserDTO{}, fmt.Errorf("nama, email, dan password tidak boleh kosong")
+	}
 	if !utils.IsValidUsername(input.Name) {
 		return UserDTO{}, fmt.Errorf("username harus 3-30 karakter, hanya huruf kecil, angka, underscore, atau titik, tanpa spasi")
 	}
@@ -77,21 +89,21 @@ func RegisterUser(input RegisterInput) (UserDTO, error) {
 		return UserDTO{}, fmt.Errorf("password minimal 8 karakter dan harus mengandung huruf serta angka")
 	}
 	if input.Role != string(models.RoleAdmin) && input.Role != string(models.RoleOwner) {
-		return UserDTO{}, fmt.Errorf("role harus 'admin' atau 'owner'")
+		return UserDTO{}, ErrInvalidRole
 	}
 
 	// Cek duplikat username
 	var nameCount int64
 	config.DB.Model(&models.User{}).Where("name = ?", input.Name).Count(&nameCount)
 	if nameCount > 0 {
-		return UserDTO{}, fmt.Errorf("username sudah digunakan")
+		return UserDTO{}, ErrDuplicateUsername
 	}
 
 	// Cek duplikat email
 	var emailCount int64
 	config.DB.Model(&models.User{}).Where("email = ?", input.Email).Count(&emailCount)
 	if emailCount > 0 {
-		return UserDTO{}, fmt.Errorf("email sudah terdaftar")
+		return UserDTO{}, ErrDuplicateEmail
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)

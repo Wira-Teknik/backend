@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"errors"
+
 	"teknik/services"
 	"teknik/utils"
 
@@ -65,6 +67,11 @@ func Register(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "Format request tidak valid")
 	}
 
+	// Guard: field wajib di sisi controller sebelum masuk service
+	if req.Name == "" || req.Email == "" || req.Password == "" || req.Role == "" {
+		return utils.JSONError(c, fiber.StatusBadRequest, "Nama, email, password, dan role tidak boleh kosong")
+	}
+
 	result, err := services.RegisterUser(services.RegisterInput{
 		Name:     req.Name,
 		Email:    req.Email,
@@ -72,7 +79,16 @@ func Register(c *fiber.Ctx) error {
 		Role:     req.Role,
 	})
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		// Petakan sentinel error ke HTTP status yang semantis
+		switch {
+		case errors.Is(err, services.ErrDuplicateEmail),
+			errors.Is(err, services.ErrDuplicateUsername):
+			return utils.JSONError(c, fiber.StatusConflict, err.Error()) // 409
+		case errors.Is(err, services.ErrInvalidRole):
+			return utils.JSONError(c, fiber.StatusUnprocessableEntity, err.Error()) // 422
+		default:
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error()) // 400
+		}
 	}
 
 	return utils.JSONCreated(c, "Akun berhasil dibuat", result)
@@ -108,12 +124,13 @@ func Login(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
 
-	// Set HttpOnly session cookie
+	// Set HttpOnly session cookie (Secure:true agar hanya dikirim via HTTPS)
 	c.Cookie(&fiber.Cookie{
 		Name:     "session_token",
 		Value:    result.Token,
 		MaxAge:   86400, // 24 jam
 		HTTPOnly: true,
+		Secure:   true,
 		SameSite: "Lax",
 	})
 
