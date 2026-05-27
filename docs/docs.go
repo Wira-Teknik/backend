@@ -709,6 +709,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/dashboard/activities": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar lengkap seluruh aktivitas pengiriman terbaru untuk disajikan pada layar \"Lihat Semua\" Aktivitas Terakhir di Dashboard.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Ambil Semua Aktivitas Terakhir Dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/services.DashboardActivityDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/invoices": {
             "get": {
                 "security": [
@@ -896,60 +942,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/history": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Mengambil riwayat transaksi dengan pencarian berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran (all, paid, partial)",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Ambil Laporan Riwayat Transaksi",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Cari nomor PO atau transaksi",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter status (all, paid, partial)",
-                        "name": "status",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/services.TransactionHistoryDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
         "/orders/next-trx": {
             "get": {
                 "security": [
@@ -1030,8 +1022,8 @@ const docTemplate = `{
                             ]
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "440": {
+                        "description": "",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1321,14 +1313,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengunduh file CSV berisi detail total paid berdasarkan periode.",
+                "description": "Mengunduh file Excel berisi detail total paid berdasarkan periode.",
                 "produces": [
-                    "text/csv"
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ],
                 "tags": [
                     "Payment Recap"
                 ],
-                "summary": "Export Detail Total Paid ke CSV",
+                "summary": "Export Detail Total Paid ke Excel",
                 "parameters": [
                     {
                         "type": "string",
@@ -1351,7 +1343,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "File CSV",
+                        "description": "File Excel",
                         "schema": {
                             "type": "string"
                         }
@@ -1441,14 +1433,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengunduh file CSV berisi detail total pendapatan berdasarkan periode dan filter status pembayaran.",
+                "description": "Mengunduh file Excel berisi detail total pendapatan berdasarkan periode dan filter status pembayaran.",
                 "produces": [
-                    "text/csv"
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ],
                 "tags": [
                     "Payment Recap"
                 ],
-                "summary": "Export Detail Total Pendapatan ke CSV",
+                "summary": "Export Detail Total Pendapatan ke Excel",
                 "parameters": [
                     {
                         "type": "string",
@@ -1477,7 +1469,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "File CSV",
+                        "description": "File Excel",
                         "schema": {
                             "type": "string"
                         }
@@ -1567,14 +1559,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengunduh file CSV berisi detail total pesanan berdasarkan periode dan filter status.",
+                "description": "Mengunduh file Excel berisi detail total pesanan berdasarkan periode dan filter status.",
                 "produces": [
-                    "text/csv"
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ],
                 "tags": [
                     "Payment Recap"
                 ],
-                "summary": "Export Detail Total Pesanan ke CSV",
+                "summary": "Export Detail Total Pesanan ke Excel",
                 "parameters": [
                     {
                         "type": "string",
@@ -1603,7 +1595,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "File CSV",
+                        "description": "File Excel",
                         "schema": {
                             "type": "string"
                         }
@@ -1687,14 +1679,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengunduh file CSV berisi detail total unpaid berdasarkan periode.",
+                "description": "Mengunduh file Excel berisi detail total unpaid berdasarkan periode.",
                 "produces": [
-                    "text/csv"
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ],
                 "tags": [
                     "Payment Recap"
                 ],
-                "summary": "Export Detail Total Unpaid ke CSV",
+                "summary": "Export Detail Total Unpaid ke Excel",
                 "parameters": [
                     {
                         "type": "string",
@@ -1717,7 +1709,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "File CSV",
+                        "description": "File Excel",
                         "schema": {
                             "type": "string"
                         }
@@ -1912,6 +1904,60 @@ const docTemplate = `{
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran order terkait (all, paid, partial)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Ambil Laporan Riwayat Transaksi Pembayaran",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cari nomor PO atau transaksi",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status (all, paid, partial)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/services.PaymentHistoryDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -3113,6 +3159,43 @@ const docTemplate = `{
                 }
             }
         },
+        "services.PaymentHistoryDTO": {
+            "type": "object",
+            "properties": {
+                "admin_name": {
+                    "type": "string",
+                    "example": "Admin - Dino"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-11-05 12:10"
+                },
+                "customer_name": {
+                    "type": "string",
+                    "example": "PT.KIRANA PERMATA"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "payment_status": {
+                    "type": "string",
+                    "example": "Partial"
+                },
+                "po_no": {
+                    "type": "string",
+                    "example": "P2152KPT22"
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 500000
+                },
+                "transaction_no": {
+                    "type": "string",
+                    "example": "NF/WT/1/2026"
+                }
+            }
+        },
         "services.RecapInvoiceItemDTO": {
             "type": "object",
             "properties": {
@@ -3193,43 +3276,6 @@ const docTemplate = `{
                 "total_unpaid": {
                     "type": "number",
                     "example": 12800000
-                }
-            }
-        },
-        "services.TransactionHistoryDTO": {
-            "type": "object",
-            "properties": {
-                "admin_name": {
-                    "type": "string",
-                    "example": "Admin - Dino"
-                },
-                "created_at": {
-                    "type": "string",
-                    "example": "Nov 05, 2026 12:10"
-                },
-                "customer_name": {
-                    "type": "string",
-                    "example": "PT.KIRANA PERMATA"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440001"
-                },
-                "payment_status": {
-                    "type": "string",
-                    "example": "Partial"
-                },
-                "po_no": {
-                    "type": "string",
-                    "example": "P2152KPT22"
-                },
-                "total_amount": {
-                    "type": "number",
-                    "example": 500000
-                },
-                "transaction_no": {
-                    "type": "string",
-                    "example": "NF/WT/1/2026"
                 }
             }
         },

@@ -564,6 +564,33 @@ definitions:
       transaction_no:
         type: string
     type: object
+  services.PaymentHistoryDTO:
+    properties:
+      admin_name:
+        example: Admin - Dino
+        type: string
+      created_at:
+        example: 2026-11-05 12:10
+        type: string
+      customer_name:
+        example: PT.KIRANA PERMATA
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+      payment_status:
+        example: Partial
+        type: string
+      po_no:
+        example: P2152KPT22
+        type: string
+      total_amount:
+        example: 500000
+        type: number
+      transaction_no:
+        example: NF/WT/1/2026
+        type: string
+    type: object
   services.RecapInvoiceItemDTO:
     properties:
       customer_name:
@@ -623,33 +650,6 @@ definitions:
       total_unpaid:
         example: 12800000
         type: number
-    type: object
-  services.TransactionHistoryDTO:
-    properties:
-      admin_name:
-        example: Admin - Dino
-        type: string
-      created_at:
-        example: Nov 05, 2026 12:10
-        type: string
-      customer_name:
-        example: PT.KIRANA PERMATA
-        type: string
-      id:
-        example: 550e8400-e29b-41d4-a716-446655440001
-        type: string
-      payment_status:
-        example: Partial
-        type: string
-      po_no:
-        example: P2152KPT22
-        type: string
-      total_amount:
-        example: 500000
-        type: number
-      transaction_no:
-        example: NF/WT/1/2026
-        type: string
     type: object
   services.UserDTO:
     properties:
@@ -1109,6 +1109,33 @@ paths:
       summary: Ambil Metrik Dashboard
       tags:
       - Dashboard
+  /dashboard/activities:
+    get:
+      description: Mengambil daftar lengkap seluruh aktivitas pengiriman terbaru untuk
+        disajikan pada layar "Lihat Semua" Aktivitas Terakhir di Dashboard.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/services.DashboardActivityDTO'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Ambil Semua Aktivitas Terakhir Dashboard
+      tags:
+      - Dashboard
   /invoices:
     get:
       description: Mengambil daftar semua invoice. Invoice otomatis dibuat saat pengiriman
@@ -1263,8 +1290,8 @@ paths:
                 data:
                   $ref: '#/definitions/models.Order'
               type: object
-        "404":
-          description: Not Found
+        "440":
+          description: ""
           schema:
             $ref: '#/definitions/utils.Response'
       security:
@@ -1337,38 +1364,6 @@ paths:
       summary: Ambil semua pengiriman berdasarkan Order
       tags:
       - Shipments
-  /orders/history:
-    get:
-      description: Mengambil riwayat transaksi dengan pencarian berdasarkan PO atau
-        nomor transaksi dan filter berdasarkan status pembayaran (all, paid, partial)
-      parameters:
-      - description: Cari nomor PO atau transaksi
-        in: query
-        name: search
-        type: string
-      - description: Filter status (all, paid, partial)
-        in: query
-        name: status
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/services.TransactionHistoryDTO'
-                  type: array
-              type: object
-      security:
-      - BearerAuth: []
-      summary: Ambil Laporan Riwayat Transaksi
-      tags:
-      - Orders
   /orders/next-trx:
     get:
       description: Mengambil format nomor transaksi yang akan digunakan untuk pesanan
@@ -1467,7 +1462,7 @@ paths:
       - Payment Recap
   /payment-recap/detail-paid/export:
     get:
-      description: Mengunduh file CSV berisi detail total paid berdasarkan periode.
+      description: Mengunduh file Excel berisi detail total paid berdasarkan periode.
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
         in: query
@@ -1482,10 +1477,10 @@ paths:
         name: search
         type: string
       produces:
-      - text/csv
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
       responses:
         "200":
-          description: File CSV
+          description: File Excel
           schema:
             type: string
         "500":
@@ -1494,7 +1489,7 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: Export Detail Total Paid ke CSV
+      summary: Export Detail Total Paid ke Excel
       tags:
       - Payment Recap
   /payment-recap/detail-pendapatan:
@@ -1541,8 +1536,8 @@ paths:
       - Payment Recap
   /payment-recap/detail-pendapatan/export:
     get:
-      description: Mengunduh file CSV berisi detail total pendapatan berdasarkan periode
-        dan filter status pembayaran.
+      description: Mengunduh file Excel berisi detail total pendapatan berdasarkan
+        periode dan filter status pembayaran.
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
         in: query
@@ -1561,10 +1556,10 @@ paths:
         name: status
         type: string
       produces:
-      - text/csv
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
       responses:
         "200":
-          description: File CSV
+          description: File Excel
           schema:
             type: string
         "500":
@@ -1573,7 +1568,7 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: Export Detail Total Pendapatan ke CSV
+      summary: Export Detail Total Pendapatan ke Excel
       tags:
       - Payment Recap
   /payment-recap/detail-pesanan:
@@ -1620,7 +1615,7 @@ paths:
       - Payment Recap
   /payment-recap/detail-pesanan/export:
     get:
-      description: Mengunduh file CSV berisi detail total pesanan berdasarkan periode
+      description: Mengunduh file Excel berisi detail total pesanan berdasarkan periode
         dan filter status.
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
@@ -1640,10 +1635,10 @@ paths:
         name: status
         type: string
       produces:
-      - text/csv
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
       responses:
         "200":
-          description: File CSV
+          description: File Excel
           schema:
             type: string
         "500":
@@ -1652,7 +1647,7 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: Export Detail Total Pesanan ke CSV
+      summary: Export Detail Total Pesanan ke Excel
       tags:
       - Payment Recap
   /payment-recap/detail-unpaid:
@@ -1695,7 +1690,7 @@ paths:
       - Payment Recap
   /payment-recap/detail-unpaid/export:
     get:
-      description: Mengunduh file CSV berisi detail total unpaid berdasarkan periode.
+      description: Mengunduh file Excel berisi detail total unpaid berdasarkan periode.
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
         in: query
@@ -1710,10 +1705,10 @@ paths:
         name: search
         type: string
       produces:
-      - text/csv
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
       responses:
         "200":
-          description: File CSV
+          description: File Excel
           schema:
             type: string
         "500":
@@ -1722,7 +1717,7 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: Export Detail Total Unpaid ke CSV
+      summary: Export Detail Total Unpaid ke Excel
       tags:
       - Payment Recap
   /payments:
@@ -1913,6 +1908,39 @@ paths:
       security:
       - BearerAuth: []
       summary: Ambil detail pembayaran customer dengan filter
+      tags:
+      - Payments
+  /payments/history:
+    get:
+      description: Mengambil riwayat cicilan transaksi pembayaran dengan pencarian
+        berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran
+        order terkait (all, paid, partial)
+      parameters:
+      - description: Cari nomor PO atau transaksi
+        in: query
+        name: search
+        type: string
+      - description: Filter status (all, paid, partial)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/services.PaymentHistoryDTO'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil Laporan Riwayat Transaksi Pembayaran
       tags:
       - Payments
   /shipments:

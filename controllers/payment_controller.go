@@ -234,3 +234,29 @@ func GetCustomerPaymentDetail(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, "Detail pembayaran customer berhasil diambil", detail)
 }
+
+// ─────────────────────────────────────────────
+// Payment History Report
+// ─────────────────────────────────────────────
+
+// GetPaymentHistory godoc
+// @Summary      Ambil Laporan Riwayat Transaksi Pembayaran
+// @Description  Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran order terkait (all, paid, partial)
+// @Tags         Payments
+// @Produce      json
+// @Param        search query string false "Cari nomor PO atau transaksi"
+// @Param        status query string false "Filter status (all, paid, partial)"
+// @Success      200  {object}  utils.Response{data=[]services.PaymentHistoryDTO}
+// @Router       /payments/history [get]
+// @Security     BearerAuth
+func GetPaymentHistory(c *fiber.Ctx) error {
+	search := c.Query("search")
+	status := c.Query("status", "all")
+
+	history, err := services.GetPaymentHistory(search, status)
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil riwayat pembayaran: "+err.Error())
+	}
+	return utils.JSONSuccess(c, "Riwayat pembayaran berhasil diambil", history)
+}
+

@@ -125,3 +125,55 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 
 	return resp, nil
 }
+
+// ─────────────────────────────────────────────
+// Get All Dashboard Activities
+// ─────────────────────────────────────────────
+
+func GetAllDashboardActivities() ([]DashboardActivityDTO, error) {
+	type shipmentActivity struct {
+		ShippingStatus string
+		UpdatedAt      time.Time
+		PoNo           string
+		TransactionNo  string
+	}
+	var recents []shipmentActivity
+	if err := config.DB.Model(&models.Shipment{}).
+		Select("shipments.shipping_status, shipments.updated_at, orders.po_no, orders.transaction_no").
+		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
+		Order("shipments.updated_at DESC").
+		Scan(&recents).Error; err != nil {
+		return nil, err
+	}
+
+	var activities []DashboardActivityDTO
+	for _, s := range recents {
+		title := "Pengiriman Terkonfirmasi"
+		var identifier string
+		if s.PoNo != "" {
+			identifier = fmt.Sprintf("%s (PO: %s)", s.TransactionNo, s.PoNo)
+		} else {
+			identifier = s.TransactionNo
+		}
+		
+		desc := fmt.Sprintf("Pesanan %s dikirim", identifier)
+
+		if s.ShippingStatus == string(models.ShippingStatusDiterima) {
+			title = "Pengiriman Selesai"
+			desc = fmt.Sprintf("Pesanan %s diterima", identifier)
+		}
+
+		activities = append(activities, DashboardActivityDTO{
+			Title:       title,
+			Description: desc,
+			Date:        s.UpdatedAt.Local().Format("2006-01-02"),
+		})
+	}
+
+	if activities == nil {
+		activities = []DashboardActivityDTO{}
+	}
+
+	return activities, nil
+}
+

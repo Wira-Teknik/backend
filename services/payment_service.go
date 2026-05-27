@@ -597,4 +597,170 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 	}, nil
 }
 
+// ─────────────────────────────────────────────
+// Payment History Report
+// ─────────────────────────────────────────────
+
+type PaymentHistoryDTO struct {
+	ID            string  `json:"id" example:"550e8400-e29b-41d4-a716-446655440001"`
+	TransactionNo string  `json:"transaction_no" example:"NF/WT/1/2026"`
+	PoNo          string  `json:"po_no" example:"P2152KPT22"`
+	CustomerName  string  `json:"customer_name" example:"PT.KIRANA PERMATA"`
+	AdminName     string  `json:"admin_name" example:"Admin - Dino"`
+	CreatedAt     string  `json:"created_at" example:"2026-11-05 12:10"`
+	TotalAmount   float64 `json:"total_amount" example:"500000"`
+	PaymentStatus string  `json:"payment_status" example:"Partial"`
+}
+
+func GetPaymentHistory(search string, statusFilter string) ([]PaymentHistoryDTO, error) {
+	type rawPaymentHistory struct {
+		DetailID        uuid.UUID
+		PaymentID       uuid.UUID
+		TransactionNo   string
+		PoNo            string
+		CustomerName    string
+		PaymentDate     time.Time
+		AllocatedAmount float64
+		OrderID         uuid.UUID
+	}
+
+	var raws []rawPaymentHistory
+	query := config.DB.Table("payment_details").
+		Select("payment_details.id AS detail_id, payment_details.payment_id, orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, payments.payment_date, payment_details.allocated_amount, orders.id AS order_id").
+		Joins("JOIN payments ON payments.id = payment_details.payment_id").
+		Joins("JOIN invoices ON invoices.id = payment_details.invoice_id").
+		Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+		Joins("JOIN orders ON orders.id = shipments.order_id").
+		Where("payment_details.deleted_at IS NULL").
+		Where("payments.deleted_at IS NULL").
+		Where("invoices.deleted_at IS NULL").
+		Where("shipments.deleted_at IS NULL").
+		Where("orders.deleted_at IS NULL")
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("orders.transaction_no ILIKE ? OR orders.po_no ILIKE ?", searchTerm, searchTerm)
+	}
+
+	err := query.Order("payments.payment_date DESC, payment_details.created_at DESC").Scan(&raws).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if len(raws) == 0 {
+		return []PaymentHistoryDTO{}, nil
+	}
+
+	// 1. Kumpulkan semua ID Order unik untuk ditarik relasinya dalam satu batch query
+	var orderIDs []uuid.UUID
+	orderIDMap := make(map[uuid.UUID]bool)
+	for _, r := range raws {
+		if !orderIDMap[r.OrderID] {
+			orderIDMap[r.OrderID] = true
+			orderIDs = append(orderIDs, r.OrderID)
+		}
+	}
+
+	var orders []models.Order
+	if len(orderIDs) > 0 {
+		err := config.DB.Preload("Items").
+			Preload("Shipments").
+			Preload("Shipments.Items").
+			Preload("Shipments.Invoice").
+			Where("id IN ?", orderIDs).
+			Find(&orders).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ordersMap := make(map[uuid.UUID]models.Order)
+	for i := range orders {
+		computeOrderPaymentInfo(&orders[i])
+		ordersMap[orders[i].ID] = orders[i]
+	}
+
+	// 2. Kumpulkan ID Payment unik untuk mengambil data admin pembuatnya dari audit logs
+	var paymentIDs []uuid.UUID
+	paymentIDMap := make(map[uuid.UUID]bool)
+	for _, r := range raws {
+		if !paymentIDMap[r.PaymentID] {
+			paymentIDMap[r.PaymentID] = true
+			paymentIDs = append(paymentIDs, r.PaymentID)
+		}
+	}
+
+	type auditUser struct {
+		ResourceID uuid.UUID
+		AdminName  string
+	}
+	var auditUsers []auditUser
+	if len(paymentIDs) > 0 {
+		if err := config.DB.Table("audit_logs").
+			Select("audit_logs.resource_id, users.name as admin_name").
+			Joins("JOIN users ON users.id = audit_logs.user_id AND users.deleted_at IS NULL").
+			Where("audit_logs.action = ? AND audit_logs.table_name = ? AND audit_logs.resource_id IN ?", models.AuditActionCreate, "payments", paymentIDs).
+			Scan(&auditUsers).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	adminMap := make(map[uuid.UUID]string)
+	for _, au := range auditUsers {
+		adminMap[au.ResourceID] = au.AdminName
+	}
+
+	// 3. Bangun DTO hasil akhir dengan filter status pembayaran
+	var results []PaymentHistoryDTO
+	statusFilterLower := strings.ToLower(strings.TrimSpace(statusFilter))
+
+	for _, r := range raws {
+		order, exists := ordersMap[r.OrderID]
+		if !exists {
+			continue
+		}
+
+		if statusFilterLower != "" && statusFilterLower != "all" {
+			if strings.ToLower(string(order.PaymentStatus)) != statusFilterLower {
+				continue
+			}
+		}
+
+		adminName := adminMap[r.PaymentID]
+		if adminName == "" {
+			adminName = "Unknown"
+		} else {
+			adminName = "Admin - " + adminName
+		}
+
+		createdAtFormatted := r.PaymentDate.Local().Format("2006-01-02 15:04")
+
+		statusFormatted := "Unpaid"
+		switch order.PaymentStatus {
+		case models.PaymentStatusPaid:
+			statusFormatted = "Paid"
+		case models.PaymentStatusPartial:
+			statusFormatted = "Partial"
+		}
+
+		results = append(results, PaymentHistoryDTO{
+			ID:            r.DetailID.String(),
+			TransactionNo: r.TransactionNo,
+			PoNo:          r.PoNo,
+			CustomerName:  r.CustomerName,
+			AdminName:     adminName,
+			CreatedAt:     createdAtFormatted,
+			TotalAmount:   r.AllocatedAmount,
+			PaymentStatus: statusFormatted,
+		})
+	}
+
+	if results == nil {
+		results = []PaymentHistoryDTO{}
+	}
+
+	return results, nil
+}
+
+
 

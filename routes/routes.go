@@ -22,8 +22,9 @@ func SetupRoutes(app *fiber.App) {
 	// ─── Protected routes ────────────────────────
 	protected := api.Group("", middlewares.RequireAuth)
 
-	// Dashboard route
+	// Dashboard routes
 	protected.Get("/dashboard", controllers.GetDashboard)
+	protected.Get("/dashboard/activities", controllers.GetAllDashboardActivities)
 
 	// Customer routes
 	customers := protected.Group("/customers")
@@ -37,7 +38,6 @@ func SetupRoutes(app *fiber.App) {
 	orders := protected.Group("/orders")
 	orders.Get("/", controllers.GetAllOrders)
 	orders.Get("/next-trx", controllers.GetNextTransactionNo)
-	orders.Get("/history", controllers.GetTransactionHistory)
 	orders.Get("/:id", controllers.GetOrder)
 	orders.Post("/", controllers.CreateOrder)
 	orders.Put("/:id", controllers.UpdateOrder)
@@ -59,6 +59,7 @@ func SetupRoutes(app *fiber.App) {
 	// Payment routes
 	payments := protected.Group("/payments")
 	payments.Get("/", controllers.GetAllPayments)
+	payments.Get("/history", controllers.GetPaymentHistory)
 	payments.Get("/customer/:name", controllers.GetCustomerPaymentDetail)
 	payments.Get("/:id", controllers.GetPayment)
 	payments.Post("/", controllers.CreatePayment)
