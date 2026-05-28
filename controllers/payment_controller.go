@@ -1,14 +1,18 @@
 package controllers
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 	"teknik/services"
 	"teknik/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/xuri/excelize/v2"
 )
 
 // ─────────────────────────────────────────────
@@ -259,4 +263,258 @@ func GetPaymentHistory(c *fiber.Ctx) error {
 	}
 	return utils.JSONSuccess(c, "Riwayat pembayaran berhasil diambil", history)
 }
+
+// ─────────────────────────────────────────────
+// Export Payment History to Excel
+// ─────────────────────────────────────────────
+
+// ExportPaymentHistory godoc
+// @Summary      Export Riwayat Pembayaran ke Excel
+// @Description  Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian dan status pembayaran order terkait.
+// @Tags         Payments
+// @Produce      application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Param        search query string false "Cari nomor PO atau transaksi"
+// @Param        status query string false "Filter status (all, paid, partial)"
+// @Success      200  {string}  string  "File Excel"
+// @Failure      500  {object}  utils.Response
+// @Router       /payments/history/export [get]
+// @Security     BearerAuth
+func ExportPaymentHistory(c *fiber.Ctx) error {
+	search := c.Query("search")
+	status := c.Query("status", "all")
+
+	history, err := services.GetPaymentHistory(search, status)
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	xf := excelize.NewFile()
+	defer xf.Close()
+	sh := "Riwayat Pembayaran"
+	xf.SetSheetName("Sheet1", sh)
+
+	st, err := newPaymentExcelStyles(xf)
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	// ── Title ──
+	xf.MergeCell(sh, "A1", "H1")
+	xf.SetCellValue(sh, "A1", "LAPORAN RIWAYAT PEMBAYARAN")
+	xf.SetCellStyle(sh, "A1", "H1", st.titleStyle)
+	xf.SetRowHeight(sh, 1, 28)
+
+	// ── Meta summary ──
+	setPaymentMetaRow(xf, sh, 2, "Waktu Ekspor", time.Now().Local().Format("2006-01-02 15:04"), st.metaKey, st.metaVal)
+	setPaymentMetaRow(xf, sh, 3, "Filter Pencarian", search, st.metaKey, st.metaVal)
+	setPaymentMetaRow(xf, sh, 4, "Filter Status", status, st.metaKey, st.metaVal)
+
+	// ── Header row ──
+	headers := []string{"No", "Nomor Transaksi", "Nomor PO", "Nama Konsumen", "Admin Pembuat", "Tanggal Bayar", "Jumlah Bayar", "Status Pembayaran Order"}
+	for i, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 6)
+		xf.SetCellValue(sh, cell, h)
+		xf.SetCellStyle(sh, cell, cell, st.headerStyle)
+	}
+	xf.SetRowHeight(sh, 6, 22)
+
+	// ── Data rows ──
+	var totalAmt float64
+	for i, item := range history {
+		row := 7 + i
+		textSt, numSt := st.dataStyle, st.currency
+		if i%2 == 1 {
+			textSt, numSt = st.dataAlt, st.currencyAlt
+		}
+		xf.SetCellInt(sh, fmt.Sprintf("A%d", row), int64(i+1))
+		xf.SetCellValue(sh, fmt.Sprintf("B%d", row), item.TransactionNo)
+		xf.SetCellValue(sh, fmt.Sprintf("C%d", row), item.PoNo)
+		xf.SetCellValue(sh, fmt.Sprintf("D%d", row), item.CustomerName)
+		xf.SetCellValue(sh, fmt.Sprintf("E%d", row), item.AdminName)
+		xf.SetCellValue(sh, fmt.Sprintf("F%d", row), item.CreatedAt)
+		xf.SetCellFloat(sh, fmt.Sprintf("G%d", row), item.TotalAmount, 2, 64)
+		xf.SetCellValue(sh, fmt.Sprintf("H%d", row), item.PaymentStatus)
+		applyPaymentRowStyle(xf, sh, row, 8, textSt, numSt, 7)
+		xf.SetRowHeight(sh, row, 18)
+		totalAmt += item.TotalAmount
+	}
+
+	// ── Summary/total row ──
+	sumRow := 7 + len(history)
+	xf.MergeCell(sh, fmt.Sprintf("A%d", sumRow), fmt.Sprintf("F%d", sumRow))
+	xf.SetCellValue(sh, fmt.Sprintf("A%d", sumRow), "TOTAL TERBAYAR")
+	xf.SetCellStyle(sh, fmt.Sprintf("A%d", sumRow), fmt.Sprintf("F%d", sumRow), st.sumLabel)
+	xf.SetCellFloat(sh, fmt.Sprintf("G%d", sumRow), totalAmt, 2, 64)
+	xf.SetCellStyle(sh, fmt.Sprintf("G%d", sumRow), fmt.Sprintf("G%d", sumRow), st.sumValue)
+	xf.SetCellStyle(sh, fmt.Sprintf("H%d", sumRow), fmt.Sprintf("H%d", sumRow), st.sumLabel)
+	xf.SetRowHeight(sh, sumRow, 20)
+
+	// ── Column widths ──
+	xf.SetColWidth(sh, "A", "A", 5)
+	xf.SetColWidth(sh, "B", "B", 18)
+	xf.SetColWidth(sh, "C", "C", 16)
+	xf.SetColWidth(sh, "D", "D", 30)
+	xf.SetColWidth(sh, "E", "E", 18)
+	xf.SetColWidth(sh, "F", "F", 18)
+	xf.SetColWidth(sh, "G", "G", 20)
+	xf.SetColWidth(sh, "H", "H", 22)
+
+	buf := new(bytes.Buffer)
+	if err := xf.Write(buf); err != nil {
+		return utils.JSONError(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	c.Set(fiber.HeaderContentType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Set(fiber.HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"riwayat-pembayaran-%s.xlsx\"", time.Now().Format("2006-01-02-150405")))
+	return c.Send(buf.Bytes())
+}
+
+// ─────────────────────────────────────────────
+// EXCEL STYLES HELPERS FOR PAYMENTS
+// ─────────────────────────────────────────────
+
+type paymentExcelStyles struct {
+	titleStyle  int
+	metaKey     int
+	metaVal     int
+	headerStyle int
+	dataStyle   int
+	dataAlt     int
+	currency    int
+	currencyAlt int
+	sumLabel    int
+	sumValue    int
+}
+
+func newPaymentExcelStyles(f *excelize.File) (paymentExcelStyles, error) {
+	var s paymentExcelStyles
+	var err error
+
+	border := []excelize.Border{
+		{Type: "left", Color: "BDBDBD", Style: 1},
+		{Type: "right", Color: "BDBDBD", Style: 1},
+		{Type: "top", Color: "BDBDBD", Style: 1},
+		{Type: "bottom", Color: "BDBDBD", Style: 1},
+	}
+
+	s.titleStyle, err = f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Size: 16, Color: "1A237E", Family: "Calibri"},
+		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.metaKey, err = f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "424242", Family: "Calibri"},
+		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.metaVal, err = f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Size: 10, Color: "212121", Family: "Calibri"},
+		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.headerStyle, err = f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "FFFFFF", Family: "Calibri"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"1A237E"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border:    border,
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.dataStyle, err = f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Size: 10, Color: "212121", Family: "Calibri"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"FFFFFF"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+		Border:    border,
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.dataAlt, err = f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Size: 10, Color: "212121", Family: "Calibri"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"E8EAF6"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+		Border:    border,
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.currency, err = f.NewStyle(&excelize.Style{
+		Font:         &excelize.Font{Size: 10, Color: "212121", Family: "Calibri"},
+		Fill:         excelize.Fill{Type: "pattern", Color: []string{"FFFFFF"}, Pattern: 1},
+		Alignment:    &excelize.Alignment{Horizontal: "right", Vertical: "center"},
+		Border:       border,
+		CustomNumFmt: strPtr(`"Rp "#,##0.00`),
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.currencyAlt, err = f.NewStyle(&excelize.Style{
+		Font:         &excelize.Font{Size: 10, Color: "212121", Family: "Calibri"},
+		Fill:         excelize.Fill{Type: "pattern", Color: []string{"E8EAF6"}, Pattern: 1},
+		Alignment:    &excelize.Alignment{Horizontal: "right", Vertical: "center"},
+		Border:       border,
+		CustomNumFmt: strPtr(`"Rp "#,##0.00`),
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.sumLabel, err = f.NewStyle(&excelize.Style{
+		Font:   &excelize.Font{Bold: true, Size: 10, Color: "FFFFFF", Family: "Calibri"},
+		Fill:   excelize.Fill{Type: "pattern", Color: []string{"283593"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"},
+		Border: border,
+	})
+	if err != nil {
+		return s, err
+	}
+
+	s.sumValue, err = f.NewStyle(&excelize.Style{
+		Font:         &excelize.Font{Bold: true, Size: 10, Color: "FFFFFF", Family: "Calibri"},
+		Fill:         excelize.Fill{Type: "pattern", Color: []string{"283593"}, Pattern: 1},
+		Alignment:    &excelize.Alignment{Horizontal: "right", Vertical: "center"},
+		Border:       border,
+		CustomNumFmt: strPtr(`"Rp "#,##0.00`),
+	})
+	if err != nil {
+		return s, err
+	}
+
+	return s, nil
+}
+
+func setPaymentMetaRow(f *excelize.File, sh string, row int, label, value string, labelStyle, valStyle int) {
+	cell := fmt.Sprintf("A%d", row)
+	f.SetCellValue(sh, cell, label)
+	f.SetCellStyle(sh, cell, cell, labelStyle)
+	v := fmt.Sprintf("B%d", row)
+	f.SetCellValue(sh, v, value)
+	f.SetCellStyle(sh, v, v, valStyle)
+}
+
+func applyPaymentRowStyle(f *excelize.File, sh string, row, numCols int, textSt, numSt int, numCol int) {
+	for col := 1; col <= numCols; col++ {
+		cellRef, _ := excelize.CoordinatesToCellName(col, row)
+		if col == numCol {
+			f.SetCellStyle(sh, cellRef, cellRef, numSt)
+		} else {
+			f.SetCellStyle(sh, cellRef, cellRef, textSt)
+		}
+	}
+}
+
 

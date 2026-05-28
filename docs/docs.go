@@ -1963,6 +1963,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/payments/history/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian dan status pembayaran order terkait.",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Export Riwayat Pembayaran ke Excel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cari nomor PO atau transaksi",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter status (all, paid, partial)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File Excel",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/payments/{id}": {
             "get": {
                 "security": [

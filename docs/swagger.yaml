@@ -1943,6 +1943,35 @@ paths:
       summary: Ambil Laporan Riwayat Transaksi Pembayaran
       tags:
       - Payments
+  /payments/history/export:
+    get:
+      description: Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran
+        berdasarkan filter pencarian dan status pembayaran order terkait.
+      parameters:
+      - description: Cari nomor PO atau transaksi
+        in: query
+        name: search
+        type: string
+      - description: Filter status (all, paid, partial)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: File Excel
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Export Riwayat Pembayaran ke Excel
+      tags:
+      - Payments
   /shipments:
     post:
       consumes:
