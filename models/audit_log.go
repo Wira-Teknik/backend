@@ -21,7 +21,7 @@ type AuditLog struct {
 	User       User           `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"user"`
 	Action     AuditAction    `gorm:"type:varchar(20);not null;check:action IN ('CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'UPLOAD_DOC')" json:"action"`
 	TableName  string         `gorm:"type:varchar(255)" json:"table_name"`
-	ResourceID uuid.UUID      `gorm:"type:uuid" json:"resource_id"`
+	ResourceID uuid.UUID      `gorm:"type:uuid;index" json:"resource_id"`
 	OldValue   string         `gorm:"type:json" json:"old_value"`
 	NewValue   string         `gorm:"type:json" json:"new_value"`
 	CreatedAt  utils.JSONDateTime `json:"created_at"`
