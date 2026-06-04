@@ -34,6 +34,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/pprof"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/joho/godotenv"
 )
@@ -82,6 +83,9 @@ func main() {
 
 	// Middleware: Recover from panics
 	app.Use(recover.New())
+
+	// Middleware: Pprof (Memory & CPU profiling)
+	app.Use(pprof.New())
 
 	// Middleware: CORS
 	corsOrigins := os.Getenv("CORS_ORIGIN")
