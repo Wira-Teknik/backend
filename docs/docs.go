@@ -1762,7 +1762,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer.",
+                "description": "Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang tanggal order_date, dan status pembayaran.",
                 "produces": [
                     "application/json"
                 ],
@@ -1775,6 +1775,24 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Nama Customer (opsional)",
                         "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal filter (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir filter (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status pembayaran (all, unpaid, partial, paid)",
+                        "name": "status",
                         "in": "query"
                     }
                 ],
@@ -1884,7 +1902,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi dan status pembayaran (all, paid, partial, unpaid).",
+                "description": "Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi, status pembayaran (all, paid, partial, unpaid), dan rentang tanggal order_date.",
                 "produces": [
                     "application/json"
                 ],
@@ -1910,6 +1928,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter status (all, paid, partial, unpaid)",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal filter (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir filter (YYYY-MM-DD)",
+                        "name": "end_date",
                         "in": "query"
                     }
                 ],

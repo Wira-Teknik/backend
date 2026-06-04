@@ -1746,11 +1746,24 @@ paths:
   /payments:
     get:
       description: Mengambil daftar customer beserta detail pesanan, total tagihan,
-        dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer.
+        dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang
+        tanggal order_date, dan status pembayaran.
       parameters:
       - description: Nama Customer (opsional)
         in: query
         name: name
+        type: string
+      - description: Tanggal awal filter (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir filter (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Status pembayaran (all, unpaid, partial, paid)
+        in: query
+        name: status
         type: string
       produces:
       - application/json
@@ -1896,8 +1909,8 @@ paths:
   /payments/customer/{name}:
     get:
       description: Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap
-        dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi
-        dan status pembayaran (all, paid, partial, unpaid).
+        dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi,
+        status pembayaran (all, paid, partial, unpaid), dan rentang tanggal order_date.
       parameters:
       - description: Customer Name
         in: path
@@ -1911,6 +1924,14 @@ paths:
       - description: Filter status (all, paid, partial, unpaid)
         in: query
         name: status
+        type: string
+      - description: Tanggal awal filter (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir filter (YYYY-MM-DD)
+        in: query
+        name: end_date
         type: string
       produces:
       - application/json

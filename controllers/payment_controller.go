@@ -42,18 +42,25 @@ type UpdatePaymentTotalRequest struct {
 
 // GetAllPayments godoc
 // @Summary      Ambil daftar pembayaran & tagihan customer
-// @Description  Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer.
+// @Description  Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang tanggal order_date, dan status pembayaran.
 // @Tags         Payments
-// @Param        name query string false "Nama Customer (opsional)"
+// @Param        name        query  string  false  "Nama Customer (opsional)"
+// @Param        start_date  query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
+// @Param        end_date    query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
+// @Param        status      query  string  false  "Status pembayaran (all, unpaid, partial, paid)"
 // @Produce      json
 // @Success      200  {object}  utils.Response{data=[]services.CustomerPaymentSummary}
 // @Router       /payments [get]
 // @Security     BearerAuth
 func GetAllPayments(c *fiber.Ctx) error {
 	name := c.Query("name")
-	results, err := services.SearchCustomerPayments(name)
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	status := c.Query("status")
+
+	results, err := services.SearchCustomerPayments(name, startDate, endDate, status)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data tagihan dan pembayaran customer")
+		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 	return utils.JSONSuccess(c, "Data tagihan dan pembayaran customer berhasil diambil", results)
 }
@@ -206,11 +213,13 @@ func UpdatePaymentTotal(c *fiber.Ctx) error {
 
 // GetCustomerPaymentDetail godoc
 // @Summary      Ambil detail pembayaran customer dengan filter
-// @Description  Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi dan status pembayaran (all, paid, partial, unpaid).
+// @Description  Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi, status pembayaran (all, paid, partial, unpaid), dan rentang tanggal order_date.
 // @Tags         Payments
-// @Param        name    path      string  true   "Customer Name"
-// @Param        po_no   query     string  false  "Cari nomor PO atau Transaksi"
-// @Param        status  query     string  false  "Filter status (all, paid, partial, unpaid)"
+// @Param        name        path      string  true   "Customer Name"
+// @Param        po_no       query     string  false  "Cari nomor PO atau Transaksi"
+// @Param        status      query     string  false  "Filter status (all, paid, partial, unpaid)"
+// @Param        start_date  query     string  false  "Tanggal awal filter (YYYY-MM-DD)"
+// @Param        end_date    query     string  false  "Tanggal akhir filter (YYYY-MM-DD)"
 // @Produce      json
 // @Success      200     {object}  utils.Response{data=services.CustomerPaymentDetailResponse}
 // @Failure      404     {object}  utils.Response
@@ -230,8 +239,10 @@ func GetCustomerPaymentDetail(c *fiber.Ctx) error {
 
 	poNo := c.Query("po_no")
 	status := c.Query("status")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
 
-	detail, err := services.GetCustomerPaymentDetail(name, poNo, status)
+	detail, err := services.GetCustomerPaymentDetail(name, poNo, status, startDate, endDate)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusNotFound, err.Error())
 	}

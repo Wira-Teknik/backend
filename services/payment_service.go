@@ -64,7 +64,20 @@ type CustomerPaymentDetailResponse struct {
 }
 
 // SearchCustomerPayments mencari customer berdasarkan nama (dari data pesanan) dan menghitung tagihannya.
-func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
+func SearchCustomerPayments(name, startDate, endDate, status string) ([]CustomerPaymentSummary, error) {
+	// Validate status first
+	if status != "" && !strings.EqualFold(status, "all") {
+		statusLower := strings.ToLower(strings.TrimSpace(status))
+		validStatuses := map[string]bool{
+			"unpaid":  true,
+			"partial": true,
+			"paid":    true,
+		}
+		if !validStatuses[statusLower] {
+			return nil, fmt.Errorf("status pembayaran tidak valid, gunakan: all, unpaid, partial, paid")
+		}
+	}
+
 	var orders []models.Order
 
 	query := config.DB.Preload("Items").
@@ -75,6 +88,23 @@ func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
 
 	if name != "" {
 		query = query.Where("recipient_name ILIKE ?", "%"+name+"%")
+	}
+
+	layout := "2006-01-02"
+	if startDate != "" {
+		start, err := time.Parse(layout, startDate)
+		if err != nil {
+			return nil, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		query = query.Where("order_date >= ?", start)
+	}
+	if endDate != "" {
+		end, err := time.Parse(layout, endDate)
+		if err != nil {
+			return nil, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		query = query.Where("order_date <= ?", end)
 	}
 
 	if err := query.Find(&orders).Error; err != nil {
@@ -124,10 +154,19 @@ func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
 		}
 	}
 
-	// 3. Group by recipient_name
+	// 3. Group by recipient_name and preserve order of newest orders
 	customerMap := make(map[string]*CustomerPaymentSummary)
+	var orderedCustomerNames []string
 
 	for i := range orders {
+		// Filter by payment status if specified
+		if status != "" && !strings.EqualFold(status, "all") {
+			statusLower := strings.ToLower(strings.TrimSpace(status))
+			if !strings.EqualFold(string(orders[i].PaymentStatus), statusLower) {
+				continue
+			}
+		}
+
 		custName := orders[i].RecipientName
 		if _, exists := customerMap[custName]; !exists {
 			customerMap[custName] = &CustomerPaymentSummary{
@@ -135,6 +174,7 @@ func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
 				Orders:       []models.Order{},
 				TotalTagihan: 0,
 			}
+			orderedCustomerNames = append(orderedCustomerNames, custName)
 		}
 
 		customerMap[custName].Orders = append(customerMap[custName].Orders, orders[i])
@@ -142,7 +182,9 @@ func SearchCustomerPayments(name string) ([]CustomerPaymentSummary, error) {
 	}
 
 	var results []CustomerPaymentSummary
-	for _, summary := range customerMap {
+	results = make([]CustomerPaymentSummary, 0, len(orderedCustomerNames))
+	for _, custName := range orderedCustomerNames {
+		summary := customerMap[custName]
 		summary.TotalTagihan = roundTwo(summary.TotalTagihan)
 		results = append(results, *summary)
 	}
@@ -488,7 +530,7 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 }
 
 // GetCustomerPaymentDetail menarik ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya dengan filter opsional.
-func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilter string) (CustomerPaymentDetailResponse, error) {
+func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilter string, startDate string, endDate string) (CustomerPaymentDetailResponse, error) {
 	var orders []models.Order
 
 	// 1. Ambil seluruh pesanan untuk customerName tersebut
@@ -515,9 +557,41 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 		grandRemainingBalance += orders[i].RemainingBalance
 	}
 
-	// 3. Terapkan filter Nomor PO / Transaksi dan Status Pembayaran di memori Go
+	// 3. Terapkan filter Nomor PO / Transaksi, Status Pembayaran, dan Rentang Tanggal di memori Go
 	var filteredOrders []models.Order
+	
+	var startLimit time.Time
+	var endLimit time.Time
+	var hasStart, hasEnd bool
+	
+	layout := "2006-01-02"
+	if startDate != "" {
+		t, err := time.Parse(layout, startDate)
+		if err != nil {
+			return CustomerPaymentDetailResponse{}, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		startLimit = t
+		hasStart = true
+	}
+	if endDate != "" {
+		t, err := time.Parse(layout, endDate)
+		if err != nil {
+			return CustomerPaymentDetailResponse{}, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		endLimit = t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		hasEnd = true
+	}
+
 	for i := range orders {
+		// Filter rentang tanggal (order_date)
+		orderTime := time.Time(orders[i].OrderDate)
+		if hasStart && orderTime.Before(startLimit) {
+			continue
+		}
+		if hasEnd && orderTime.After(endLimit) {
+			continue
+		}
+
 		// Filter PO No / Transaction No (case-insensitive)
 		if poNoFilter != "" {
 			poMatch := strings.Contains(strings.ToLower(orders[i].PoNo), strings.ToLower(poNoFilter))
