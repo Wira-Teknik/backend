@@ -47,16 +47,27 @@ type UpdateOrderRequest struct {
 
 // GetAllOrders godoc
 // @Summary      Ambil semua pesanan
-// @Description  Mengambil daftar semua pesanan beserta item-itemnya
+// @Description  Mengambil daftar semua pesanan beserta item-itemnya. Mendukung filter rentang tanggal order_date, nomor PO, nama perusahaan (recipient_name), dan status pesanan (order_status).
 // @Tags         Orders
 // @Produce      json
+// @Param        start_date      query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
+// @Param        end_date        query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
+// @Param        po_no           query  string  false  "Nomor PO (sebagian/lengkap)"
+// @Param        recipient_name  query  string  false  "Nama perusahaan / penerima (sebagian/lengkap)"
+// @Param        order_status    query  string  false  "Status order (all, pending, partial, shipped, completed)"
 // @Success      200  {object}  utils.Response{data=[]models.Order}
 // @Router       /orders [get]
 // @Security     BearerAuth
 func GetAllOrders(c *fiber.Ctx) error {
-	orders, err := services.GetAllOrders()
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	poNo := c.Query("po_no")
+	recipientName := c.Query("recipient_name")
+	orderStatus := c.Query("order_status")
+
+	orders, err := services.GetAllOrders(startDate, endDate, poNo, recipientName, orderStatus)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data pesanan")
+		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 	return utils.JSONSuccess(c, "Data pesanan berhasil diambil", orders)
 }

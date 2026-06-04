@@ -847,7 +847,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar semua pesanan beserta item-itemnya",
+                "description": "Mengambil daftar semua pesanan beserta item-itemnya. Mendukung filter rentang tanggal order_date, nomor PO, nama perusahaan (recipient_name), dan status pesanan (order_status).",
                 "produces": [
                     "application/json"
                 ],
@@ -855,6 +855,38 @@
                     "Orders"
                 ],
                 "summary": "Ambil semua pesanan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal filter (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir filter (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nomor PO (sebagian/lengkap)",
+                        "name": "po_no",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nama perusahaan / penerima (sebagian/lengkap)",
+                        "name": "recipient_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status order (all, pending, partial, shipped, completed)",
+                        "name": "order_status",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",

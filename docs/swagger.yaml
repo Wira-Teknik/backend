@@ -1191,7 +1191,30 @@ paths:
       - Invoices
   /orders:
     get:
-      description: Mengambil daftar semua pesanan beserta item-itemnya
+      description: Mengambil daftar semua pesanan beserta item-itemnya. Mendukung
+        filter rentang tanggal order_date, nomor PO, nama perusahaan (recipient_name),
+        dan status pesanan (order_status).
+      parameters:
+      - description: Tanggal awal filter (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir filter (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Nomor PO (sebagian/lengkap)
+        in: query
+        name: po_no
+        type: string
+      - description: Nama perusahaan / penerima (sebagian/lengkap)
+        in: query
+        name: recipient_name
+        type: string
+      - description: Status order (all, pending, partial, shipped, completed)
+        in: query
+        name: order_status
+        type: string
       produces:
       - application/json
       responses:

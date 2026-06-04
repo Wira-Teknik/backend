@@ -119,19 +119,58 @@ func computeOrderPaymentInfo(order *models.Order) {
 	}
 }
 
-func GetAllOrders() ([]models.Order, error) {
+func GetAllOrders(startDate, endDate, poNo, recipientName, orderStatus string) ([]models.Order, error) {
 	var orders []models.Order
-	err := config.DB.Preload("Items").
+	query := config.DB.Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
-		Preload("Shipments.Invoice").
-		Order("created_at DESC").
-		Find(&orders).Error
+		Preload("Shipments.Invoice")
+	
+	layout := "2006-01-02"
+	if startDate != "" {
+		start, err := time.Parse(layout, startDate)
+		if err != nil {
+			return nil, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		query = query.Where("order_date >= ?", start)
+	}
+	if endDate != "" {
+		end, err := time.Parse(layout, endDate)
+		if err != nil {
+			return nil, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		query = query.Where("order_date <= ?", end)
+	}
+	if poNo != "" {
+		query = query.Where("po_no ILIKE ?", "%"+poNo+"%")
+	}
+	if recipientName != "" {
+		query = query.Where("recipient_name ILIKE ?", "%"+recipientName+"%")
+	}
+	if orderStatus != "" && orderStatus != "all" {
+		validStatuses := map[string]bool{
+			"pending":   true,
+			"partial":   true,
+			"shipped":   true,
+			"completed": true,
+		}
+		statusLower := strings.ToLower(strings.TrimSpace(orderStatus))
+		if !validStatuses[statusLower] {
+			return nil, fmt.Errorf("status order tidak valid, gunakan: all, pending, partial, shipped, completed")
+		}
+		query = query.Where("order_status = ?", statusLower)
+	}
+
+	err := query.Order("created_at DESC").Find(&orders).Error
 	
 	if err == nil {
 		for i := range orders {
 			computeOrderPaymentInfo(&orders[i])
 		}
+	}
+	if orders == nil {
+		orders = []models.Order{}
 	}
 	return orders, err
 }
