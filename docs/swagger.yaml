@@ -1957,8 +1957,8 @@ paths:
   /payments/history:
     get:
       description: Mengambil riwayat cicilan transaksi pembayaran dengan pencarian
-        berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran
-        order terkait (all, paid, partial)
+        berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran
+        order terkait (all, paid, partial), dan filter rentang tanggal payments.payment_date.
       parameters:
       - description: Cari nomor PO atau transaksi
         in: query
@@ -1967,6 +1967,14 @@ paths:
       - description: Filter status (all, paid, partial)
         in: query
         name: status
+        type: string
+      - description: Tanggal awal filter (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir filter (YYYY-MM-DD)
+        in: query
+        name: end_date
         type: string
       produces:
       - application/json
@@ -1990,7 +1998,8 @@ paths:
   /payments/history/export:
     get:
       description: Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran
-        berdasarkan filter pencarian dan status pembayaran order terkait.
+        berdasarkan filter pencarian, status pembayaran order terkait, dan rentang
+        tanggal payments.payment_date.
       parameters:
       - description: Cari nomor PO atau transaksi
         in: query
@@ -1999,6 +2008,14 @@ paths:
       - description: Filter status (all, paid, partial)
         in: query
         name: status
+        type: string
+      - description: Tanggal awal filter (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir filter (YYYY-MM-DD)
+        in: query
+        name: end_date
         type: string
       produces:
       - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet

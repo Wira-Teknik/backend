@@ -256,19 +256,23 @@ func GetCustomerPaymentDetail(c *fiber.Ctx) error {
 
 // GetPaymentHistory godoc
 // @Summary      Ambil Laporan Riwayat Transaksi Pembayaran
-// @Description  Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran order terkait (all, paid, partial)
+// @Description  Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran order terkait (all, paid, partial), dan filter rentang tanggal payments.payment_date.
 // @Tags         Payments
 // @Produce      json
-// @Param        search query string false "Cari nomor PO atau transaksi"
-// @Param        status query string false "Filter status (all, paid, partial)"
+// @Param        search      query  string  false  "Cari nomor PO atau transaksi"
+// @Param        status      query  string  false  "Filter status (all, paid, partial)"
+// @Param        start_date  query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
+// @Param        end_date    query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
 // @Success      200  {object}  utils.Response{data=[]services.PaymentHistoryDTO}
 // @Router       /payments/history [get]
 // @Security     BearerAuth
 func GetPaymentHistory(c *fiber.Ctx) error {
 	search := c.Query("search")
 	status := c.Query("status", "all")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
 
-	history, err := services.GetPaymentHistory(search, status)
+	history, err := services.GetPaymentHistory(search, status, startDate, endDate)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil riwayat pembayaran: "+err.Error())
 	}
@@ -281,11 +285,13 @@ func GetPaymentHistory(c *fiber.Ctx) error {
 
 // ExportPaymentHistory godoc
 // @Summary      Export Riwayat Pembayaran ke Excel
-// @Description  Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian dan status pembayaran order terkait.
+// @Description  Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian, status pembayaran order terkait, dan rentang tanggal payments.payment_date.
 // @Tags         Payments
 // @Produce      application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-// @Param        search query string false "Cari nomor PO atau transaksi"
-// @Param        status query string false "Filter status (all, paid, partial)"
+// @Param        search      query  string  false  "Cari nomor PO atau transaksi"
+// @Param        status      query  string  false  "Filter status (all, paid, partial)"
+// @Param        start_date  query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
+// @Param        end_date    query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
 // @Success      200  {string}  string  "File Excel"
 // @Failure      500  {object}  utils.Response
 // @Router       /payments/history/export [get]
@@ -293,8 +299,10 @@ func GetPaymentHistory(c *fiber.Ctx) error {
 func ExportPaymentHistory(c *fiber.Ctx) error {
 	search := c.Query("search")
 	status := c.Query("status", "all")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
 
-	history, err := services.GetPaymentHistory(search, status)
+	history, err := services.GetPaymentHistory(search, status, startDate, endDate)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}

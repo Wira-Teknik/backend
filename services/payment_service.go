@@ -686,7 +686,7 @@ type PaymentHistoryDTO struct {
 	PaymentStatus string  `json:"payment_status" example:"Partial"`
 }
 
-func GetPaymentHistory(search string, statusFilter string) ([]PaymentHistoryDTO, error) {
+func GetPaymentHistory(search string, statusFilter string, startDate string, endDate string) ([]PaymentHistoryDTO, error) {
 	type rawPaymentHistory struct {
 		DetailID        uuid.UUID
 		PaymentID       uuid.UUID
@@ -714,6 +714,23 @@ func GetPaymentHistory(search string, statusFilter string) ([]PaymentHistoryDTO,
 	if search != "" {
 		searchTerm := "%" + search + "%"
 		query = query.Where("orders.transaction_no ILIKE ? OR orders.po_no ILIKE ?", searchTerm, searchTerm)
+	}
+
+	layout := "2006-01-02"
+	if startDate != "" {
+		start, err := time.Parse(layout, startDate)
+		if err != nil {
+			return nil, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		query = query.Where("payments.payment_date >= ?", start)
+	}
+	if endDate != "" {
+		end, err := time.Parse(layout, endDate)
+		if err != nil {
+			return nil, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		query = query.Where("payments.payment_date <= ?", end)
 	}
 
 	err := query.Order("payments.payment_date DESC, payment_details.created_at DESC").Scan(&raws).Error

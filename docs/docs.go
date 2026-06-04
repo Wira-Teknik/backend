@@ -1978,7 +1978,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi dan filter berdasarkan status pembayaran order terkait (all, paid, partial)",
+                "description": "Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran order terkait (all, paid, partial), dan filter rentang tanggal payments.payment_date.",
                 "produces": [
                     "application/json"
                 ],
@@ -1997,6 +1997,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter status (all, paid, partial)",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal filter (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir filter (YYYY-MM-DD)",
+                        "name": "end_date",
                         "in": "query"
                     }
                 ],
@@ -2032,7 +2044,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian dan status pembayaran order terkait.",
+                "description": "Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian, status pembayaran order terkait, dan rentang tanggal payments.payment_date.",
                 "produces": [
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ],
@@ -2051,6 +2063,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter status (all, paid, partial)",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal filter (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir filter (YYYY-MM-DD)",
+                        "name": "end_date",
                         "in": "query"
                     }
                 ],
