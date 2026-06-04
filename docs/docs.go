@@ -854,7 +854,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar semua pesanan beserta item-itemnya. Mendukung filter rentang tanggal order_date, nomor PO, nama perusahaan (recipient_name), dan status pesanan (order_status).",
+                "description": "Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).",
                 "produces": [
                     "application/json"
                 ],
@@ -877,14 +877,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Nomor PO (sebagian/lengkap)",
-                        "name": "po_no",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Nama perusahaan / penerima (sebagian/lengkap)",
-                        "name": "recipient_name",
+                        "description": "Cari nomor PO, nomor transaksi, atau nama perusahaan",
+                        "name": "search",
                         "in": "query"
                     },
                     {

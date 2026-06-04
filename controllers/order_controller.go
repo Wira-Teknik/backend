@@ -47,13 +47,12 @@ type UpdateOrderRequest struct {
 
 // GetAllOrders godoc
 // @Summary      Ambil semua pesanan
-// @Description  Mengambil daftar semua pesanan beserta item-itemnya. Mendukung filter rentang tanggal order_date, nomor PO, nama perusahaan (recipient_name), dan status pesanan (order_status).
+// @Description  Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).
 // @Tags         Orders
 // @Produce      json
 // @Param        start_date      query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
 // @Param        end_date        query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
-// @Param        po_no           query  string  false  "Nomor PO (sebagian/lengkap)"
-// @Param        recipient_name  query  string  false  "Nama perusahaan / penerima (sebagian/lengkap)"
+// @Param        search          query  string  false  "Cari nomor PO, nomor transaksi, atau nama perusahaan"
 // @Param        order_status    query  string  false  "Status order (all, pending, partial, shipped, completed)"
 // @Success      200  {object}  utils.Response{data=[]models.Order}
 // @Router       /orders [get]
@@ -61,11 +60,10 @@ type UpdateOrderRequest struct {
 func GetAllOrders(c *fiber.Ctx) error {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
-	poNo := c.Query("po_no")
-	recipientName := c.Query("recipient_name")
+	search := c.Query("search")
 	orderStatus := c.Query("order_status")
 
-	orders, err := services.GetAllOrders(startDate, endDate, poNo, recipientName, orderStatus)
+	orders, err := services.GetAllOrders(startDate, endDate, search, orderStatus)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}

@@ -119,7 +119,7 @@ func computeOrderPaymentInfo(order *models.Order) {
 	}
 }
 
-func GetAllOrders(startDate, endDate, poNo, recipientName, orderStatus string) ([]models.Order, error) {
+func GetAllOrders(startDate, endDate, search, orderStatus string) ([]models.Order, error) {
 	var orders []models.Order
 	query := config.DB.Preload("Items").
 		Preload("Shipments").
@@ -142,11 +142,9 @@ func GetAllOrders(startDate, endDate, poNo, recipientName, orderStatus string) (
 		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 		query = query.Where("order_date <= ?", end)
 	}
-	if poNo != "" {
-		query = query.Where("po_no ILIKE ?", "%"+poNo+"%")
-	}
-	if recipientName != "" {
-		query = query.Where("recipient_name ILIKE ?", "%"+recipientName+"%")
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("po_no ILIKE ? OR recipient_name ILIKE ? OR transaction_no ILIKE ?", searchTerm, searchTerm, searchTerm)
 	}
 	if orderStatus != "" && orderStatus != "all" {
 		validStatuses := map[string]bool{

@@ -1192,8 +1192,7 @@ paths:
   /orders:
     get:
       description: Mengambil daftar semua pesanan beserta item-itemnya. Mendukung
-        filter rentang tanggal order_date, nomor PO, nama perusahaan (recipient_name),
-        dan status pesanan (order_status).
+        pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).
       parameters:
       - description: Tanggal awal filter (YYYY-MM-DD)
         in: query
@@ -1203,13 +1202,9 @@ paths:
         in: query
         name: end_date
         type: string
-      - description: Nomor PO (sebagian/lengkap)
+      - description: Cari nomor PO, nomor transaksi, atau nama perusahaan
         in: query
-        name: po_no
-        type: string
-      - description: Nama perusahaan / penerima (sebagian/lengkap)
-        in: query
-        name: recipient_name
+        name: search
         type: string
       - description: Status order (all, pending, partial, shipped, completed)
         in: query
