@@ -33,10 +33,10 @@ type ShipmentItemRequestPayload struct {
 // GetShipmentsByOrder godoc
 // @Summary      Ambil semua pengiriman berdasarkan Order
 // @Description  Mengambil daftar pengiriman beserta item-nya untuk order tertentu
-// @Tags         Shipments
+// @Tags         Orders
 // @Param        orderId  path      string  true  "Order ID"
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=[]models.Shipment}
+// @Success      200  {object}  utils.Response{data=[]controllers.ShipmentResponse}
 // @Router       /orders/{orderId}/shipments [get]
 // @Security     BearerAuth
 func GetShipmentsByOrder(c *fiber.Ctx) error {

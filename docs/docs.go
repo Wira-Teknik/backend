@@ -854,7 +854,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).",
+                "description": "Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, status pesanan (order_status), dan pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -886,28 +886,25 @@ const docTemplate = `{
                         "description": "Status order (all, pending, partial, shipped, completed)",
                         "name": "order_status",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.Order"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedOrdersResponse"
                         }
                     }
                 }
@@ -1041,7 +1038,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/models.Order"
+                                            "$ref": "#/definitions/controllers.OrderDetailResponse"
                                         }
                                     }
                                 }
@@ -1157,6 +1154,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/orders/{id}/invoice": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Membuat invoice senilai 100% nominal pesanan sebelum barang dikirim (Shipment dibuat).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Buat invoice di awal (DP / Pelunasan Muka)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Invoice"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/orders/{orderId}/shipments": {
             "get": {
                 "security": [
@@ -1169,7 +1224,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Shipments"
+                    "Orders"
                 ],
                 "summary": "Ambil semua pengiriman berdasarkan Order",
                 "parameters": [
@@ -1195,7 +1250,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/models.Shipment"
+                                                "$ref": "#/definitions/controllers.ShipmentResponse"
                                             }
                                         }
                                     }
@@ -2506,7 +2561,7 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string",
-                    "example": "budi@example.com"
+                    "example": "admin@example.com"
                 }
             }
         },
@@ -2515,7 +2570,7 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string",
-                    "example": "budi@example.com"
+                    "example": "admin@example.com"
                 },
                 "otp": {
                     "type": "string",
@@ -2537,6 +2592,32 @@ const docTemplate = `{
                 "token": {
                     "type": "string",
                     "example": "uuid-verified-token"
+                }
+            }
+        },
+        "controllers.InvoiceResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "invoice_no": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "remaining_balance": {
+                    "type": "number"
+                },
+                "shipment_id": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
                 }
             }
         },
@@ -2565,6 +2646,71 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.OrderDetailResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "invoices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.InvoiceResponse"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.OrderItemResponse"
+                    }
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "order_status": {
+                    "$ref": "#/definitions/models.OrderStatus"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "payments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Payment"
+                    }
+                },
+                "po_no": {
+                    "type": "string"
+                },
+                "recipient_address": {
+                    "type": "string"
+                },
+                "recipient_email": {
+                    "type": "string"
+                },
+                "recipient_name": {
+                    "type": "string"
+                },
+                "recipient_phone": {
+                    "type": "string"
+                },
+                "remaining_balance": {
+                    "type": "number"
+                },
+                "shipments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.ShipmentResponse"
+                    }
+                },
+                "total_amount_to_pay": {
+                    "type": "number"
+                },
+                "transaction_no": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.OrderItemRequestPayload": {
             "type": "object",
             "properties": {
@@ -2582,12 +2728,113 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.OrderItemResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "order_qty": {
+                    "type": "integer"
+                },
+                "ppn": {
+                    "type": "number"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "remaining_qty": {
+                    "type": "integer"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                }
+            }
+        },
+        "controllers.OrderListItemResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "6ec26fbf-a256-4a67-a89f-2136eff97857"
+                },
+                "order_date": {
+                    "type": "string",
+                    "example": "2026-11-02"
+                },
+                "order_status": {
+                    "type": "string",
+                    "example": "pending"
+                },
+                "po_no": {
+                    "type": "string",
+                    "example": "561/PO-WLK/XI/26"
+                },
+                "recipient_name": {
+                    "type": "string",
+                    "example": "PT Sentosa Abadi"
+                },
+                "total_amount_to_pay": {
+                    "type": "number",
+                    "example": 7492500
+                }
+            }
+        },
+        "controllers.PaginatedOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.OrderListItemResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Data pesanan berhasil diambil"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/controllers.PaginationMeta"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "controllers.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "total_pages": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "total_rows": {
+                    "type": "integer",
+                    "example": 100
+                }
+            }
+        },
         "controllers.RegisterRequest": {
             "type": "object",
             "properties": {
                 "email": {
                     "type": "string",
-                    "example": "admin@gmail.com"
+                    "example": "admin@example.com"
                 },
                 "name": {
                     "type": "string",
@@ -2607,9 +2854,56 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.ShipmentItemResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "order_item_id": {
+                    "type": "string"
+                },
+                "shipment_id": {
+                    "type": "string"
+                },
+                "shipping_qty": {
+                    "type": "integer"
+                }
+            }
+        },
+        "controllers.ShipmentResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.ShipmentItemResponse"
+                    }
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "received_date": {
+                    "type": "string"
+                },
+                "shipping_date": {
+                    "type": "string"
+                },
+                "shipping_status": {
+                    "$ref": "#/definitions/models.ShippingStatus"
+                }
+            }
+        },
         "controllers.UpdateOrderRequest": {
             "type": "object",
             "properties": {
+                "order_date": {
+                    "type": "string",
+                    "example": "2026-05-13"
+                },
                 "po_no": {
                     "type": "string",
                     "example": "PO-2026-001"
@@ -2746,6 +3040,9 @@ const docTemplate = `{
                 "invoice_no": {
                     "type": "string"
                 },
+                "order_id": {
+                    "type": "string"
+                },
                 "payment_status": {
                     "$ref": "#/definitions/models.PaymentStatus"
                 },
@@ -2771,6 +3068,12 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "invoices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Invoice"
+                    }
                 },
                 "items": {
                     "type": "array",
@@ -2831,9 +3134,6 @@ const docTemplate = `{
         "models.OrderItem": {
             "type": "object",
             "properties": {
-                "created_at": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "string"
                 },
@@ -2857,9 +3157,6 @@ const docTemplate = `{
                 },
                 "unit_price": {
                     "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
                 }
             }
         },

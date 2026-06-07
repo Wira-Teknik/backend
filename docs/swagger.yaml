@@ -31,13 +31,13 @@ definitions:
   controllers.ForgotStep1Request:
     properties:
       email:
-        example: budi@example.com
+        example: admin@example.com
         type: string
     type: object
   controllers.ForgotStep2Request:
     properties:
       email:
-        example: budi@example.com
+        example: admin@example.com
         type: string
       otp:
         example: "482931"
@@ -54,6 +54,23 @@ definitions:
       token:
         example: uuid-verified-token
         type: string
+    type: object
+  controllers.InvoiceResponse:
+    properties:
+      id:
+        type: string
+      invoice_no:
+        type: string
+      order_id:
+        type: string
+      payment_status:
+        $ref: '#/definitions/models.PaymentStatus'
+      remaining_balance:
+        type: number
+      shipment_id:
+        type: string
+      total_amount:
+        type: number
     type: object
   controllers.LoginRequest:
     properties:
@@ -72,6 +89,49 @@ definitions:
       user:
         $ref: '#/definitions/services.UserDTO'
     type: object
+  controllers.OrderDetailResponse:
+    properties:
+      id:
+        type: string
+      invoices:
+        items:
+          $ref: '#/definitions/controllers.InvoiceResponse'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/controllers.OrderItemResponse'
+        type: array
+      order_date:
+        type: string
+      order_status:
+        $ref: '#/definitions/models.OrderStatus'
+      payment_status:
+        $ref: '#/definitions/models.PaymentStatus'
+      payments:
+        items:
+          $ref: '#/definitions/models.Payment'
+        type: array
+      po_no:
+        type: string
+      recipient_address:
+        type: string
+      recipient_email:
+        type: string
+      recipient_name:
+        type: string
+      recipient_phone:
+        type: string
+      remaining_balance:
+        type: number
+      shipments:
+        items:
+          $ref: '#/definitions/controllers.ShipmentResponse'
+        type: array
+      total_amount_to_pay:
+        type: number
+      transaction_no:
+        type: string
+    type: object
   controllers.OrderItemRequestPayload:
     properties:
       order_qty:
@@ -84,10 +144,80 @@ definitions:
         example: 75000
         type: number
     type: object
+  controllers.OrderItemResponse:
+    properties:
+      id:
+        type: string
+      order_id:
+        type: string
+      order_qty:
+        type: integer
+      ppn:
+        type: number
+      product_name:
+        type: string
+      remaining_qty:
+        type: integer
+      subtotal:
+        type: number
+      unit_price:
+        type: number
+    type: object
+  controllers.OrderListItemResponse:
+    properties:
+      id:
+        example: 6ec26fbf-a256-4a67-a89f-2136eff97857
+        type: string
+      order_date:
+        example: "2026-11-02"
+        type: string
+      order_status:
+        example: pending
+        type: string
+      po_no:
+        example: 561/PO-WLK/XI/26
+        type: string
+      recipient_name:
+        example: PT Sentosa Abadi
+        type: string
+      total_amount_to_pay:
+        example: 7492500
+        type: number
+    type: object
+  controllers.PaginatedOrdersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/controllers.OrderListItemResponse'
+        type: array
+      message:
+        example: Data pesanan berhasil diambil
+        type: string
+      pagination:
+        $ref: '#/definitions/controllers.PaginationMeta'
+      success:
+        example: true
+        type: boolean
+    type: object
+  controllers.PaginationMeta:
+    properties:
+      limit:
+        example: 20
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total_pages:
+        example: 5
+        type: integer
+      total_rows:
+        example: 100
+        type: integer
+    type: object
   controllers.RegisterRequest:
     properties:
       email:
-        example: admin@gmail.com
+        example: admin@example.com
         type: string
       name:
         example: admin
@@ -102,8 +232,39 @@ definitions:
         example: admin
         type: string
     type: object
+  controllers.ShipmentItemResponse:
+    properties:
+      id:
+        type: string
+      order_item_id:
+        type: string
+      shipment_id:
+        type: string
+      shipping_qty:
+        type: integer
+    type: object
+  controllers.ShipmentResponse:
+    properties:
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/controllers.ShipmentItemResponse'
+        type: array
+      order_id:
+        type: string
+      received_date:
+        type: string
+      shipping_date:
+        type: string
+      shipping_status:
+        $ref: '#/definitions/models.ShippingStatus'
+    type: object
   controllers.UpdateOrderRequest:
     properties:
+      order_date:
+        example: "2026-05-13"
+        type: string
       po_no:
         example: PO-2026-001
         type: string
@@ -200,6 +361,8 @@ definitions:
         type: string
       invoice_no:
         type: string
+      order_id:
+        type: string
       payment_status:
         $ref: '#/definitions/models.PaymentStatus'
       remaining_balance:
@@ -217,6 +380,10 @@ definitions:
         type: string
       id:
         type: string
+      invoices:
+        items:
+          $ref: '#/definitions/models.Invoice'
+        type: array
       items:
         items:
           $ref: '#/definitions/models.OrderItem'
@@ -256,8 +423,6 @@ definitions:
     type: object
   models.OrderItem:
     properties:
-      created_at:
-        type: string
       id:
         type: string
       order_id:
@@ -274,8 +439,6 @@ definitions:
         type: number
       unit_price:
         type: number
-      updated_at:
-        type: string
     type: object
   models.OrderStatus:
     enum:
@@ -1192,7 +1355,8 @@ paths:
   /orders:
     get:
       description: Mengambil daftar semua pesanan beserta item-itemnya. Mendukung
-        pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).
+        pencarian, filter rentang tanggal order_date, status pesanan (order_status),
+        dan pagination (page & limit).
       parameters:
       - description: Tanggal awal filter (YYYY-MM-DD)
         in: query
@@ -1210,20 +1374,21 @@ paths:
         in: query
         name: order_status
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/models.Order'
-                  type: array
-              type: object
+            $ref: '#/definitions/controllers.PaginatedOrdersResponse'
       security:
       - BearerAuth: []
       summary: Ambil semua pesanan
@@ -1306,7 +1471,7 @@ paths:
             - $ref: '#/definitions/utils.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/models.Order'
+                  $ref: '#/definitions/controllers.OrderDetailResponse'
               type: object
         "440":
           description: ""
@@ -1354,6 +1519,41 @@ paths:
       summary: Update header pesanan
       tags:
       - Orders
+  /orders/{id}/invoice:
+    post:
+      description: Membuat invoice senilai 100% nominal pesanan sebelum barang dikirim
+        (Shipment dibuat).
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Invoice'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Buat invoice di awal (DP / Pelunasan Muka)
+      tags:
+      - Orders
   /orders/{orderId}/shipments:
     get:
       description: Mengambil daftar pengiriman beserta item-nya untuk order tertentu
@@ -1374,14 +1574,14 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/models.Shipment'
+                    $ref: '#/definitions/controllers.ShipmentResponse'
                   type: array
               type: object
       security:
       - BearerAuth: []
       summary: Ambil semua pengiriman berdasarkan Order
       tags:
-      - Shipments
+      - Orders
   /orders/next-trx:
     get:
       description: Mengambil format nomor transaksi yang akan digunakan untuk pesanan

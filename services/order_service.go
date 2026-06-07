@@ -136,9 +136,10 @@ func computeOrderPaymentInfo(order *models.Order) {
 	}
 }
 
-func GetAllOrders(startDate, endDate, search, orderStatus string) ([]models.Order, error) {
+func GetAllOrders(startDate, endDate, search, orderStatus string, page, limit int) ([]models.Order, int64, error) {
 	var orders []models.Order
-	query := config.DB.Preload("Items").
+	query := config.DB.Model(&models.Order{}).
+		Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
@@ -148,14 +149,14 @@ func GetAllOrders(startDate, endDate, search, orderStatus string) ([]models.Orde
 	if startDate != "" {
 		start, err := time.Parse(layout, startDate)
 		if err != nil {
-			return nil, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+			return nil, 0, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		query = query.Where("order_date >= ?", start)
 	}
 	if endDate != "" {
 		end, err := time.Parse(layout, endDate)
 		if err != nil {
-			return nil, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+			return nil, 0, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 		query = query.Where("order_date <= ?", end)
@@ -173,12 +174,18 @@ func GetAllOrders(startDate, endDate, search, orderStatus string) ([]models.Orde
 		}
 		statusLower := strings.ToLower(strings.TrimSpace(orderStatus))
 		if !validStatuses[statusLower] {
-			return nil, fmt.Errorf("status order tidak valid, gunakan: all, pending, partial, shipped, completed")
+			return nil, 0, fmt.Errorf("status order tidak valid, gunakan: all, pending, partial, shipped, completed")
 		}
 		query = query.Where("order_status = ?", statusLower)
 	}
 
-	err := query.Order("created_at DESC").Find(&orders).Error
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&orders).Error
 	
 	if err == nil {
 		for i := range orders {
@@ -188,7 +195,7 @@ func GetAllOrders(startDate, endDate, search, orderStatus string) ([]models.Orde
 	if orders == nil {
 		orders = []models.Order{}
 	}
-	return orders, err
+	return orders, totalRows, err
 }
 
 // ─────────────────────────────────────────────
