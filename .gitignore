@@ -86,3 +86,4 @@ uploads/*
 !uploads/.gitkeep
 
 docker-compose.yml
+summary_perubahan.html
