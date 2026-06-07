@@ -184,6 +184,36 @@ definitions:
         example: 7492500
         type: number
     type: object
+  controllers.PaginatedOrdersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/controllers.OrderListItemResponse'
+        type: array
+      message:
+        example: Data pesanan berhasil diambil
+        type: string
+      pagination:
+        $ref: '#/definitions/controllers.PaginationMeta'
+      success:
+        example: true
+        type: boolean
+    type: object
+  controllers.PaginationMeta:
+    properties:
+      limit:
+        example: 20
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total_pages:
+        example: 5
+        type: integer
+      total_rows:
+        example: 100
+        type: integer
+    type: object
   controllers.RegisterRequest:
     properties:
       email:
@@ -1325,7 +1355,8 @@ paths:
   /orders:
     get:
       description: Mengambil daftar semua pesanan beserta item-itemnya. Mendukung
-        pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).
+        pencarian, filter rentang tanggal order_date, status pesanan (order_status),
+        dan pagination (page & limit).
       parameters:
       - description: Tanggal awal filter (YYYY-MM-DD)
         in: query
@@ -1343,20 +1374,21 @@ paths:
         in: query
         name: order_status
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/controllers.OrderListItemResponse'
-                  type: array
-              type: object
+            $ref: '#/definitions/controllers.PaginatedOrdersResponse'
       security:
       - BearerAuth: []
       summary: Ambil semua pesanan

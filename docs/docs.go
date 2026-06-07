@@ -854,7 +854,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).",
+                "description": "Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, status pesanan (order_status), dan pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -886,28 +886,25 @@ const docTemplate = `{
                         "description": "Status order (all, pending, partial, shipped, completed)",
                         "name": "order_status",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/controllers.OrderListItemResponse"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedOrdersResponse"
                         }
                     }
                 }
@@ -2786,6 +2783,49 @@ const docTemplate = `{
                 "total_amount_to_pay": {
                     "type": "number",
                     "example": 7492500
+                }
+            }
+        },
+        "controllers.PaginatedOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.OrderListItemResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Data pesanan berhasil diambil"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/controllers.PaginationMeta"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "controllers.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "total_pages": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "total_rows": {
+                    "type": "integer",
+                    "example": 100
                 }
             }
         },

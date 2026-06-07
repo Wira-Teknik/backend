@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"strconv"
 
 	"teknik/models"
 	"teknik/services"
@@ -115,20 +116,38 @@ type OrderDetailResponse struct {
 	Payments         []models.Payment     `json:"payments"`
 }
 
+// PaginationMeta adalah metadata pagination untuk API response.
+type PaginationMeta struct {
+	Page       int   `json:"page"       example:"1"`
+	Limit      int   `json:"limit"      example:"20"`
+	TotalRows  int64 `json:"total_rows" example:"100"`
+	TotalPages int   `json:"total_pages" example:"5"`
+}
+
+// PaginatedOrdersResponse adalah wrapper response paginasi untuk daftar pesanan.
+type PaginatedOrdersResponse struct {
+	Success    bool                    `json:"success"    example:"true"`
+	Message    string                  `json:"message"    example:"Data pesanan berhasil diambil"`
+	Data       []OrderListItemResponse `json:"data"`
+	Pagination PaginationMeta          `json:"pagination"`
+}
+
 // ─────────────────────────────────────────────
 // Get All Orders
 // ─────────────────────────────────────────────
 
 // GetAllOrders godoc
 // @Summary      Ambil semua pesanan
-// @Description  Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, dan status pesanan (order_status).
+// @Description  Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, status pesanan (order_status), dan pagination (page & limit).
 // @Tags         Orders
 // @Produce      json
 // @Param        start_date      query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
 // @Param        end_date        query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
 // @Param        search          query  string  false  "Cari nomor PO, nomor transaksi, atau nama perusahaan"
 // @Param        order_status    query  string  false  "Status order (all, pending, partial, shipped, completed)"
-// @Success      200  {object}  utils.Response{data=[]controllers.OrderListItemResponse}
+// @Param        page            query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit           query  int     false  "Jumlah baris per halaman (default: 20)"
+// @Success      200  {object}  controllers.PaginatedOrdersResponse
 // @Router       /orders [get]
 // @Security     BearerAuth
 func GetAllOrders(c *fiber.Ctx) error {
@@ -137,7 +156,21 @@ func GetAllOrders(c *fiber.Ctx) error {
 	search := c.Query("search")
 	orderStatus := c.Query("order_status")
 
-	orders, err := services.GetAllOrders(startDate, endDate, search, orderStatus)
+	page := 1
+	if p := c.Query("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+
+	limit := 20
+	if l := c.Query("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+
+	orders, totalRows, err := services.GetAllOrders(startDate, endDate, search, orderStatus, page, limit)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
@@ -154,7 +187,22 @@ func GetAllOrders(c *fiber.Ctx) error {
 		}
 	}
 
-	return utils.JSONSuccess(c, "Data pesanan berhasil diambil", response)
+	totalPages := 0
+	if totalRows > 0 {
+		totalPages = int((totalRows + int64(limit) - 1) / int64(limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedOrdersResponse{
+		Success: true,
+		Message: "Data pesanan berhasil diambil",
+		Data:    response,
+		Pagination: PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalRows:  totalRows,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 // ─────────────────────────────────────────────
