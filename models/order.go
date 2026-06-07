@@ -28,7 +28,7 @@ type Order struct {
 	OrderStatus      OrderStatus    `gorm:"type:varchar(20);not null;default:'pending';check:order_status IN ('pending', 'partial', 'shipped', 'completed')" json:"order_status"`
 	Items            []OrderItem    `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"items"`
 	Shipments          []Shipment     `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"shipments"`
-	Invoices           []Invoice      `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"invoices"`
+	Invoices           []Invoice      `gorm:"-" json:"invoices"`
 	TotalAmountToPay   float64        `gorm:"-" json:"total_amount_to_pay"`
 	RemainingBalance   float64        `gorm:"-" json:"remaining_balance"`
 	PaymentStatus      PaymentStatus  `gorm:"-" json:"payment_status"`

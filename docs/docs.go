@@ -1154,64 +1154,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{id}/invoice": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Membuat invoice senilai 100% nominal pesanan sebelum barang dikirim (Shipment dibuat).",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Buat invoice di awal (DP / Pelunasan Muka)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/models.Invoice"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/orders/{orderId}/shipments": {
             "get": {
                 "security": [
@@ -2621,9 +2563,6 @@ const docTemplate = `{
                 "invoice_no": {
                     "type": "string"
                 },
-                "order_id": {
-                    "type": "string"
-                },
                 "payment_status": {
                     "$ref": "#/definitions/models.PaymentStatus"
                 },
@@ -2800,6 +2739,10 @@ const docTemplate = `{
                 "total_amount_to_pay": {
                     "type": "number",
                     "example": 7492500
+                },
+                "transaction_no": {
+                    "type": "string",
+                    "example": "NF/WT/100/2026"
                 }
             }
         },
@@ -3077,9 +3020,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "invoice_no": {
-                    "type": "string"
-                },
-                "order_id": {
                     "type": "string"
                 },
                 "payment_status": {

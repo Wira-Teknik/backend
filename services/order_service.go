@@ -142,9 +142,8 @@ func GetAllOrders(startDate, endDate, search, orderStatus string, page, limit in
 		Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
-		Preload("Shipments.Invoice").
-		Preload("Invoices")
-	
+		Preload("Shipments.Invoice")
+
 	layout := "2006-01-02"
 	if startDate != "" {
 		start, err := time.Parse(layout, startDate)
@@ -186,7 +185,7 @@ func GetAllOrders(startDate, endDate, search, orderStatus string, page, limit in
 
 	offset := (page - 1) * limit
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&orders).Error
-	
+
 	if err == nil {
 		for i := range orders {
 			computeOrderPaymentInfo(&orders[i])
@@ -212,7 +211,6 @@ func GetOrderByID(id string) (models.Order, error) {
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
-		Preload("Invoices").
 		First(&order, "id = ?", id).Error
 
 	if err != nil {
@@ -222,21 +220,14 @@ func GetOrderByID(id string) (models.Order, error) {
 		return models.Order{}, err
 	}
 
-	// Fetch all invoices (both order-level and shipment-level) to resolve the UI inconsistency
+	// Fetch all invoices (shipment-level) in memory
 	var allInvoices []models.Invoice
-	shipmentIDs := []uuid.UUID{}
 	for _, shp := range order.Shipments {
-		shipmentIDs = append(shipmentIDs, shp.ID)
+		if shp.Invoice != nil {
+			allInvoices = append(allInvoices, *shp.Invoice)
+		}
 	}
-
-	dbQuery := config.DB.Where("order_id = ?", order.ID)
-	if len(shipmentIDs) > 0 {
-		dbQuery = dbQuery.Or("shipment_id IN ?", shipmentIDs)
-	}
-
-	if err := dbQuery.Find(&allInvoices).Error; err == nil {
-		order.Invoices = allInvoices
-	}
+	order.Invoices = allInvoices
 
 	computeOrderPaymentInfo(&order)
 	return order, nil
@@ -442,76 +433,3 @@ func updateOrderStatus(tx *gorm.DB, orderID uuid.UUID) error {
 
 	return tx.Model(&models.Order{}).Where("id = ?", orderID).Update("order_status", newStatus).Error
 }
-
-// CreateUpfrontInvoice membuat invoice tagihan awal (DP/pelunasan di muka) senilai 100% nominal pesanan sebelum barang dikirim.
-func CreateUpfrontInvoice(orderIDStr string, userID uuid.UUID) (models.Invoice, error) {
-	if _, err := uuid.Parse(orderIDStr); err != nil {
-		return models.Invoice{}, ErrOrderInvalidUUID
-	}
-
-	tx := config.DB.Begin()
-
-	var order models.Order
-	if err := tx.Preload("Items").Preload("Shipments").Preload("Shipments.Invoice").First(&order, "id = ?", orderIDStr).Error; err != nil {
-		tx.Rollback()
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return models.Invoice{}, ErrOrderNotFound
-		}
-		return models.Invoice{}, err
-	}
-
-	// Cek apakah sudah ada invoice (baik order-level maupun shipment-level)
-	var invoiceCount int64
-	// Cek order-level
-	if err := tx.Model(&models.Invoice{}).Where("order_id = ?", order.ID).Count(&invoiceCount).Error; err != nil {
-		tx.Rollback()
-		return models.Invoice{}, err
-	}
-	if invoiceCount > 0 {
-		tx.Rollback()
-		return models.Invoice{}, fmt.Errorf("invoice tingkat order sudah dibuat untuk pesanan ini")
-	}
-
-	// Cek shipment-level
-	for _, shp := range order.Shipments {
-		if shp.Invoice != nil {
-			tx.Rollback()
-			return models.Invoice{}, fmt.Errorf("pesanan ini sudah memiliki invoice pengiriman (shipment-level invoice)")
-		}
-	}
-
-	// Hitung total order amount
-	computeOrderPaymentInfo(&order)
-	if order.TotalAmountToPay <= 0 {
-		tx.Rollback()
-		return models.Invoice{}, fmt.Errorf("nominal pesanan tidak valid untuk dibuatkan invoice")
-	}
-
-	orderIDCopy := order.ID
-	// Auto-generate Invoice di tingkat Order
-	invoice := models.Invoice{
-		ID:               uuid.New(),
-		OrderID:          &orderIDCopy,
-		ShipmentID:       nil,
-		InvoiceNo:        GenerateInvoiceNo(tx),
-		TotalAmount:      order.TotalAmountToPay,
-		RemainingBalance: order.TotalAmountToPay,
-		PaymentStatus:    models.PaymentStatusUnpaid,
-	}
-
-	if err := tx.Create(&invoice).Error; err != nil {
-		tx.Rollback()
-		return models.Invoice{}, fmt.Errorf("gagal membuat invoice: %w", err)
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return models.Invoice{}, fmt.Errorf("gagal menyimpan invoice: %w", err)
-	}
-
-	// Audit Log
-	CreateAuditLog(userID, invoice.ID, models.AuditActionCreate, "invoices", nil, invoice)
-
-	return invoice, nil
-}
-
-

@@ -74,8 +74,6 @@ definitions:
         type: string
       invoice_no:
         type: string
-      order_id:
-        type: string
       payment_status:
         $ref: '#/definitions/models.PaymentStatus'
       remaining_balance:
@@ -196,6 +194,9 @@ definitions:
       total_amount_to_pay:
         example: 7492500
         type: number
+      transaction_no:
+        example: NF/WT/100/2026
+        type: string
     type: object
   controllers.PaginatedOrdersResponse:
     properties:
@@ -388,8 +389,6 @@ definitions:
       id:
         type: string
       invoice_no:
-        type: string
-      order_id:
         type: string
       payment_status:
         $ref: '#/definitions/models.PaymentStatus'
@@ -1560,41 +1559,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Update header pesanan
-      tags:
-      - Orders
-  /orders/{id}/invoice:
-    post:
-      description: Membuat invoice senilai 100% nominal pesanan sebelum barang dikirim
-        (Shipment dibuat).
-      parameters:
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.Invoice'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - BearerAuth: []
-      summary: Buat invoice di awal (DP / Pelunasan Muka)
       tags:
       - Orders
   /orders/{orderId}/shipments:

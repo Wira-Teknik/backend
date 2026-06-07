@@ -93,7 +93,6 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
-		Preload("Invoices").
 		Order("created_at DESC")
 
 	if name != "" {
@@ -127,6 +126,16 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 
 	for i := range orders {
 		orders[i].Payments = []models.Payment{} // inisialisasi slice kosong
+
+		// Populate order.Invoices from shipments in memory
+		var orderInvoices []models.Invoice
+		for _, shp := range orders[i].Shipments {
+			if shp.Invoice != nil {
+				orderInvoices = append(orderInvoices, *shp.Invoice)
+			}
+		}
+		orders[i].Invoices = orderInvoices
+
 		computeOrderPaymentInfo(&orders[i])
 
 		for _, shp := range orders[i].Shipments {
@@ -134,10 +143,6 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 				allInvoiceIDs = append(allInvoiceIDs, shp.Invoice.ID)
 				invoiceToOrderMap[shp.Invoice.ID] = i
 			}
-		}
-		for _, inv := range orders[i].Invoices {
-			allInvoiceIDs = append(allInvoiceIDs, inv.ID)
-			invoiceToOrderMap[inv.ID] = i
 		}
 	}
 
@@ -296,10 +301,9 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 	// 1. Ambil semua invoice terkait order_ids yang belum lunas
 	var invoices []models.Invoice
 
-	// Join melalui shipment atau order langsung.
 	err = config.DB.
-		Joins("LEFT JOIN shipments ON shipments.id = invoices.shipment_id").
-		Where("(shipments.order_id IN ? OR invoices.order_id IN ?) AND invoices.payment_status != ?", parsedOrderIDs, parsedOrderIDs, models.PaymentStatusPaid).
+		Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+		Where("shipments.order_id IN ? AND invoices.payment_status != ?", parsedOrderIDs, models.PaymentStatusPaid).
 		Order("invoices.created_at ASC"). // urutkan yang paling lama dahulu
 		Find(&invoices).Error
 
@@ -578,7 +582,6 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
-		Preload("Invoices").
 		Where("recipient_name = ?", customerName).
 		Order("order_date DESC, created_at DESC").
 		Find(&orders).Error
@@ -594,6 +597,14 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 	// 2. Hitung status finansial untuk seluruh order dan hitung akumulasi saldo asli customer
 	var grandRemainingBalance float64
 	for i := range orders {
+		var orderInvoices []models.Invoice
+		for _, shp := range orders[i].Shipments {
+			if shp.Invoice != nil {
+				orderInvoices = append(orderInvoices, *shp.Invoice)
+			}
+		}
+		orders[i].Invoices = orderInvoices
+
 		computeOrderPaymentInfo(&orders[i])
 		grandRemainingBalance += orders[i].RemainingBalance
 	}
@@ -674,10 +685,6 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 				invoiceIDs = append(invoiceIDs, shp.Invoice.ID)
 				invoiceToOrderIndexMap[shp.Invoice.ID] = i
 			}
-		}
-		for _, inv := range filteredOrders[i].Invoices {
-			invoiceIDs = append(invoiceIDs, inv.ID)
-			invoiceToOrderIndexMap[inv.ID] = i
 		}
 	}
 
