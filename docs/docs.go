@@ -1154,64 +1154,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{id}/invoice": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Membuat invoice senilai 100% nominal pesanan sebelum barang dikirim (Shipment dibuat).",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Buat invoice di awal (DP / Pelunasan Muka)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/models.Invoice"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/orders/{orderId}/shipments": {
             "get": {
                 "security": [
@@ -2406,6 +2348,74 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Memperbarui daftar item dan kuantitas barang pada pengiriman yang sudah dibuat. Menghitung ulang remaining_qty pesanan dan nominal invoice secara otomatis.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shipments"
+                ],
+                "summary": "Edit kuantitas barang dikirim",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shipment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data item pengiriman",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.UpdateShipmentItemsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/controllers.ShipmentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
             }
         },
         "/shipments/{id}/received": {
@@ -2621,9 +2631,6 @@ const docTemplate = `{
                 "invoice_no": {
                     "type": "string"
                 },
-                "order_id": {
-                    "type": "string"
-                },
                 "payment_status": {
                     "$ref": "#/definitions/models.PaymentStatus"
                 },
@@ -2800,6 +2807,10 @@ const docTemplate = `{
                 "total_amount_to_pay": {
                     "type": "number",
                     "example": 7492500
+                },
+                "transaction_no": {
+                    "type": "string",
+                    "example": "NF/WT/100/2026"
                 }
             }
         },
@@ -2893,6 +2904,19 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.ShipmentItemRequestPayload": {
+            "type": "object",
+            "properties": {
+                "order_item_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "shipping_qty": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
         "controllers.ShipmentItemResponse": {
             "type": "object",
             "properties": {
@@ -2971,6 +2995,17 @@ const docTemplate = `{
                 "payment_total": {
                     "type": "number",
                     "example": 7500000
+                }
+            }
+        },
+        "controllers.UpdateShipmentItemsRequest": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.ShipmentItemRequestPayload"
+                    }
                 }
             }
         },
@@ -3077,9 +3112,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "invoice_no": {
-                    "type": "string"
-                },
-                "order_id": {
                     "type": "string"
                 },
                 "payment_status": {
@@ -3594,6 +3626,12 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "invoices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.PaymentInvoiceDTO"
+                    }
+                },
                 "order_date": {
                     "type": "string"
                 },
@@ -3617,6 +3655,12 @@ const docTemplate = `{
                 },
                 "transaction_no": {
                     "type": "string"
+                },
+                "unpaid_invoice_count": {
+                    "type": "integer"
+                },
+                "unpaid_invoice_total": {
+                    "type": "number"
                 }
             }
         },
@@ -3657,6 +3701,29 @@ const docTemplate = `{
                 }
             }
         },
+        "services.PaymentInvoiceDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "invoice_no": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "remaining_balance": {
+                    "type": "number"
+                },
+                "shipment_id": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
         "services.PaymentOrderResponse": {
             "type": "object",
             "properties": {
@@ -3677,6 +3744,12 @@ const docTemplate = `{
                 },
                 "transaction_no": {
                     "type": "string"
+                },
+                "unpaid_invoice_count": {
+                    "type": "integer"
+                },
+                "unpaid_invoice_total": {
+                    "type": "number"
                 }
             }
         },

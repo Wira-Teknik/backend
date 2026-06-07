@@ -26,6 +26,11 @@ type ShipmentItemRequestPayload struct {
 	ShippingQty int    `json:"shipping_qty"  example:"50"`
 }
 
+// UpdateShipmentItemsRequest adalah request body untuk memperbarui item/kuantitas pengiriman.
+type UpdateShipmentItemsRequest struct {
+	Items []ShipmentItemRequestPayload `json:"items"`
+}
+
 // ─────────────────────────────────────────────
 // Get Shipments by Order
 // ─────────────────────────────────────────────
@@ -272,4 +277,74 @@ func ConfirmShipmentReceived(c *fiber.Ctx) error {
 	}
 
 	return utils.JSONSuccess(c, "Penerimaan barang berhasil dikonfirmasi", response)
+}
+
+// UpdateShipmentItems godoc
+// @Summary      Edit kuantitas barang dikirim
+// @Description  Memperbarui daftar item dan kuantitas barang pada pengiriman yang sudah dibuat. Menghitung ulang remaining_qty pesanan dan nominal invoice secara otomatis.
+// @Tags         Shipments
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                      true  "Shipment ID"
+// @Param        body  body      UpdateShipmentItemsRequest  true  "Data item pengiriman"
+// @Success      200   {object}  utils.Response{data=controllers.ShipmentResponse}
+// @Failure      400   {object}  utils.Response
+// @Failure      404   {object}  utils.Response
+// @Router       /shipments/{id} [put]
+// @Security     BearerAuth
+func UpdateShipmentItems(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var req UpdateShipmentItemsRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.JSONError(c, fiber.StatusBadRequest, "Format request tidak valid")
+	}
+
+	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
+	}
+
+	var items []services.ShipmentItemInput
+	for _, itemReq := range req.Items {
+		items = append(items, services.ShipmentItemInput{
+			OrderItemID: itemReq.OrderItemID,
+			ShippingQty: itemReq.ShippingQty,
+		})
+	}
+
+	shipment, err := services.UpdateShipmentItems(id, services.UpdateShipmentItemsInput{
+		Items: items,
+	}, userID)
+
+	if err != nil {
+		if errors.Is(err, services.ErrShipmentInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrShipmentNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	// Map items to exclude created_at and updated_at
+	itemsRes := make([]ShipmentItemResponse, len(shipment.Items))
+	for i, item := range shipment.Items {
+		itemsRes[i] = ShipmentItemResponse{
+			ID:          item.ID,
+			ShipmentID:  item.ShipmentID,
+			OrderItemID: item.OrderItemID,
+			ShippingQty: item.ShippingQty,
+		}
+	}
+
+	response := ShipmentResponse{
+		ID:             shipment.ID,
+		OrderID:        shipment.OrderID,
+		ShippingDate:   shipment.ShippingDate,
+		ReceivedDate:   shipment.ReceivedDate,
+		ShippingStatus: shipment.ShippingStatus,
+		Items:          itemsRes,
+	}
+
+	return utils.JSONSuccess(c, "Data pengiriman berhasil diperbarui", response)
 }

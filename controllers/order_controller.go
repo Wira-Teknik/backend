@@ -48,6 +48,7 @@ type UpdateOrderRequest struct {
 // OrderListItemResponse adalah data item pesanan ringkas yang dikembalikan dalam list pesanan.
 type OrderListItemResponse struct {
 	ID               string         `json:"id"                  example:"6ec26fbf-a256-4a67-a89f-2136eff97857"`
+	TransactionNo    string         `json:"transaction_no"      example:"NF/WT/100/2026"`
 	PoNo             string         `json:"po_no"               example:"561/PO-WLK/XI/26"`
 	OrderDate        utils.JSONDate `json:"order_date"          example:"2026-11-02"`
 	RecipientName    string         `json:"recipient_name"      example:"PT Sentosa Abadi"`
@@ -78,8 +79,7 @@ type ShipmentItemResponse struct {
 // InvoiceResponse adalah detail invoice (tanpa created_at & updated_at).
 type InvoiceResponse struct {
 	ID               uuid.UUID            `json:"id"`
-	ShipmentID       *uuid.UUID           `json:"shipment_id"`
-	OrderID          *uuid.UUID           `json:"order_id"`
+	ShipmentID       uuid.UUID            `json:"shipment_id"`
 	InvoiceNo        string               `json:"invoice_no"`
 	TotalAmount      float64              `json:"total_amount"`
 	RemainingBalance float64              `json:"remaining_balance"`
@@ -88,11 +88,11 @@ type InvoiceResponse struct {
 
 // ShipmentResponse adalah detail pengiriman (tanpa created_at & updated_at).
 type ShipmentResponse struct {
-	ID             uuid.UUID             `json:"id"`
-	OrderID        uuid.UUID             `json:"order_id"`
-	ShippingDate   utils.JSONDate        `json:"shipping_date"`
-	ReceivedDate   *utils.JSONDate       `json:"received_date"`
-	ShippingStatus models.ShippingStatus `json:"shipping_status"`
+	ID             uuid.UUID              `json:"id"`
+	OrderID        uuid.UUID              `json:"order_id"`
+	ShippingDate   utils.JSONDate         `json:"shipping_date"`
+	ReceivedDate   *utils.JSONDate        `json:"received_date"`
+	ShippingStatus models.ShippingStatus  `json:"shipping_status"`
 	Items          []ShipmentItemResponse `json:"items"`
 }
 
@@ -179,6 +179,7 @@ func GetAllOrders(c *fiber.Ctx) error {
 	for i, o := range orders {
 		response[i] = OrderListItemResponse{
 			ID:               o.ID.String(),
+			TransactionNo:    o.TransactionNo,
 			PoNo:             o.PoNo,
 			OrderDate:        o.OrderDate,
 			RecipientName:    o.RecipientName,
@@ -277,7 +278,6 @@ func GetOrder(c *fiber.Ctx) error {
 		invoicesRes[i] = InvoiceResponse{
 			ID:               inv.ID,
 			ShipmentID:       inv.ShipmentID,
-			OrderID:          inv.OrderID,
 			InvoiceNo:        inv.InvoiceNo,
 			TotalAmount:      inv.TotalAmount,
 			RemainingBalance: inv.RemainingBalance,
@@ -298,10 +298,10 @@ func GetOrder(c *fiber.Ctx) error {
 		Items:            itemsRes,
 		Shipments:        shipmentsRes,
 		Invoices:         invoicesRes,
+		Payments:         order.Payments,
 		TotalAmountToPay: order.TotalAmountToPay,
 		RemainingBalance: order.RemainingBalance,
 		PaymentStatus:    order.PaymentStatus,
-		Payments:         order.Payments,
 	}
 
 	if response.Items == nil {
@@ -476,36 +476,4 @@ func DeleteOrder(c *fiber.Ctx) error {
 	}
 
 	return utils.JSONSuccess(c, "Pesanan berhasil dihapus", nil)
-}
-
-// CreateUpfrontInvoice godoc
-// @Summary      Buat invoice di awal (DP / Pelunasan Muka)
-// @Description  Membuat invoice senilai 100% nominal pesanan sebelum barang dikirim (Shipment dibuat).
-// @Tags         Orders
-// @Param        id   path      string  true  "Order ID"
-// @Produce      json
-// @Success      201  {object}  utils.Response{data=models.Invoice}
-// @Failure      400  {object}  utils.Response
-// @Failure      404  {object}  utils.Response
-// @Router       /orders/{id}/invoice [post]
-// @Security     BearerAuth
-func CreateUpfrontInvoice(c *fiber.Ctx) error {
-	id := c.Params("id")
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
-	if err != nil {
-		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
-	}
-
-	invoice, err := services.CreateUpfrontInvoice(id, userID)
-	if err != nil {
-		if errors.Is(err, services.ErrOrderInvalidUUID) {
-			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
-		}
-		if errors.Is(err, services.ErrOrderNotFound) {
-			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
-		}
-		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	return utils.JSONCreated(c, "Invoice uang muka berhasil dibuat", invoice)
 }

@@ -63,14 +63,6 @@ func GetInvoiceByShipmentID(shipmentID string) (models.Invoice, error) {
 	err := config.DB.Where("shipment_id = ?", shipmentID).First(&invoice).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Jika invoice tingkat shipment tidak ditemukan, coba cari invoice tingkat order dari pengiriman ini
-			var shipment models.Shipment
-			if errShip := config.DB.First(&shipment, "id = ?", shipmentID).Error; errShip == nil {
-				var orderInvoice models.Invoice
-				if errOrd := config.DB.Where("order_id = ?", shipment.OrderID).First(&orderInvoice).Error; errOrd == nil {
-					return orderInvoice, nil
-				}
-			}
 			return models.Invoice{}, ErrInvoiceNotFound
 		}
 		return models.Invoice{}, err

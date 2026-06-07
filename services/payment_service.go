@@ -35,12 +35,14 @@ type CreatePaymentInput struct {
 // ─────────────────────────────────────────────
 
 type PaymentOrderResponse struct {
-	ID               uuid.UUID            `json:"id"`
-	TransactionNo    string               `json:"transaction_no"`
-	PoNo             string               `json:"po_no"`
-	OrderDate        utils.JSONDate       `json:"order_date"`
-	RemainingBalance float64              `json:"remaining_balance"`
-	PaymentStatus    models.PaymentStatus `json:"payment_status"`
+	ID                 uuid.UUID            `json:"id"`
+	TransactionNo      string               `json:"transaction_no"`
+	PoNo               string               `json:"po_no"`
+	OrderDate          utils.JSONDate       `json:"order_date"`
+	RemainingBalance   float64              `json:"remaining_balance"`
+	PaymentStatus      models.PaymentStatus `json:"payment_status"`
+	UnpaidInvoiceTotal float64              `json:"unpaid_invoice_total"`
+	UnpaidInvoiceCount int                  `json:"unpaid_invoice_count"`
 }
 
 type CustomerPaymentSummary struct {
@@ -56,14 +58,26 @@ type OrderPaymentDTO struct {
 }
 
 type OrderWithPaymentsDTO struct {
+	ID                 uuid.UUID            `json:"id"`
+	TransactionNo      string               `json:"transaction_no"`
+	PoNo               string               `json:"po_no"`
+	OrderDate          utils.JSONDate       `json:"order_date"`
+	TotalAmountToPay   float64              `json:"total_amount_to_pay"`
+	RemainingBalance   float64              `json:"remaining_balance"`
+	PaymentStatus      models.PaymentStatus `json:"payment_status"`
+	Invoices           []PaymentInvoiceDTO  `json:"invoices"`
+	UnpaidInvoiceTotal float64              `json:"unpaid_invoice_total"`
+	UnpaidInvoiceCount int                  `json:"unpaid_invoice_count"`
+	Payments           []OrderPaymentDTO    `json:"payments"`
+}
+
+type PaymentInvoiceDTO struct {
 	ID               uuid.UUID            `json:"id"`
-	TransactionNo    string               `json:"transaction_no"`
-	PoNo             string               `json:"po_no"`
-	OrderDate        utils.JSONDate       `json:"order_date"`
-	TotalAmountToPay float64              `json:"total_amount_to_pay"`
+	ShipmentID       uuid.UUID            `json:"shipment_id"`
+	InvoiceNo        string               `json:"invoice_no"`
+	TotalAmount      float64              `json:"total_amount"`
 	RemainingBalance float64              `json:"remaining_balance"`
 	PaymentStatus    models.PaymentStatus `json:"payment_status"`
-	Payments         []OrderPaymentDTO    `json:"payments"`
 }
 
 type CustomerPaymentDetailResponse struct {
@@ -93,7 +107,6 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
-		Preload("Invoices").
 		Order("created_at DESC")
 
 	if name != "" {
@@ -127,6 +140,16 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 
 	for i := range orders {
 		orders[i].Payments = []models.Payment{} // inisialisasi slice kosong
+
+		// Populate order.Invoices from shipments in memory
+		var orderInvoices []models.Invoice
+		for _, shp := range orders[i].Shipments {
+			if shp.Invoice != nil {
+				orderInvoices = append(orderInvoices, *shp.Invoice)
+			}
+		}
+		orders[i].Invoices = orderInvoices
+
 		computeOrderPaymentInfo(&orders[i])
 
 		for _, shp := range orders[i].Shipments {
@@ -134,10 +157,6 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 				allInvoiceIDs = append(allInvoiceIDs, shp.Invoice.ID)
 				invoiceToOrderMap[shp.Invoice.ID] = i
 			}
-		}
-		for _, inv := range orders[i].Invoices {
-			allInvoiceIDs = append(allInvoiceIDs, inv.ID)
-			invoiceToOrderMap[inv.ID] = i
 		}
 	}
 
@@ -191,13 +210,24 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 			orderedCustomerNames = append(orderedCustomerNames, custName)
 		}
 
+		var unpaidInvoiceTotal float64
+		var unpaidInvoiceCount int
+		for _, inv := range orders[i].Invoices {
+			if inv.PaymentStatus == models.PaymentStatusUnpaid || inv.PaymentStatus == models.PaymentStatusPartial {
+				unpaidInvoiceTotal += inv.RemainingBalance
+				unpaidInvoiceCount++
+			}
+		}
+
 		pOrder := PaymentOrderResponse{
-			ID:               orders[i].ID,
-			TransactionNo:    orders[i].TransactionNo,
-			PoNo:             orders[i].PoNo,
-			OrderDate:        orders[i].OrderDate,
-			RemainingBalance: orders[i].RemainingBalance,
-			PaymentStatus:    orders[i].PaymentStatus,
+			ID:                 orders[i].ID,
+			TransactionNo:      orders[i].TransactionNo,
+			PoNo:               orders[i].PoNo,
+			OrderDate:          orders[i].OrderDate,
+			RemainingBalance:   orders[i].RemainingBalance,
+			PaymentStatus:      orders[i].PaymentStatus,
+			UnpaidInvoiceTotal: roundTwo(unpaidInvoiceTotal),
+			UnpaidInvoiceCount: unpaidInvoiceCount,
 		}
 
 		customerMap[custName].Orders = append(customerMap[custName].Orders, pOrder)
@@ -296,10 +326,9 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 	// 1. Ambil semua invoice terkait order_ids yang belum lunas
 	var invoices []models.Invoice
 
-	// Join melalui shipment atau order langsung.
 	err = config.DB.
-		Joins("LEFT JOIN shipments ON shipments.id = invoices.shipment_id").
-		Where("(shipments.order_id IN ? OR invoices.order_id IN ?) AND invoices.payment_status != ?", parsedOrderIDs, parsedOrderIDs, models.PaymentStatusPaid).
+		Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+		Where("shipments.order_id IN ? AND invoices.payment_status != ?", parsedOrderIDs, models.PaymentStatusPaid).
 		Order("invoices.created_at ASC"). // urutkan yang paling lama dahulu
 		Find(&invoices).Error
 
@@ -578,7 +607,6 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
-		Preload("Invoices").
 		Where("recipient_name = ?", customerName).
 		Order("order_date DESC, created_at DESC").
 		Find(&orders).Error
@@ -594,6 +622,14 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 	// 2. Hitung status finansial untuk seluruh order dan hitung akumulasi saldo asli customer
 	var grandRemainingBalance float64
 	for i := range orders {
+		var orderInvoices []models.Invoice
+		for _, shp := range orders[i].Shipments {
+			if shp.Invoice != nil {
+				orderInvoices = append(orderInvoices, *shp.Invoice)
+			}
+		}
+		orders[i].Invoices = orderInvoices
+
 		computeOrderPaymentInfo(&orders[i])
 		grandRemainingBalance += orders[i].RemainingBalance
 	}
@@ -658,15 +694,42 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 	orderDTOs := make([]OrderWithPaymentsDTO, len(filteredOrders))
 
 	for i := range filteredOrders {
+		var orderInvoicesDTO []PaymentInvoiceDTO
+		for _, inv := range filteredOrders[i].Invoices {
+			orderInvoicesDTO = append(orderInvoicesDTO, PaymentInvoiceDTO{
+				ID:               inv.ID,
+				ShipmentID:       inv.ShipmentID,
+				InvoiceNo:        inv.InvoiceNo,
+				TotalAmount:      inv.TotalAmount,
+				RemainingBalance: inv.RemainingBalance,
+				PaymentStatus:    inv.PaymentStatus,
+			})
+		}
+		if orderInvoicesDTO == nil {
+			orderInvoicesDTO = []PaymentInvoiceDTO{}
+		}
+
+		var unpaidInvoiceTotal float64
+		var unpaidInvoiceCount int
+		for _, inv := range orderInvoicesDTO {
+			if inv.PaymentStatus == models.PaymentStatusUnpaid || inv.PaymentStatus == models.PaymentStatusPartial {
+				unpaidInvoiceTotal += inv.RemainingBalance
+				unpaidInvoiceCount++
+			}
+		}
+
 		orderDTOs[i] = OrderWithPaymentsDTO{
-			ID:               filteredOrders[i].ID,
-			TransactionNo:    filteredOrders[i].TransactionNo,
-			PoNo:             filteredOrders[i].PoNo,
-			OrderDate:        filteredOrders[i].OrderDate,
-			TotalAmountToPay: filteredOrders[i].TotalAmountToPay,
-			RemainingBalance: filteredOrders[i].RemainingBalance,
-			PaymentStatus:    filteredOrders[i].PaymentStatus,
-			Payments:         []OrderPaymentDTO{},
+			ID:                 filteredOrders[i].ID,
+			TransactionNo:      filteredOrders[i].TransactionNo,
+			PoNo:               filteredOrders[i].PoNo,
+			OrderDate:          filteredOrders[i].OrderDate,
+			TotalAmountToPay:   filteredOrders[i].TotalAmountToPay,
+			RemainingBalance:   filteredOrders[i].RemainingBalance,
+			PaymentStatus:      filteredOrders[i].PaymentStatus,
+			Invoices:           orderInvoicesDTO,
+			UnpaidInvoiceTotal: roundTwo(unpaidInvoiceTotal),
+			UnpaidInvoiceCount: unpaidInvoiceCount,
+			Payments:           []OrderPaymentDTO{},
 		}
 
 		for _, shp := range filteredOrders[i].Shipments {
@@ -674,10 +737,6 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 				invoiceIDs = append(invoiceIDs, shp.Invoice.ID)
 				invoiceToOrderIndexMap[shp.Invoice.ID] = i
 			}
-		}
-		for _, inv := range filteredOrders[i].Invoices {
-			invoiceIDs = append(invoiceIDs, inv.ID)
-			invoiceToOrderIndexMap[inv.ID] = i
 		}
 	}
 

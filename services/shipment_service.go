@@ -35,6 +35,10 @@ type CreateShipmentInput struct {
 	Items        []ShipmentItemInput `json:"items"`
 }
 
+type UpdateShipmentItemsInput struct {
+	Items []ShipmentItemInput `json:"items"`
+}
+
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -212,33 +216,24 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 		return models.Shipment{}, fmt.Errorf("gagal memperbarui status pesanan: %w", err)
 	}
 
-	// 4. Auto-generate Invoice (hanya jika belum ada invoice di tingkat order untuk pesanan ini)
-	var orderInvoiceCount int64
-	if err := tx.Model(&models.Invoice{}).Where("order_id = ?", orderID).Count(&orderInvoiceCount).Error; err != nil {
-		tx.Rollback()
-		return models.Shipment{}, fmt.Errorf("gagal memeriksa invoice pesanan: %w", err)
-	}
-
+	// 4. Auto-generate Invoice
 	var invoiceCreated bool
 	var invoice models.Invoice
 
-	if orderInvoiceCount == 0 {
-		ptrShipmentID := shipmentID
-		invoice = models.Invoice{
-			ID:               uuid.New(),
-			ShipmentID:       &ptrShipmentID,
-			InvoiceNo:        GenerateInvoiceNo(tx),
-			TotalAmount:      invoiceTotalAmount,
-			RemainingBalance: invoiceTotalAmount,
-			PaymentStatus:    models.PaymentStatusUnpaid,
-		}
-
-		if err := tx.Create(&invoice).Error; err != nil {
-			tx.Rollback()
-			return models.Shipment{}, fmt.Errorf("gagal membuat invoice: %w", err)
-		}
-		invoiceCreated = true
+	invoice = models.Invoice{
+		ID:               uuid.New(),
+		ShipmentID:       shipmentID,
+		InvoiceNo:        GenerateInvoiceNo(tx),
+		TotalAmount:      invoiceTotalAmount,
+		RemainingBalance: invoiceTotalAmount,
+		PaymentStatus:    models.PaymentStatusUnpaid,
 	}
+
+	if err := tx.Create(&invoice).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal membuat invoice: %w", err)
+	}
+	invoiceCreated = true
 
 	// Commit transaksi
 	if err := tx.Commit().Error; err != nil {
@@ -330,6 +325,257 @@ func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, erro
 	}
 
 	CreateAuditLog(userID, shipment.ID, models.AuditActionUpdate, "shipments", oldShipment, shipment)
+
+	return shipment, nil
+}
+
+// UpdateShipmentItems memperbarui daftar item dan kuantitas pengiriman yang sudah dibuat.
+// Fungsi ini juga secara otomatis menyesuaikan remaining_qty di order_items serta total tagihan di invoices.
+func UpdateShipmentItems(shipmentIDStr string, input UpdateShipmentItemsInput, userID uuid.UUID) (models.Shipment, error) {
+	if len(input.Items) == 0 {
+		return models.Shipment{}, fmt.Errorf("pengiriman harus memiliki minimal 1 item")
+	}
+
+	shipmentID, err := uuid.Parse(shipmentIDStr)
+	if err != nil {
+		return models.Shipment{}, ErrShipmentInvalidUUID
+	}
+
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Ambil shipment beserta items
+	var shipment models.Shipment
+	if err := tx.Preload("Items").First(&shipment, "id = ?", shipmentID).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Shipment{}, ErrShipmentNotFound
+		}
+		return models.Shipment{}, err
+	}
+
+	// 2. Cegah edit jika status sudah diterima
+	if shipment.ShippingStatus == models.ShippingStatusDiterima {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("pengiriman yang sudah diterima tidak dapat diedit")
+	}
+
+	// 3. Ambil data order asli beserta items
+	var order models.Order
+	if err := tx.Preload("Items").First(&order, "id = ?", shipment.OrderID).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal mengambil data pesanan terkait: %w", err)
+	}
+
+	// Build map order items untuk lookup cepat
+	orderItemMap := make(map[uuid.UUID]*models.OrderItem)
+	for i := range order.Items {
+		orderItemMap[order.Items[i].ID] = &order.Items[i]
+	}
+
+	// Build map shipment items lama untuk lookup cepat
+	oldShipmentItemsMap := make(map[uuid.UUID]models.ShipmentItem)
+	for _, item := range shipment.Items {
+		oldShipmentItemsMap[item.OrderItemID] = item
+	}
+
+	// Simpan salinan data lama untuk audit log
+	var oldItemsCopy []models.ShipmentItem
+	for _, item := range shipment.Items {
+		oldItemsCopy = append(oldItemsCopy, item)
+	}
+	oldShipmentCopy := shipment
+	oldShipmentCopy.Items = oldItemsCopy
+
+	// 4. Proses input items dan hitung perbedaan kuantitas
+	type itemUpdate struct {
+		orderItemID uuid.UUID
+		newQty      int
+		oldQty      int
+		diff        int
+	}
+	var updates []itemUpdate
+	inputItemMap := make(map[uuid.UUID]bool)
+
+	for _, inputItem := range input.Items {
+		orderItemID, err := uuid.Parse(inputItem.OrderItemID)
+		if err != nil {
+			tx.Rollback()
+			return models.Shipment{}, fmt.Errorf("order item ID tidak valid: %s", inputItem.OrderItemID)
+		}
+		inputItemMap[orderItemID] = true
+
+		orderItem, exists := orderItemMap[orderItemID]
+		if !exists {
+			tx.Rollback()
+			return models.Shipment{}, fmt.Errorf("item dengan ID %s tidak ditemukan dalam pesanan ini", inputItem.OrderItemID)
+		}
+
+		if inputItem.ShippingQty <= 0 {
+			tx.Rollback()
+			return models.Shipment{}, fmt.Errorf("jumlah kirim harus lebih dari 0")
+		}
+
+		oldItem, existed := oldShipmentItemsMap[orderItemID]
+		oldQty := 0
+		if existed {
+			oldQty = oldItem.ShippingQty
+		}
+
+		diff := inputItem.ShippingQty - oldQty
+		if diff > orderItem.RemainingQty {
+			tx.Rollback()
+			return models.Shipment{}, fmt.Errorf(
+				"jumlah kirim baru (%d) melebihi sisa pesanan (%d) untuk produk %s",
+				inputItem.ShippingQty, orderItem.RemainingQty+oldQty, orderItem.ProductName,
+			)
+		}
+
+		updates = append(updates, itemUpdate{
+			orderItemID: orderItemID,
+			newQty:      inputItem.ShippingQty,
+			oldQty:      oldQty,
+			diff:        diff,
+		})
+	}
+
+	// Tambahkan item lama yang tidak ada di input sebagai dihapus (newQty = 0)
+	for orderItemID, oldItem := range oldShipmentItemsMap {
+		if !inputItemMap[orderItemID] {
+			updates = append(updates, itemUpdate{
+				orderItemID: orderItemID,
+				newQty:      0,
+				oldQty:      oldItem.ShippingQty,
+				diff:        -oldItem.ShippingQty,
+			})
+		}
+	}
+
+	// 5. Eksekusi update order_items (remaining_qty) dan shipment_items
+	var newShipmentItems []models.ShipmentItem
+	var newInvoiceTotalAmount float64
+
+	for _, up := range updates {
+		orderItem := orderItemMap[up.orderItemID]
+
+		// Update remaining_qty di OrderItem
+		newRemainingQty := orderItem.RemainingQty - up.diff
+		if err := tx.Model(&models.OrderItem{}).
+			Where("id = ?", up.orderItemID).
+			Update("remaining_qty", newRemainingQty).Error; err != nil {
+			tx.Rollback()
+			return models.Shipment{}, fmt.Errorf("gagal memperbarui sisa qty pesanan: %w", err)
+		}
+
+		if up.newQty > 0 {
+			// Item tetap ada atau baru
+			var shipmentItem models.ShipmentItem
+			oldItem, existed := oldShipmentItemsMap[up.orderItemID]
+			if existed {
+				shipmentItem = oldItem
+				shipmentItem.ShippingQty = up.newQty
+				if err := tx.Save(&shipmentItem).Error; err != nil {
+					tx.Rollback()
+					return models.Shipment{}, fmt.Errorf("gagal memperbarui item pengiriman: %w", err)
+				}
+			} else {
+				shipmentItem = models.ShipmentItem{
+					ID:          uuid.New(),
+					ShipmentID:  shipmentID,
+					OrderItemID: up.orderItemID,
+					ShippingQty: up.newQty,
+				}
+				if err := tx.Create(&shipmentItem).Error; err != nil {
+					tx.Rollback()
+					return models.Shipment{}, fmt.Errorf("gagal membuat item pengiriman baru: %w", err)
+				}
+			}
+			newShipmentItems = append(newShipmentItems, shipmentItem)
+
+			// Hitung total nominal subtotal untuk invoice
+			itemTotal := roundTwo(float64(up.newQty) * orderItem.UnitPrice * (1 + ppnRate))
+			newInvoiceTotalAmount += itemTotal
+		} else {
+			// Item dihapus dari shipment
+			oldItem := oldShipmentItemsMap[up.orderItemID]
+			if err := tx.Delete(&oldItem).Error; err != nil {
+				tx.Rollback()
+				return models.Shipment{}, fmt.Errorf("gagal menghapus item pengiriman: %w", err)
+			}
+		}
+	}
+
+	newInvoiceTotalAmount = roundTwo(newInvoiceTotalAmount)
+
+	// 6. Update Invoice terkait
+	var invoice models.Invoice
+	if err := tx.Where("shipment_id = ?", shipment.ID).First(&invoice).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal mengambil data invoice terkait: %w", err)
+	}
+
+	// Ambil jumlah pembayaran yang sudah dialokasikan pada invoice ini
+	var totalPaid float64
+	if err := tx.Model(&models.PaymentDetail{}).
+		Where("invoice_id = ?", invoice.ID).
+		Select("COALESCE(SUM(allocated_amount), 0)").
+		Scan(&totalPaid).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal memeriksa riwayat alokasi pembayaran: %w", err)
+	}
+
+	if newInvoiceTotalAmount < totalPaid {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf(
+			"kuantitas pengiriman tidak dapat dikurangi karena total tagihan baru (Rp %.2f) kurang dari jumlah yang telah dibayar (Rp %.2f)",
+			newInvoiceTotalAmount, totalPaid,
+		)
+	}
+
+	oldInvoiceCopy := invoice
+
+	newRemainingBalance := roundTwo(newInvoiceTotalAmount - totalPaid)
+	var newInvoiceStatus models.PaymentStatus
+	if newRemainingBalance <= 0 {
+		newInvoiceStatus = models.PaymentStatusPaid
+		newRemainingBalance = 0
+	} else if newRemainingBalance < newInvoiceTotalAmount {
+		newInvoiceStatus = models.PaymentStatusPartial
+	} else {
+		newInvoiceStatus = models.PaymentStatusUnpaid
+	}
+
+	invoice.TotalAmount = newInvoiceTotalAmount
+	invoice.RemainingBalance = newRemainingBalance
+	invoice.PaymentStatus = newInvoiceStatus
+
+	if err := tx.Save(&invoice).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal memperbarui invoice: %w", err)
+	}
+
+	// 7. Hitung ulang status order
+	if err := updateOrderStatus(tx, shipment.OrderID); err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal memperbarui status pesanan: %w", err)
+	}
+
+	// Commit transaksi
+	if err := tx.Commit().Error; err != nil {
+		return models.Shipment{}, fmt.Errorf("gagal menyimpan pembaruan pengiriman: %w", err)
+	}
+
+	// Audit Logs
+	shipment.Items = newShipmentItems
+	CreateAuditLog(userID, shipment.ID, models.AuditActionUpdate, "shipments", oldShipmentCopy, shipment)
+	CreateAuditLog(userID, invoice.ID, models.AuditActionUpdate, "invoices", oldInvoiceCopy, invoice)
+
+	// Preload Invoice & Items untuk return value
+	shipment.Invoice = &invoice
 
 	return shipment, nil
 }

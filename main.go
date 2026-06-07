@@ -80,10 +80,6 @@ func main() {
 		}
 		log.Println("Database migration completed after reset.")
 
-		// Drop NOT NULL constraint on invoices.shipment_id
-		if err := config.DB.Exec("ALTER TABLE invoices ALTER COLUMN shipment_id DROP NOT NULL").Error; err != nil {
-			log.Printf("Warning: failed to drop NOT NULL constraint on invoices.shipment_id: %v", err)
-		}
 
 		// Seed orders if empty
 		config.SeedOrders()
@@ -112,10 +108,6 @@ func main() {
 	}
 	log.Println("Database migration completed.")
 
-	// Drop NOT NULL constraint on invoices.shipment_id
-	if err := config.DB.Exec("ALTER TABLE invoices ALTER COLUMN shipment_id DROP NOT NULL").Error; err != nil {
-		log.Printf("Warning: failed to drop NOT NULL constraint on invoices.shipment_id: %v", err)
-	}
 
 	// Seed orders if empty
 	config.SeedOrders()
