@@ -755,7 +755,7 @@ definitions:
         type: string
       invoices:
         items:
-          $ref: '#/definitions/models.Invoice'
+          $ref: '#/definitions/services.PaymentInvoiceDTO'
         type: array
       order_date:
         type: string
@@ -804,6 +804,21 @@ definitions:
       transaction_no:
         example: NF/WT/1/2026
         type: string
+    type: object
+  services.PaymentInvoiceDTO:
+    properties:
+      id:
+        type: string
+      invoice_no:
+        type: string
+      payment_status:
+        $ref: '#/definitions/models.PaymentStatus'
+      remaining_balance:
+        type: number
+      shipment_id:
+        type: string
+      total_amount:
+        type: number
     type: object
   services.PaymentOrderResponse:
     properties:

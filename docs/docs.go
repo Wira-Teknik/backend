@@ -3629,7 +3629,7 @@ const docTemplate = `{
                 "invoices": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.Invoice"
+                        "$ref": "#/definitions/services.PaymentInvoiceDTO"
                     }
                 },
                 "order_date": {
@@ -3698,6 +3698,29 @@ const docTemplate = `{
                 "transaction_no": {
                     "type": "string",
                     "example": "NF/WT/1/2026"
+                }
+            }
+        },
+        "services.PaymentInvoiceDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "invoice_no": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "remaining_balance": {
+                    "type": "number"
+                },
+                "shipment_id": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
                 }
             }
         },
