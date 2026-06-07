@@ -48,6 +48,7 @@ func SetupRoutes(app *fiber.App) {
 	shipments := protected.Group("/shipments")
 	shipments.Get("/:id", controllers.GetShipment)
 	shipments.Post("/", controllers.CreateShipment)
+	shipments.Put("/:id", controllers.UpdateShipmentItems)
 	shipments.Patch("/:id/received", controllers.ConfirmShipmentReceived)
 	shipments.Get("/:shipmentId/invoice", controllers.GetInvoiceByShipment)
 
