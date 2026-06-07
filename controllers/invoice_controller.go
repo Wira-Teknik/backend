@@ -65,7 +65,7 @@ func GetInvoice(c *fiber.Ctx) error {
 // GetInvoiceByShipment godoc
 // @Summary      Ambil invoice berdasarkan Shipment
 // @Description  Mengambil invoice yang terkait dengan pengiriman tertentu
-// @Tags         Invoices
+// @Tags         Shipments
 // @Param        shipmentId  path      string  true  "Shipment ID"
 // @Produce      json
 // @Success      200  {object}  utils.Response{data=models.Invoice}

@@ -245,6 +245,10 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 		return models.Shipment{}, fmt.Errorf("gagal menyimpan data pengiriman: %w", err)
 	}
 
+	if invoiceCreated {
+		shipment.Invoice = &invoice
+	}
+
 	// Audit log
 	CreateAuditLog(userID, shipmentID, models.AuditActionCreate, "shipments", nil, shipment)
 	if invoiceCreated {
