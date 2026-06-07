@@ -3,10 +3,12 @@ package controllers
 import (
 	"errors"
 
+	"teknik/models"
 	"teknik/services"
 	"teknik/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 // ─────────────────────────────────────────────
@@ -35,10 +37,82 @@ type OrderItemRequestPayload struct {
 // UpdateOrderRequest adalah body untuk mengupdate header pesanan.
 type UpdateOrderRequest struct {
 	PoNo             string `json:"po_no"              example:"PO-2026-001"`
+	OrderDate        string `json:"order_date"         example:"2026-05-13"`
 	RecipientName    string `json:"recipient_name"     example:"PT Maju Jaya"`
 	RecipientAddress string `json:"recipient_address"  example:"Jl. Industri No. 10"`
 	RecipientPhone   string `json:"recipient_phone"    example:"081234567890"`
 	RecipientEmail   string `json:"recipient_email"    example:"purchasing@majujaya.com"`
+}
+
+// OrderListItemResponse adalah data item pesanan ringkas yang dikembalikan dalam list pesanan.
+type OrderListItemResponse struct {
+	ID               string         `json:"id"                  example:"6ec26fbf-a256-4a67-a89f-2136eff97857"`
+	PoNo             string         `json:"po_no"               example:"561/PO-WLK/XI/26"`
+	OrderDate        utils.JSONDate `json:"order_date"          example:"2026-11-02"`
+	RecipientName    string         `json:"recipient_name"      example:"PT Sentosa Abadi"`
+	OrderStatus      string         `json:"order_status"        example:"pending"`
+	TotalAmountToPay float64        `json:"total_amount_to_pay" example:"7492500"`
+}
+
+// OrderItemResponse adalah detail item dalam pesanan (tanpa created_at & updated_at).
+type OrderItemResponse struct {
+	ID           uuid.UUID `json:"id"`
+	OrderID      uuid.UUID `json:"order_id"`
+	ProductName  string    `json:"product_name"`
+	OrderQty     int       `json:"order_qty"`
+	RemainingQty int       `json:"remaining_qty"`
+	UnitPrice    float64   `json:"unit_price"`
+	PPN          float64   `json:"ppn"`
+	Subtotal     float64   `json:"subtotal"`
+}
+
+// ShipmentItemResponse adalah detail item dalam pengiriman (tanpa created_at & updated_at).
+type ShipmentItemResponse struct {
+	ID          uuid.UUID `json:"id"`
+	ShipmentID  uuid.UUID `json:"shipment_id"`
+	OrderItemID uuid.UUID `json:"order_item_id"`
+	ShippingQty int       `json:"shipping_qty"`
+}
+
+// InvoiceResponse adalah detail invoice (tanpa created_at & updated_at).
+type InvoiceResponse struct {
+	ID               uuid.UUID            `json:"id"`
+	ShipmentID       *uuid.UUID           `json:"shipment_id"`
+	OrderID          *uuid.UUID           `json:"order_id"`
+	InvoiceNo        string               `json:"invoice_no"`
+	TotalAmount      float64              `json:"total_amount"`
+	RemainingBalance float64              `json:"remaining_balance"`
+	PaymentStatus    models.PaymentStatus `json:"payment_status"`
+}
+
+// ShipmentResponse adalah detail pengiriman (tanpa created_at & updated_at).
+type ShipmentResponse struct {
+	ID             uuid.UUID             `json:"id"`
+	OrderID        uuid.UUID             `json:"order_id"`
+	ShippingDate   utils.JSONDate        `json:"shipping_date"`
+	ReceivedDate   *utils.JSONDate       `json:"received_date"`
+	ShippingStatus models.ShippingStatus `json:"shipping_status"`
+	Items          []ShipmentItemResponse `json:"items"`
+}
+
+// OrderDetailResponse adalah data detail pesanan lengkap (tanpa created_at & updated_at di level root, items, dan shipments).
+type OrderDetailResponse struct {
+	ID               uuid.UUID            `json:"id"`
+	TransactionNo    string               `json:"transaction_no"`
+	PoNo             string               `json:"po_no"`
+	OrderDate        utils.JSONDate       `json:"order_date"`
+	RecipientName    string               `json:"recipient_name"`
+	RecipientAddress string               `json:"recipient_address"`
+	RecipientPhone   string               `json:"recipient_phone"`
+	RecipientEmail   string               `json:"recipient_email"`
+	OrderStatus      models.OrderStatus   `json:"order_status"`
+	Items            []OrderItemResponse  `json:"items"`
+	Shipments        []ShipmentResponse   `json:"shipments"`
+	Invoices         []InvoiceResponse    `json:"invoices"`
+	TotalAmountToPay float64              `json:"total_amount_to_pay"`
+	RemainingBalance float64              `json:"remaining_balance"`
+	PaymentStatus    models.PaymentStatus `json:"payment_status"`
+	Payments         []models.Payment     `json:"payments"`
 }
 
 // ─────────────────────────────────────────────
@@ -54,7 +128,7 @@ type UpdateOrderRequest struct {
 // @Param        end_date        query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
 // @Param        search          query  string  false  "Cari nomor PO, nomor transaksi, atau nama perusahaan"
 // @Param        order_status    query  string  false  "Status order (all, pending, partial, shipped, completed)"
-// @Success      200  {object}  utils.Response{data=[]models.Order}
+// @Success      200  {object}  utils.Response{data=[]controllers.OrderListItemResponse}
 // @Router       /orders [get]
 // @Security     BearerAuth
 func GetAllOrders(c *fiber.Ctx) error {
@@ -67,7 +141,20 @@ func GetAllOrders(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
-	return utils.JSONSuccess(c, "Data pesanan berhasil diambil", orders)
+
+	response := make([]OrderListItemResponse, len(orders))
+	for i, o := range orders {
+		response[i] = OrderListItemResponse{
+			ID:               o.ID.String(),
+			PoNo:             o.PoNo,
+			OrderDate:        o.OrderDate,
+			RecipientName:    o.RecipientName,
+			OrderStatus:      string(o.OrderStatus),
+			TotalAmountToPay: o.TotalAmountToPay,
+		}
+	}
+
+	return utils.JSONSuccess(c, "Data pesanan berhasil diambil", response)
 }
 
 // ─────────────────────────────────────────────
@@ -80,7 +167,7 @@ func GetAllOrders(c *fiber.Ctx) error {
 // @Tags         Orders
 // @Param        id   path      string  true  "Order ID"
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=models.Order}
+// @Success      200  {object}  utils.Response{data=controllers.OrderDetailResponse}
 // @Failure      440  {object}  utils.Response
 // @Router       /orders/{id} [get]
 // @Security     BearerAuth
@@ -96,7 +183,93 @@ func GetOrder(c *fiber.Ctx) error {
 		}
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail pesanan")
 	}
-	return utils.JSONSuccess(c, "Detail pesanan berhasil diambil", order)
+
+	// Map items
+	itemsRes := make([]OrderItemResponse, len(order.Items))
+	for i, item := range order.Items {
+		itemsRes[i] = OrderItemResponse{
+			ID:           item.ID,
+			OrderID:      item.OrderID,
+			ProductName:  item.ProductName,
+			OrderQty:     item.OrderQty,
+			RemainingQty: item.RemainingQty,
+			UnitPrice:    item.UnitPrice,
+			PPN:          item.PPN,
+			Subtotal:     item.Subtotal,
+		}
+	}
+
+	// Map shipments
+	shipmentsRes := make([]ShipmentResponse, len(order.Shipments))
+	for i, shp := range order.Shipments {
+		// Map shipment items
+		shpItemsRes := make([]ShipmentItemResponse, len(shp.Items))
+		for j, shpItem := range shp.Items {
+			shpItemsRes[j] = ShipmentItemResponse{
+				ID:          shpItem.ID,
+				ShipmentID:  shpItem.ShipmentID,
+				OrderItemID: shpItem.OrderItemID,
+				ShippingQty: shpItem.ShippingQty,
+			}
+		}
+
+		shipmentsRes[i] = ShipmentResponse{
+			ID:             shp.ID,
+			OrderID:        shp.OrderID,
+			ShippingDate:   shp.ShippingDate,
+			ReceivedDate:   shp.ReceivedDate,
+			ShippingStatus: shp.ShippingStatus,
+			Items:          shpItemsRes,
+		}
+	}
+
+	// Map order invoices
+	invoicesRes := make([]InvoiceResponse, len(order.Invoices))
+	for i, inv := range order.Invoices {
+		invoicesRes[i] = InvoiceResponse{
+			ID:               inv.ID,
+			ShipmentID:       inv.ShipmentID,
+			OrderID:          inv.OrderID,
+			InvoiceNo:        inv.InvoiceNo,
+			TotalAmount:      inv.TotalAmount,
+			RemainingBalance: inv.RemainingBalance,
+			PaymentStatus:    inv.PaymentStatus,
+		}
+	}
+
+	response := OrderDetailResponse{
+		ID:               order.ID,
+		TransactionNo:    order.TransactionNo,
+		PoNo:             order.PoNo,
+		OrderDate:        order.OrderDate,
+		RecipientName:    order.RecipientName,
+		RecipientAddress: order.RecipientAddress,
+		RecipientPhone:   order.RecipientPhone,
+		RecipientEmail:   order.RecipientEmail,
+		OrderStatus:      order.OrderStatus,
+		Items:            itemsRes,
+		Shipments:        shipmentsRes,
+		Invoices:         invoicesRes,
+		TotalAmountToPay: order.TotalAmountToPay,
+		RemainingBalance: order.RemainingBalance,
+		PaymentStatus:    order.PaymentStatus,
+		Payments:         order.Payments,
+	}
+
+	if response.Items == nil {
+		response.Items = []OrderItemResponse{}
+	}
+	if response.Shipments == nil {
+		response.Shipments = []ShipmentResponse{}
+	}
+	if response.Invoices == nil {
+		response.Invoices = []InvoiceResponse{}
+	}
+	if response.Payments == nil {
+		response.Payments = []models.Payment{}
+	}
+
+	return utils.JSONSuccess(c, "Detail pesanan berhasil diambil", response)
 }
 
 // ─────────────────────────────────────────────
@@ -204,6 +377,7 @@ func UpdateOrder(c *fiber.Ctx) error {
 
 	order, err := services.UpdateOrder(id, services.UpdateOrderInput{
 		PoNo:             req.PoNo,
+		OrderDate:        req.OrderDate,
 		RecipientName:    req.RecipientName,
 		RecipientAddress: req.RecipientAddress,
 		RecipientPhone:   req.RecipientPhone,
@@ -254,4 +428,36 @@ func DeleteOrder(c *fiber.Ctx) error {
 	}
 
 	return utils.JSONSuccess(c, "Pesanan berhasil dihapus", nil)
+}
+
+// CreateUpfrontInvoice godoc
+// @Summary      Buat invoice di awal (DP / Pelunasan Muka)
+// @Description  Membuat invoice senilai 100% nominal pesanan sebelum barang dikirim (Shipment dibuat).
+// @Tags         Orders
+// @Param        id   path      string  true  "Order ID"
+// @Produce      json
+// @Success      201  {object}  utils.Response{data=models.Invoice}
+// @Failure      400  {object}  utils.Response
+// @Failure      404  {object}  utils.Response
+// @Router       /orders/{id}/invoice [post]
+// @Security     BearerAuth
+func CreateUpfrontInvoice(c *fiber.Ctx) error {
+	id := c.Params("id")
+	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	if err != nil {
+		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
+	}
+
+	invoice, err := services.CreateUpfrontInvoice(id, userID)
+	if err != nil {
+		if errors.Is(err, services.ErrOrderInvalidUUID) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, services.ErrOrderNotFound) {
+			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	return utils.JSONCreated(c, "Invoice uang muka berhasil dibuat", invoice)
 }

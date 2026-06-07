@@ -2545,7 +2545,7 @@ const docTemplate = `{
             "properties": {
                 "name": {
                     "type": "string",
-                    "example": "budi_santoso"
+                    "example": "admin"
                 },
                 "password": {
                     "type": "string",
@@ -2587,11 +2587,11 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string",
-                    "example": "budi@example.com"
+                    "example": "admin@gmail.com"
                 },
                 "name": {
                     "type": "string",
-                    "example": "budi_santoso"
+                    "example": "admin"
                 },
                 "password": {
                     "type": "string",

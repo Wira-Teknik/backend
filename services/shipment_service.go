@@ -39,8 +39,8 @@ type CreateShipmentInput struct {
 // Helpers
 // ─────────────────────────────────────────────
 
-// generateInvoiceNo menghasilkan nomor invoice: INV-YYYYMMDD-XXXX.
-func generateInvoiceNo(tx *gorm.DB) string {
+// GenerateInvoiceNo menghasilkan nomor invoice: INV-YYYYMMDD-XXXX.
+func GenerateInvoiceNo(tx *gorm.DB) string {
 	dateStr := time.Now().Format("20060102")
 	prefix := fmt.Sprintf("INV-%s-", dateStr)
 
@@ -212,19 +212,32 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 		return models.Shipment{}, fmt.Errorf("gagal memperbarui status pesanan: %w", err)
 	}
 
-	// 4. Auto-generate Invoice
-	invoice := models.Invoice{
-		ID:               uuid.New(),
-		ShipmentID:       shipmentID,
-		InvoiceNo:        generateInvoiceNo(tx),
-		TotalAmount:      invoiceTotalAmount,
-		RemainingBalance: invoiceTotalAmount,
-		PaymentStatus:    models.PaymentStatusUnpaid,
+	// 4. Auto-generate Invoice (hanya jika belum ada invoice di tingkat order untuk pesanan ini)
+	var orderInvoiceCount int64
+	if err := tx.Model(&models.Invoice{}).Where("order_id = ?", orderID).Count(&orderInvoiceCount).Error; err != nil {
+		tx.Rollback()
+		return models.Shipment{}, fmt.Errorf("gagal memeriksa invoice pesanan: %w", err)
 	}
 
-	if err := tx.Create(&invoice).Error; err != nil {
-		tx.Rollback()
-		return models.Shipment{}, fmt.Errorf("gagal membuat invoice: %w", err)
+	var invoiceCreated bool
+	var invoice models.Invoice
+
+	if orderInvoiceCount == 0 {
+		ptrShipmentID := shipmentID
+		invoice = models.Invoice{
+			ID:               uuid.New(),
+			ShipmentID:       &ptrShipmentID,
+			InvoiceNo:        GenerateInvoiceNo(tx),
+			TotalAmount:      invoiceTotalAmount,
+			RemainingBalance: invoiceTotalAmount,
+			PaymentStatus:    models.PaymentStatusUnpaid,
+		}
+
+		if err := tx.Create(&invoice).Error; err != nil {
+			tx.Rollback()
+			return models.Shipment{}, fmt.Errorf("gagal membuat invoice: %w", err)
+		}
+		invoiceCreated = true
 	}
 
 	// Commit transaksi
@@ -234,7 +247,9 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 
 	// Audit log
 	CreateAuditLog(userID, shipmentID, models.AuditActionCreate, "shipments", nil, shipment)
-	CreateAuditLog(userID, invoice.ID, models.AuditActionCreate, "invoices", nil, invoice)
+	if invoiceCreated {
+		CreateAuditLog(userID, invoice.ID, models.AuditActionCreate, "invoices", nil, invoice)
+	}
 
 	return shipment, nil
 }

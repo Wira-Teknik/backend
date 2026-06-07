@@ -45,6 +45,7 @@ type CreateOrderInput struct {
 
 type UpdateOrderInput struct {
 	PoNo             string `json:"po_no"`
+	OrderDate        string `json:"order_date"`
 	RecipientName    string `json:"recipient_name"`
 	RecipientAddress string `json:"recipient_address"`
 	RecipientPhone   string `json:"recipient_phone"`
@@ -91,12 +92,24 @@ func computeOrderPaymentInfo(order *models.Order) {
 	}
 	totalOrderAmount = roundTwo(totalOrderAmount)
 
-	// 2. Hitung total yang sudah dibayar dari invoice yang telah di-generate
+	// 2. Hitung total yang sudah dibayar dari invoice yang telah di-generate (menghindari double counting)
 	var totalPaid float64
+	processedInvoices := make(map[uuid.UUID]bool)
+
 	for _, shipment := range order.Shipments {
 		if shipment.Invoice != nil {
-			paidForInvoice := roundTwo(shipment.Invoice.TotalAmount - shipment.Invoice.RemainingBalance)
+			if !processedInvoices[shipment.Invoice.ID] {
+				paidForInvoice := roundTwo(shipment.Invoice.TotalAmount - shipment.Invoice.RemainingBalance)
+				totalPaid += paidForInvoice
+				processedInvoices[shipment.Invoice.ID] = true
+			}
+		}
+	}
+	for _, inv := range order.Invoices {
+		if !processedInvoices[inv.ID] {
+			paidForInvoice := roundTwo(inv.TotalAmount - inv.RemainingBalance)
 			totalPaid += paidForInvoice
+			processedInvoices[inv.ID] = true
 		}
 	}
 	totalPaid = roundTwo(totalPaid)
@@ -117,6 +130,10 @@ func computeOrderPaymentInfo(order *models.Order) {
 	} else {
 		order.PaymentStatus = models.PaymentStatusUnpaid
 	}
+
+	if order.Payments == nil {
+		order.Payments = []models.Payment{}
+	}
 }
 
 func GetAllOrders(startDate, endDate, search, orderStatus string) ([]models.Order, error) {
@@ -124,7 +141,8 @@ func GetAllOrders(startDate, endDate, search, orderStatus string) ([]models.Orde
 	query := config.DB.Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
-		Preload("Shipments.Invoice")
+		Preload("Shipments.Invoice").
+		Preload("Invoices")
 	
 	layout := "2006-01-02"
 	if startDate != "" {
@@ -187,6 +205,7 @@ func GetOrderByID(id string) (models.Order, error) {
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
+		Preload("Invoices").
 		First(&order, "id = ?", id).Error
 
 	if err != nil {
@@ -194,6 +213,22 @@ func GetOrderByID(id string) (models.Order, error) {
 			return models.Order{}, ErrOrderNotFound
 		}
 		return models.Order{}, err
+	}
+
+	// Fetch all invoices (both order-level and shipment-level) to resolve the UI inconsistency
+	var allInvoices []models.Invoice
+	shipmentIDs := []uuid.UUID{}
+	for _, shp := range order.Shipments {
+		shipmentIDs = append(shipmentIDs, shp.ID)
+	}
+
+	dbQuery := config.DB.Where("order_id = ?", order.ID)
+	if len(shipmentIDs) > 0 {
+		dbQuery = dbQuery.Or("shipment_id IN ?", shipmentIDs)
+	}
+
+	if err := dbQuery.Find(&allInvoices).Error; err == nil {
+		order.Invoices = allInvoices
 	}
 
 	computeOrderPaymentInfo(&order)
@@ -285,6 +320,8 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 		return models.Order{}, fmt.Errorf("gagal membuat pesanan: %w", err)
 	}
 
+	computeOrderPaymentInfo(&order)
+
 	// Audit log
 	CreateAuditLog(userID, orderID, models.AuditActionCreate, "orders", nil, order)
 
@@ -313,6 +350,14 @@ func UpdateOrder(id string, input UpdateOrderInput, userID uuid.UUID) (models.Or
 	input.RecipientEmail = strings.TrimSpace(strings.ToLower(input.RecipientEmail))
 	if input.RecipientEmail != "" && !utils.IsValidEmail(input.RecipientEmail) {
 		return models.Order{}, fmt.Errorf("format email penerima tidak valid")
+	}
+
+	if input.OrderDate != "" {
+		orderDate, err := time.Parse("2006-01-02", input.OrderDate)
+		if err != nil {
+			return models.Order{}, fmt.Errorf("format tanggal tidak valid (gunakan YYYY-MM-DD)")
+		}
+		order.OrderDate = utils.JSONDate(orderDate)
 	}
 
 	oldOrder := order // snapshot untuk audit
@@ -389,6 +434,77 @@ func updateOrderStatus(tx *gorm.DB, orderID uuid.UUID) error {
 	}
 
 	return tx.Model(&models.Order{}).Where("id = ?", orderID).Update("order_status", newStatus).Error
+}
+
+// CreateUpfrontInvoice membuat invoice tagihan awal (DP/pelunasan di muka) senilai 100% nominal pesanan sebelum barang dikirim.
+func CreateUpfrontInvoice(orderIDStr string, userID uuid.UUID) (models.Invoice, error) {
+	if _, err := uuid.Parse(orderIDStr); err != nil {
+		return models.Invoice{}, ErrOrderInvalidUUID
+	}
+
+	tx := config.DB.Begin()
+
+	var order models.Order
+	if err := tx.Preload("Items").Preload("Shipments").Preload("Shipments.Invoice").First(&order, "id = ?", orderIDStr).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Invoice{}, ErrOrderNotFound
+		}
+		return models.Invoice{}, err
+	}
+
+	// Cek apakah sudah ada invoice (baik order-level maupun shipment-level)
+	var invoiceCount int64
+	// Cek order-level
+	if err := tx.Model(&models.Invoice{}).Where("order_id = ?", order.ID).Count(&invoiceCount).Error; err != nil {
+		tx.Rollback()
+		return models.Invoice{}, err
+	}
+	if invoiceCount > 0 {
+		tx.Rollback()
+		return models.Invoice{}, fmt.Errorf("invoice tingkat order sudah dibuat untuk pesanan ini")
+	}
+
+	// Cek shipment-level
+	for _, shp := range order.Shipments {
+		if shp.Invoice != nil {
+			tx.Rollback()
+			return models.Invoice{}, fmt.Errorf("pesanan ini sudah memiliki invoice pengiriman (shipment-level invoice)")
+		}
+	}
+
+	// Hitung total order amount
+	computeOrderPaymentInfo(&order)
+	if order.TotalAmountToPay <= 0 {
+		tx.Rollback()
+		return models.Invoice{}, fmt.Errorf("nominal pesanan tidak valid untuk dibuatkan invoice")
+	}
+
+	orderIDCopy := order.ID
+	// Auto-generate Invoice di tingkat Order
+	invoice := models.Invoice{
+		ID:               uuid.New(),
+		OrderID:          &orderIDCopy,
+		ShipmentID:       nil,
+		InvoiceNo:        GenerateInvoiceNo(tx),
+		TotalAmount:      order.TotalAmountToPay,
+		RemainingBalance: order.TotalAmountToPay,
+		PaymentStatus:    models.PaymentStatusUnpaid,
+	}
+
+	if err := tx.Create(&invoice).Error; err != nil {
+		tx.Rollback()
+		return models.Invoice{}, fmt.Errorf("gagal membuat invoice: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return models.Invoice{}, fmt.Errorf("gagal menyimpan invoice: %w", err)
+	}
+
+	// Audit Log
+	CreateAuditLog(userID, invoice.ID, models.AuditActionCreate, "invoices", nil, invoice)
+
+	return invoice, nil
 }
 
 

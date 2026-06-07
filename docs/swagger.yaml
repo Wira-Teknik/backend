@@ -58,7 +58,7 @@ definitions:
   controllers.LoginRequest:
     properties:
       name:
-        example: budi_santoso
+        example: admin
         type: string
       password:
         example: Password123
@@ -87,10 +87,10 @@ definitions:
   controllers.RegisterRequest:
     properties:
       email:
-        example: budi@example.com
+        example: admin@gmail.com
         type: string
       name:
-        example: budi_santoso
+        example: admin
         type: string
       password:
         example: Password123

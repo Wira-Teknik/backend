@@ -48,7 +48,31 @@ func GetShipmentsByOrder(c *fiber.Ctx) error {
 		}
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data pengiriman")
 	}
-	return utils.JSONSuccess(c, "Data pengiriman berhasil diambil", shipments)
+
+	responseList := make([]ShipmentResponse, len(shipments))
+	for i, shp := range shipments {
+		// Map items
+		shpItemsRes := make([]ShipmentItemResponse, len(shp.Items))
+		for j, shpItem := range shp.Items {
+			shpItemsRes[j] = ShipmentItemResponse{
+				ID:          shpItem.ID,
+				ShipmentID:  shpItem.ShipmentID,
+				OrderItemID: shpItem.OrderItemID,
+				ShippingQty: shpItem.ShippingQty,
+			}
+		}
+
+		responseList[i] = ShipmentResponse{
+			ID:             shp.ID,
+			OrderID:        shp.OrderID,
+			ShippingDate:   shp.ShippingDate,
+			ReceivedDate:   shp.ReceivedDate,
+			ShippingStatus: shp.ShippingStatus,
+			Items:          shpItemsRes,
+		}
+	}
+
+	return utils.JSONSuccess(c, "Data pengiriman berhasil diambil", responseList)
 }
 
 // ─────────────────────────────────────────────

@@ -15,26 +15,26 @@ import (
 
 // RegisterRequest adalah body untuk endpoint register.
 type RegisterRequest struct {
-	Name     string `json:"name"     example:"budi_santoso"`
-	Email    string `json:"email"    example:"budi@example.com"`
+	Name     string `json:"name"     example:"admin"`
+	Email    string `json:"email"    example:"admin@example.com"`
 	Password string `json:"password" example:"Password123"`
 	Role     string `json:"role"     example:"admin" enums:"admin,owner"`
 }
 
 // LoginRequest adalah body untuk endpoint login.
 type LoginRequest struct {
-	Name     string `json:"name"     example:"budi_santoso"`
+	Name     string `json:"name"     example:"admin"`
 	Password string `json:"password" example:"Password123"`
 }
 
 // ForgotStep1Request adalah body untuk request OTP.
 type ForgotStep1Request struct {
-	Email string `json:"email" example:"budi@example.com"`
+	Email string `json:"email" example:"admin@example.com"`
 }
 
 // ForgotStep2Request adalah body untuk verifikasi OTP.
 type ForgotStep2Request struct {
-	Email string `json:"email" example:"budi@example.com"`
+	Email string `json:"email" example:"admin@example.com"`
 	OTP   string `json:"otp"   example:"482931"`
 }
 

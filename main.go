@@ -19,6 +19,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 	"strings"
@@ -45,6 +46,51 @@ func main() {
 		log.Println("Warning: .env file not found, using system environment variables")
 	}
 
+	// Command-line flags
+	dropDbFlag := flag.Bool("drop-db", false, "Drop the target database completely")
+	resetDbFlag := flag.Bool("reset-db", false, "Reset database schema and re-run migrations/seeding")
+	flag.Parse()
+
+	if *dropDbFlag {
+		if err := config.DropDatabase(); err != nil {
+			log.Fatalf("Error dropping database: %v", err)
+		}
+		os.Exit(0)
+	}
+
+	if *resetDbFlag {
+		config.ConnectDatabase()
+		config.ResetDatabase()
+		
+		log.Println("Running AutoMigrate after schema reset...")
+		if err := config.DB.AutoMigrate(
+			&models.User{},
+			&models.Customer{},
+			&models.Order{},
+			&models.OrderItem{},
+			&models.Payment{},
+			&models.PaymentDetail{},
+			&models.Shipment{},
+			&models.ShipmentItem{},
+			&models.Invoice{},
+			&models.Attachment{},
+			&models.AuditLog{},
+		); err != nil {
+			log.Fatalf("AutoMigrate failed: %v", err)
+		}
+		log.Println("Database migration completed after reset.")
+
+		// Drop NOT NULL constraint on invoices.shipment_id
+		if err := config.DB.Exec("ALTER TABLE invoices ALTER COLUMN shipment_id DROP NOT NULL").Error; err != nil {
+			log.Printf("Warning: failed to drop NOT NULL constraint on invoices.shipment_id: %v", err)
+		}
+
+		// Seed orders if empty
+		config.SeedOrders()
+		log.Println("Database reset, migrated, and seeded successfully.")
+		os.Exit(0)
+	}
+
 	// Connect to database (auto-creates DB if missing)
 	config.ConnectDatabase()
 
@@ -65,6 +111,14 @@ func main() {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 	log.Println("Database migration completed.")
+
+	// Drop NOT NULL constraint on invoices.shipment_id
+	if err := config.DB.Exec("ALTER TABLE invoices ALTER COLUMN shipment_id DROP NOT NULL").Error; err != nil {
+		log.Printf("Warning: failed to drop NOT NULL constraint on invoices.shipment_id: %v", err)
+	}
+
+	// Seed orders if empty
+	config.SeedOrders()
 
 	// Connect to Redis
 	config.ConnectRedis()

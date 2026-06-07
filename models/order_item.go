@@ -16,7 +16,7 @@ type OrderItem struct {
 	UnitPrice    float64        `gorm:"not null" json:"unit_price"`
 	PPN          float64        `gorm:"not null" json:"ppn"`
 	Subtotal     float64        `gorm:"not null" json:"subtotal"`
-	CreatedAt    utils.JSONDateTime `json:"created_at"`
-	UpdatedAt    utils.JSONDateTime `json:"updated_at"`
+	CreatedAt    utils.JSONDateTime `json:"-"`
+	UpdatedAt    utils.JSONDateTime `json:"-"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }

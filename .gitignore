@@ -1,45 +1,88 @@
-# Binaries
-main
-main.exe
+# --- Go Binaries & Build Outputs ---
+# Compiled templates
+*.html
+*.pdf
+# Executables
 *.exe
-*.bin
+*.exe~
+*.dll
+*.so
+*.dylib
+# Test binaries
 *.test
-*.prof
+*.out
+c.out
+coverage.out
+# Common build output directories
+bin/
+dist/
+build/
+out/
+# Project binary (assumes it might be named after the directory)
+teknik
+teknik.exe
 
-# OS files
-.DS_Store
-.DS_Store?
-_MACOSX
-Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Environment variables (SANGAT PENTING)
-.env
-.env.production
-.env.local
-
-# Dependency directories
+# --- Dependency Directories ---
+# Go workspace files
+go.work
+go.work.sum
+# Dependency directory (only if using go mod vendor)
 vendor/
 
-# Logs
+# --- Environment & Secrets ---
+# Block all .env files (very critical)
+.env
+.env.*
+*.env
+# Except .env.example which should be committed as a template
+!.env.example
+
+# --- IDEs & Editors ---
+# JetBrains (GoLand, IntelliJ, WebStorm, etc.)
+.idea/
+*.iws
+*.iml
+# VS Code
+.vscode/
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+# Vim
+*~
+*.swp
+*.swo
+.netrwhist
+# Local history / backups
+.history/
+
+# --- Operating System Files ---
+# macOS
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.Spotlight-V100
+.Trashes
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+# Linux
+*~
+
+# --- Logs & Temporaries ---
 *.log
-
-# Docker
-.docker/
-
-# Docker Compose
-docker-compose.yml
-
-# Temp files
 *.tmp
-*.log
 *.pid
-
 .temp/
+.cache/
 
-uploads/
+# --- Application Specific ---
+# Ignore user-uploaded assets
+uploads/*
+!uploads/.gitkeep
+
+docker-compose.yml

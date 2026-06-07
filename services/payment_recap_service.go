@@ -113,8 +113,8 @@ func queryInvoices(start, end time.Time, search string, statusFilter ...models.P
 	q := config.DB.Table("invoices").
 		Select("orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, orders.order_date, " +
 			"invoices.total_amount, invoices.remaining_balance, invoices.payment_status").
-		Joins("JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL").
-		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
+		Joins("LEFT JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL").
+		Joins("JOIN orders ON (orders.id = invoices.order_id OR orders.id = shipments.order_id) AND orders.deleted_at IS NULL").
 		Where("orders.order_date >= ? AND orders.order_date <= ?", start, end).
 		Where("invoices.deleted_at IS NULL")
 
