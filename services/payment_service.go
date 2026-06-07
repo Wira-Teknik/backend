@@ -34,10 +34,19 @@ type CreatePaymentInput struct {
 // Get All Payments
 // ─────────────────────────────────────────────
 
+type PaymentOrderResponse struct {
+	ID               uuid.UUID            `json:"id"`
+	TransactionNo    string               `json:"transaction_no"`
+	PoNo             string               `json:"po_no"`
+	OrderDate        utils.JSONDate       `json:"order_date"`
+	RemainingBalance float64              `json:"remaining_balance"`
+	PaymentStatus    models.PaymentStatus `json:"payment_status"`
+}
+
 type CustomerPaymentSummary struct {
-	CustomerName string         `json:"customer_name"`
-	Orders       []models.Order `json:"orders"`
-	TotalTagihan float64        `json:"total_tagihan"`
+	CustomerName string                 `json:"customer_name"`
+	Orders       []PaymentOrderResponse `json:"orders"`
+	TotalTagihan float64                `json:"total_tagihan"`
 }
 
 type OrderPaymentDTO struct {
@@ -64,7 +73,7 @@ type CustomerPaymentDetailResponse struct {
 }
 
 // SearchCustomerPayments mencari customer berdasarkan nama (dari data pesanan) dan menghitung tagihannya.
-func SearchCustomerPayments(name, startDate, endDate, status string) ([]CustomerPaymentSummary, error) {
+func SearchCustomerPayments(name, startDate, endDate, status string, page, limit int) ([]CustomerPaymentSummary, int64, error) {
 	// Validate status first
 	if status != "" && !strings.EqualFold(status, "all") {
 		statusLower := strings.ToLower(strings.TrimSpace(status))
@@ -74,7 +83,7 @@ func SearchCustomerPayments(name, startDate, endDate, status string) ([]Customer
 			"paid":    true,
 		}
 		if !validStatuses[statusLower] {
-			return nil, fmt.Errorf("status pembayaran tidak valid, gunakan: all, unpaid, partial, paid")
+			return nil, 0, fmt.Errorf("status pembayaran tidak valid, gunakan: all, unpaid, partial, paid")
 		}
 	}
 
@@ -95,21 +104,21 @@ func SearchCustomerPayments(name, startDate, endDate, status string) ([]Customer
 	if startDate != "" {
 		start, err := time.Parse(layout, startDate)
 		if err != nil {
-			return nil, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+			return nil, 0, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		query = query.Where("order_date >= ?", start)
 	}
 	if endDate != "" {
 		end, err := time.Parse(layout, endDate)
 		if err != nil {
-			return nil, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+			return nil, 0, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 		query = query.Where("order_date <= ?", end)
 	}
 
 	if err := query.Find(&orders).Error; err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// 1. Kumpulkan semua ID Invoice dari order yang ditemukan dan inisialisasi slice Payments kosong
@@ -143,7 +152,7 @@ func SearchCustomerPayments(name, startDate, endDate, status string) ([]Customer
 			Find(&payments).Error
 
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		for _, p := range payments {
@@ -176,13 +185,22 @@ func SearchCustomerPayments(name, startDate, endDate, status string) ([]Customer
 		if _, exists := customerMap[custName]; !exists {
 			customerMap[custName] = &CustomerPaymentSummary{
 				CustomerName: custName,
-				Orders:       []models.Order{},
+				Orders:       []PaymentOrderResponse{},
 				TotalTagihan: 0,
 			}
 			orderedCustomerNames = append(orderedCustomerNames, custName)
 		}
 
-		customerMap[custName].Orders = append(customerMap[custName].Orders, orders[i])
+		pOrder := PaymentOrderResponse{
+			ID:               orders[i].ID,
+			TransactionNo:    orders[i].TransactionNo,
+			PoNo:             orders[i].PoNo,
+			OrderDate:        orders[i].OrderDate,
+			RemainingBalance: orders[i].RemainingBalance,
+			PaymentStatus:    orders[i].PaymentStatus,
+		}
+
+		customerMap[custName].Orders = append(customerMap[custName].Orders, pOrder)
 		customerMap[custName].TotalTagihan += orders[i].RemainingBalance
 	}
 
@@ -194,7 +212,23 @@ func SearchCustomerPayments(name, startDate, endDate, status string) ([]Customer
 		results = append(results, *summary)
 	}
 
-	return results, nil
+	totalRows := int64(len(results))
+
+	// In-memory pagination
+	if page > 0 && limit > 0 {
+		start := (page - 1) * limit
+		if start >= len(results) {
+			results = []CustomerPaymentSummary{}
+		} else {
+			end := start + limit
+			if end > len(results) {
+				end = len(results)
+			}
+			results = results[start:end]
+		}
+	}
+
+	return results, totalRows, nil
 }
 
 func GetAllPayments() ([]models.Payment, error) {

@@ -212,6 +212,21 @@ definitions:
         example: true
         type: boolean
     type: object
+  controllers.PaginatedPaymentsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/services.CustomerPaymentSummary'
+        type: array
+      message:
+        example: Data tagihan dan pembayaran customer berhasil diambil
+        type: string
+      pagination:
+        $ref: '#/definitions/controllers.PaginationMeta'
+      success:
+        example: true
+        type: boolean
+    type: object
   controllers.PaginationMeta:
     properties:
       limit:
@@ -604,7 +619,7 @@ definitions:
         type: string
       orders:
         items:
-          $ref: '#/definitions/models.Order'
+          $ref: '#/definitions/services.PaymentOrderResponse'
         type: array
       total_tagihan:
         type: number
@@ -765,6 +780,21 @@ definitions:
         type: number
       transaction_no:
         example: NF/WT/1/2026
+        type: string
+    type: object
+  services.PaymentOrderResponse:
+    properties:
+      id:
+        type: string
+      order_date:
+        type: string
+      payment_status:
+        $ref: '#/definitions/models.PaymentStatus'
+      po_no:
+        type: string
+      remaining_balance:
+        type: number
+      transaction_no:
         type: string
     type: object
   services.RecapInvoiceItemDTO:
@@ -1955,7 +1985,7 @@ paths:
     get:
       description: Mengambil daftar customer beserta detail pesanan, total tagihan,
         dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang
-        tanggal order_date, dan status pembayaran.
+        tanggal order_date, status pembayaran, dan mendukung pagination (page & limit).
       parameters:
       - description: Nama Customer (opsional)
         in: query
@@ -1973,20 +2003,21 @@ paths:
         in: query
         name: status
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/services.CustomerPaymentSummary'
-                  type: array
-              type: object
+            $ref: '#/definitions/controllers.PaginatedPaymentsResponse'
       security:
       - BearerAuth: []
       summary: Ambil daftar pembayaran & tagihan customer

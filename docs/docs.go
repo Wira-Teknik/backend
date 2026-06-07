@@ -1811,7 +1811,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang tanggal order_date, dan status pembayaran.",
+                "description": "Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang tanggal order_date, status pembayaran, dan mendukung pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -1843,28 +1843,25 @@ const docTemplate = `{
                         "description": "Status pembayaran (all, unpaid, partial, paid)",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/services.CustomerPaymentSummary"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedPaymentsResponse"
                         }
                     }
                 }
@@ -2828,6 +2825,28 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.PaginatedPaymentsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.CustomerPaymentSummary"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Data tagihan dan pembayaran customer berhasil diambil"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/controllers.PaginationMeta"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
         "controllers.PaginationMeta": {
             "type": "object",
             "properties": {
@@ -3403,7 +3422,7 @@ const docTemplate = `{
                 "orders": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.Order"
+                        "$ref": "#/definitions/services.PaymentOrderResponse"
                     }
                 },
                 "total_tagihan": {
@@ -3635,6 +3654,29 @@ const docTemplate = `{
                 "transaction_no": {
                     "type": "string",
                     "example": "NF/WT/1/2026"
+                }
+            }
+        },
+        "services.PaymentOrderResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/models.PaymentStatus"
+                },
+                "po_no": {
+                    "type": "string"
+                },
+                "remaining_balance": {
+                    "type": "number"
+                },
+                "transaction_no": {
+                    "type": "string"
                 }
             }
         },

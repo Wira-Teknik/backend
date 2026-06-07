@@ -36,20 +36,30 @@ type UpdatePaymentTotalRequest struct {
 	PaymentTotal float64 `json:"payment_total" example:"7500000"`
 }
 
+// PaginatedPaymentsResponse adalah wrapper response paginasi untuk daftar pembayaran customer.
+type PaginatedPaymentsResponse struct {
+	Success    bool                              `json:"success"    example:"true"`
+	Message    string                            `json:"message"    example:"Data tagihan dan pembayaran customer berhasil diambil"`
+	Data       []services.CustomerPaymentSummary `json:"data"`
+	Pagination PaginationMeta                    `json:"pagination"`
+}
+
 // ─────────────────────────────────────────────
 // Get All Payments
 // ─────────────────────────────────────────────
 
 // GetAllPayments godoc
 // @Summary      Ambil daftar pembayaran & tagihan customer
-// @Description  Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang tanggal order_date, dan status pembayaran.
+// @Description  Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang tanggal order_date, status pembayaran, dan mendukung pagination (page & limit).
 // @Tags         Payments
 // @Param        name        query  string  false  "Nama Customer (opsional)"
 // @Param        start_date  query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
 // @Param        end_date    query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
 // @Param        status      query  string  false  "Status pembayaran (all, unpaid, partial, paid)"
+// @Param        page        query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit       query  int     false  "Jumlah baris per halaman (default: 20)"
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=[]services.CustomerPaymentSummary}
+// @Success      200  {object}  controllers.PaginatedPaymentsResponse
 // @Router       /payments [get]
 // @Security     BearerAuth
 func GetAllPayments(c *fiber.Ctx) error {
@@ -58,11 +68,41 @@ func GetAllPayments(c *fiber.Ctx) error {
 	endDate := c.Query("end_date")
 	status := c.Query("status")
 
-	results, err := services.SearchCustomerPayments(name, startDate, endDate, status)
+	page := 1
+	if p := c.Query("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+
+	limit := 20
+	if l := c.Query("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+
+	results, totalRows, err := services.SearchCustomerPayments(name, startDate, endDate, status, page, limit)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
-	return utils.JSONSuccess(c, "Data tagihan dan pembayaran customer berhasil diambil", results)
+
+	totalPages := 0
+	if totalRows > 0 {
+		totalPages = int((totalRows + int64(limit) - 1) / int64(limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedPaymentsResponse{
+		Success: true,
+		Message: "Data tagihan dan pembayaran customer berhasil diambil",
+		Data:    results,
+		Pagination: PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalRows:  totalRows,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 // ─────────────────────────────────────────────
