@@ -479,7 +479,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/models.Customer"
+                                                "$ref": "#/definitions/controllers.CustomerResponse"
                                             }
                                         }
                                     }
@@ -573,7 +573,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/models.Customer"
+                                            "$ref": "#/definitions/controllers.CustomerResponse"
                                         }
                                     }
                                 }
@@ -2366,7 +2366,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil detail pengiriman termasuk item-itemnya",
+                "description": "Mengambil detail pengiriman termasuk item-itemnya (tanpa created_at \u0026 updated_at)",
                 "produces": [
                     "application/json"
                 ],
@@ -2395,7 +2395,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/models.Shipment"
+                                            "$ref": "#/definitions/controllers.ShipmentResponse"
                                         }
                                     }
                                 }
@@ -2418,7 +2418,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal penerimaan. Jika semua item terkirim dan semua shipment diterima, status order menjadi 'completed'.",
+                "description": "Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal penerimaan (tanpa created_at \u0026 updated_at). Jika semua item terkirim dan semua shipment diterima, status order menjadi 'completed'.",
                 "produces": [
                     "application/json"
                 ],
@@ -2447,7 +2447,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/models.Shipment"
+                                            "$ref": "#/definitions/controllers.ShipmentResponse"
                                         }
                                     }
                                 }
@@ -2475,7 +2475,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Invoices"
+                    "Shipments"
                 ],
                 "summary": "Ambil invoice berdasarkan Shipment",
                 "parameters": [
@@ -2553,6 +2553,26 @@ const docTemplate = `{
                 "transaction_no": {
                     "type": "string",
                     "example": "NF/WT/1/2026"
+                }
+            }
+        },
+        "controllers.CustomerResponse": {
+            "type": "object",
+            "properties": {
+                "customer_address": {
+                    "type": "string"
+                },
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "customer_phone": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
                 }
             }
         },

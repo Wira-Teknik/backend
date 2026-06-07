@@ -81,11 +81,11 @@ func GetShipmentsByOrder(c *fiber.Ctx) error {
 
 // GetShipment godoc
 // @Summary      Ambil detail pengiriman
-// @Description  Mengambil detail pengiriman termasuk item-itemnya
+// @Description  Mengambil detail pengiriman termasuk item-itemnya (tanpa created_at & updated_at)
 // @Tags         Shipments
 // @Param        id   path      string  true  "Shipment ID"
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=models.Shipment}
+// @Success      200  {object}  utils.Response{data=controllers.ShipmentResponse}
 // @Failure      404  {object}  utils.Response
 // @Router       /shipments/{id} [get]
 // @Security     BearerAuth
@@ -101,7 +101,28 @@ func GetShipment(c *fiber.Ctx) error {
 		}
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail pengiriman")
 	}
-	return utils.JSONSuccess(c, "Detail pengiriman berhasil diambil", shipment)
+
+	// Map items to exclude created_at and updated_at
+	itemsRes := make([]ShipmentItemResponse, len(shipment.Items))
+	for i, item := range shipment.Items {
+		itemsRes[i] = ShipmentItemResponse{
+			ID:          item.ID,
+			ShipmentID:  item.ShipmentID,
+			OrderItemID: item.OrderItemID,
+			ShippingQty: item.ShippingQty,
+		}
+	}
+
+	response := ShipmentResponse{
+		ID:             shipment.ID,
+		OrderID:        shipment.OrderID,
+		ShippingDate:   shipment.ShippingDate,
+		ReceivedDate:   shipment.ReceivedDate,
+		ShippingStatus: shipment.ShippingStatus,
+		Items:          itemsRes,
+	}
+
+	return utils.JSONSuccess(c, "Detail pengiriman berhasil diambil", response)
 }
 
 // ─────────────────────────────────────────────
@@ -204,11 +225,11 @@ func CreateShipment(c *fiber.Ctx) error {
 
 // ConfirmShipmentReceived godoc
 // @Summary      Konfirmasi penerimaan barang
-// @Description  Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal penerimaan. Jika semua item terkirim dan semua shipment diterima, status order menjadi 'completed'.
+// @Description  Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal penerimaan (tanpa created_at & updated_at). Jika semua item terkirim dan semua shipment diterima, status order menjadi 'completed'.
 // @Tags         Shipments
 // @Param        id   path      string  true  "Shipment ID"
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=models.Shipment}
+// @Success      200  {object}  utils.Response{data=controllers.ShipmentResponse}
 // @Failure      400  {object}  utils.Response
 // @Router       /shipments/{id}/received [patch]
 // @Security     BearerAuth
@@ -230,5 +251,25 @@ func ConfirmShipmentReceived(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	return utils.JSONSuccess(c, "Penerimaan barang berhasil dikonfirmasi", shipment)
+	// Map items to exclude created_at and updated_at
+	itemsRes := make([]ShipmentItemResponse, len(shipment.Items))
+	for i, item := range shipment.Items {
+		itemsRes[i] = ShipmentItemResponse{
+			ID:          item.ID,
+			ShipmentID:  item.ShipmentID,
+			OrderItemID: item.OrderItemID,
+			ShippingQty: item.ShippingQty,
+		}
+	}
+
+	response := ShipmentResponse{
+		ID:             shipment.ID,
+		OrderID:        shipment.OrderID,
+		ShippingDate:   shipment.ShippingDate,
+		ReceivedDate:   shipment.ReceivedDate,
+		ShippingStatus: shipment.ShippingStatus,
+		Items:          itemsRes,
+	}
+
+	return utils.JSONSuccess(c, "Penerimaan barang berhasil dikonfirmasi", response)
 }

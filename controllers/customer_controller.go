@@ -7,7 +7,21 @@ import (
 	"teknik/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
+
+// ─────────────────────────────────────────────
+// Request/Response DTOs for Customers
+// ─────────────────────────────────────────────
+
+// CustomerResponse adalah detail customer tanpa created_at dan updated_at.
+type CustomerResponse struct {
+	ID              uuid.UUID `json:"id"`
+	CustomerName    string    `json:"customer_name"`
+	CustomerEmail   string    `json:"customer_email"`
+	CustomerPhone   string    `json:"customer_phone"`
+	CustomerAddress string    `json:"customer_address"`
+}
 
 // ─────────────────────────────────────────────
 // Customers
@@ -17,7 +31,7 @@ import (
 // @Summary      Ambil semua customer
 // @Tags         Customers
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=[]models.Customer}
+// @Success      200  {object}  utils.Response{data=[]controllers.CustomerResponse}
 // @Router       /customers [get]
 // @Security     BearerAuth
 func GetAllCustomers(c *fiber.Ctx) error {
@@ -25,7 +39,19 @@ func GetAllCustomers(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil data customer")
 	}
-	return utils.JSONSuccess(c, "Data customer berhasil diambil", customers)
+
+	response := make([]CustomerResponse, len(customers))
+	for i, cust := range customers {
+		response[i] = CustomerResponse{
+			ID:              cust.ID,
+			CustomerName:    cust.CustomerName,
+			CustomerEmail:   cust.CustomerEmail,
+			CustomerPhone:   cust.CustomerPhone,
+			CustomerAddress: cust.CustomerAddress,
+		}
+	}
+
+	return utils.JSONSuccess(c, "Data customer berhasil diambil", response)
 }
 
 // GetCustomer godoc
@@ -33,7 +59,7 @@ func GetAllCustomers(c *fiber.Ctx) error {
 // @Tags         Customers
 // @Param        id   path      string  true  "Customer ID"
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=models.Customer}
+// @Success      200  {object}  utils.Response{data=controllers.CustomerResponse}
 // @Router       /customers/{id} [get]
 // @Security     BearerAuth
 func GetCustomer(c *fiber.Ctx) error {
@@ -48,7 +74,16 @@ func GetCustomer(c *fiber.Ctx) error {
 		}
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil detail customer")
 	}
-	return utils.JSONSuccess(c, "Detail customer berhasil diambil", customer)
+
+	response := CustomerResponse{
+		ID:              customer.ID,
+		CustomerName:    customer.CustomerName,
+		CustomerEmail:   customer.CustomerEmail,
+		CustomerPhone:   customer.CustomerPhone,
+		CustomerAddress: customer.CustomerAddress,
+	}
+
+	return utils.JSONSuccess(c, "Detail customer berhasil diambil", response)
 }
 
 // CreateCustomer godoc

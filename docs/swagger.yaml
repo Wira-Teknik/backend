@@ -28,6 +28,19 @@ definitions:
         example: NF/WT/1/2026
         type: string
     type: object
+  controllers.CustomerResponse:
+    properties:
+      customer_address:
+        type: string
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      customer_phone:
+        type: string
+      id:
+        type: string
+    type: object
   controllers.ForgotStep1Request:
     properties:
       email:
@@ -1138,7 +1151,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/models.Customer'
+                    $ref: '#/definitions/controllers.CustomerResponse'
                   type: array
               type: object
       security:
@@ -1210,7 +1223,7 @@ paths:
             - $ref: '#/definitions/utils.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/models.Customer'
+                  $ref: '#/definitions/controllers.CustomerResponse'
               type: object
       security:
       - BearerAuth: []
@@ -2292,7 +2305,8 @@ paths:
       - Shipments
   /shipments/{id}:
     get:
-      description: Mengambil detail pengiriman termasuk item-itemnya
+      description: Mengambil detail pengiriman termasuk item-itemnya (tanpa created_at
+        & updated_at)
       parameters:
       - description: Shipment ID
         in: path
@@ -2309,7 +2323,7 @@ paths:
             - $ref: '#/definitions/utils.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/models.Shipment'
+                  $ref: '#/definitions/controllers.ShipmentResponse'
               type: object
         "404":
           description: Not Found
@@ -2323,8 +2337,8 @@ paths:
   /shipments/{id}/received:
     patch:
       description: Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal
-        penerimaan. Jika semua item terkirim dan semua shipment diterima, status order
-        menjadi 'completed'.
+        penerimaan (tanpa created_at & updated_at). Jika semua item terkirim dan semua
+        shipment diterima, status order menjadi 'completed'.
       parameters:
       - description: Shipment ID
         in: path
@@ -2341,7 +2355,7 @@ paths:
             - $ref: '#/definitions/utils.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/models.Shipment'
+                  $ref: '#/definitions/controllers.ShipmentResponse'
               type: object
         "400":
           description: Bad Request
@@ -2381,7 +2395,7 @@ paths:
       - BearerAuth: []
       summary: Ambil invoice berdasarkan Shipment
       tags:
-      - Invoices
+      - Shipments
 securityDefinitions:
   BearerAuth:
     description: 'Masukkan token dengan format: **Bearer &lt;token&gt;**'
