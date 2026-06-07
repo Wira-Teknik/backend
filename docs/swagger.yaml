@@ -261,6 +261,15 @@ definitions:
         example: admin
         type: string
     type: object
+  controllers.ShipmentItemRequestPayload:
+    properties:
+      order_item_id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+      shipping_qty:
+        example: 50
+        type: integer
+    type: object
   controllers.ShipmentItemResponse:
     properties:
       id:
@@ -315,6 +324,13 @@ definitions:
       payment_total:
         example: 7500000
         type: number
+    type: object
+  controllers.UpdateShipmentItemsRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/controllers.ShipmentItemRequestPayload'
+        type: array
     type: object
   controllers.VerifyTokenData:
     properties:
@@ -737,6 +753,10 @@ definitions:
     properties:
       id:
         type: string
+      invoices:
+        items:
+          $ref: '#/definitions/models.Invoice'
+        type: array
       order_date:
         type: string
       payment_status:
@@ -753,6 +773,10 @@ definitions:
         type: number
       transaction_no:
         type: string
+      unpaid_invoice_count:
+        type: integer
+      unpaid_invoice_total:
+        type: number
     type: object
   services.PaymentHistoryDTO:
     properties:
@@ -795,6 +819,10 @@ definitions:
         type: number
       transaction_no:
         type: string
+      unpaid_invoice_count:
+        type: integer
+      unpaid_invoice_total:
+        type: number
     type: object
   services.RecapInvoiceItemDTO:
     properties:
@@ -2327,6 +2355,49 @@ paths:
       security:
       - BearerAuth: []
       summary: Ambil detail pengiriman
+      tags:
+      - Shipments
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui daftar item dan kuantitas barang pada pengiriman yang
+        sudah dibuat. Menghitung ulang remaining_qty pesanan dan nominal invoice secara
+        otomatis.
+      parameters:
+      - description: Shipment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data item pengiriman
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateShipmentItemsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/controllers.ShipmentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Edit kuantitas barang dikirim
       tags:
       - Shipments
   /shipments/{id}/received:
