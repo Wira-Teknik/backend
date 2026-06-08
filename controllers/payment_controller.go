@@ -44,6 +44,15 @@ type PaginatedPaymentsResponse struct {
 	Pagination PaginationMeta                    `json:"pagination"`
 }
 
+// PaginatedPaymentHistoryResponse adalah wrapper response paginasi untuk riwayat pembayaran.
+type PaginatedPaymentHistoryResponse struct {
+	Success    bool                         `json:"success"    example:"true"`
+	Message    string                       `json:"message"    example:"Riwayat pembayaran berhasil diambil"`
+	Data       []services.PaymentHistoryDTO `json:"data"`
+	Pagination PaginationMeta               `json:"pagination"`
+}
+
+
 // ─────────────────────────────────────────────
 // Get All Payments
 // ─────────────────────────────────────────────
@@ -296,14 +305,16 @@ func GetCustomerPaymentDetail(c *fiber.Ctx) error {
 
 // GetPaymentHistory godoc
 // @Summary      Ambil Laporan Riwayat Transaksi Pembayaran
-// @Description  Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran order terkait (all, paid, partial), dan filter rentang tanggal payments.payment_date.
+// @Description  Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran order terkait (all, paid, partial), rentang tanggal payments.payment_date, dan pagination (page & limit).
 // @Tags         Payments
 // @Produce      json
 // @Param        search      query  string  false  "Cari nomor PO atau transaksi"
 // @Param        status      query  string  false  "Filter status (all, paid, partial)"
 // @Param        start_date  query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
 // @Param        end_date    query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
-// @Success      200  {object}  utils.Response{data=[]services.PaymentHistoryDTO}
+// @Param        page        query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit       query  int     false  "Jumlah baris per halaman (default: 20)"
+// @Success      200  {object}  controllers.PaginatedPaymentHistoryResponse
 // @Router       /payments/history [get]
 // @Security     BearerAuth
 func GetPaymentHistory(c *fiber.Ctx) error {
@@ -312,11 +323,41 @@ func GetPaymentHistory(c *fiber.Ctx) error {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
 
-	history, err := services.GetPaymentHistory(search, status, startDate, endDate)
+	page := 1
+	if p := c.Query("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+
+	limit := 20
+	if l := c.Query("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+
+	history, totalRows, err := services.GetPaymentHistory(search, status, startDate, endDate, page, limit)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil riwayat pembayaran: "+err.Error())
 	}
-	return utils.JSONSuccess(c, "Riwayat pembayaran berhasil diambil", history)
+
+	totalPages := 0
+	if totalRows > 0 {
+		totalPages = int((totalRows + int64(limit) - 1) / int64(limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedPaymentHistoryResponse{
+		Success: true,
+		Message: "Riwayat pembayaran berhasil diambil",
+		Data:    history,
+		Pagination: PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalRows:  totalRows,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 // ─────────────────────────────────────────────
@@ -342,7 +383,7 @@ func ExportPaymentHistory(c *fiber.Ctx) error {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
 
-	history, err := services.GetPaymentHistory(search, status, startDate, endDate)
+	history, _, err := services.GetPaymentHistory(search, status, startDate, endDate, 0, 0)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
@@ -364,9 +405,29 @@ func ExportPaymentHistory(c *fiber.Ctx) error {
 	xf.SetRowHeight(sh, 1, 28)
 
 	// ── Meta summary ──
-	setPaymentMetaRow(xf, sh, 2, "Waktu Ekspor", time.Now().Local().Format("2006-01-02 15:04"), st.metaKey, st.metaVal)
-	setPaymentMetaRow(xf, sh, 3, "Filter Pencarian", search, st.metaKey, st.metaVal)
-	setPaymentMetaRow(xf, sh, 4, "Filter Status", status, st.metaKey, st.metaVal)
+	xf.MergeCell(sh, "A2", "B2")
+	xf.SetCellValue(sh, "A2", "Waktu Ekspor")
+	xf.SetCellStyle(sh, "A2", "B2", st.metaKey)
+	xf.SetCellValue(sh, "C2", time.Now().Local().Format("2006-01-02 15:04"))
+	xf.SetCellStyle(sh, "C2", "C2", st.metaVal)
+
+	xf.MergeCell(sh, "A3", "B3")
+	xf.SetCellValue(sh, "A3", "Filter Pencarian")
+	xf.SetCellStyle(sh, "A3", "B3", st.metaKey)
+	xf.SetCellValue(sh, "C3", search)
+	xf.SetCellStyle(sh, "C3", "C3", st.metaVal)
+
+	xf.MergeCell(sh, "A4", "B4")
+	xf.SetCellValue(sh, "A4", "Filter Status")
+	xf.SetCellStyle(sh, "A4", "B4", st.metaKey)
+	xf.SetCellValue(sh, "C4", status)
+	xf.SetCellStyle(sh, "C4", "C4", st.metaVal)
+
+	// Add dropdown data validation in C4
+	dv := excelize.NewDataValidation(true)
+	dv.Sqref = "C4"
+	dv.SetDropList([]string{"all", "paid", "partial"})
+	_ = xf.AddDataValidation(sh, dv)
 
 	// ── Header row ──
 	headers := []string{"No", "Nomor Transaksi", "Nomor PO", "Nama Konsumen", "Admin Pembuat", "Tanggal Bayar", "Jumlah Bayar", "Status Pembayaran Order"}
@@ -418,6 +479,12 @@ func ExportPaymentHistory(c *fiber.Ctx) error {
 	xf.SetColWidth(sh, "G", "G", 20)
 	xf.SetColWidth(sh, "H", "H", 22)
 
+	// Enable Excel's built-in AutoFilter
+	lastRow := 6 + len(history)
+	if lastRow > 6 {
+		_ = xf.AutoFilter(sh, fmt.Sprintf("A6:H%d", lastRow), nil)
+	}
+
 	buf := new(bytes.Buffer)
 	if err := xf.Write(buf); err != nil {
 		return utils.JSONError(c, fiber.StatusInternalServerError, err.Error())
@@ -458,7 +525,7 @@ func newPaymentExcelStyles(f *excelize.File) (paymentExcelStyles, error) {
 
 	s.titleStyle, err = f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{Bold: true, Size: 16, Color: "1A237E", Family: "Calibri"},
-		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
 	})
 	if err != nil {
 		return s, err
