@@ -636,11 +636,11 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 
 	// 3. Terapkan filter Nomor PO / Transaksi, Status Pembayaran, dan Rentang Tanggal di memori Go
 	var filteredOrders []models.Order
-	
+
 	var startLimit time.Time
 	var endLimit time.Time
 	var hasStart, hasEnd bool
-	
+
 	layout := "2006-01-02"
 	if startDate != "" {
 		t, err := time.Parse(layout, startDate)
@@ -785,26 +785,26 @@ type PaymentHistoryDTO struct {
 	PoNo          string  `json:"po_no" example:"P2152KPT22"`
 	CustomerName  string  `json:"customer_name" example:"PT.KIRANA PERMATA"`
 	AdminName     string  `json:"admin_name" example:"Admin - Dino"`
-	CreatedAt     string  `json:"created_at" example:"2026-11-05 12:10"`
 	TotalAmount   float64 `json:"total_amount" example:"500000"`
 	PaymentStatus string  `json:"payment_status" example:"Partial"`
+	CreatedAt     string  `json:"created_at" example:"2026-11-05 12:10"`
 }
 
-func GetPaymentHistory(search string, statusFilter string, startDate string, endDate string) ([]PaymentHistoryDTO, error) {
+func GetPaymentHistory(search string, statusFilter string, startDate string, endDate string, page int, limit int) ([]PaymentHistoryDTO, int64, error) {
 	type rawPaymentHistory struct {
 		DetailID        uuid.UUID
 		PaymentID       uuid.UUID
 		TransactionNo   string
 		PoNo            string
 		CustomerName    string
-		PaymentDate     time.Time
 		AllocatedAmount float64
 		OrderID         uuid.UUID
+		CreatedAt       time.Time
 	}
 
 	var raws []rawPaymentHistory
 	query := config.DB.Table("payment_details").
-		Select("payment_details.id AS detail_id, payment_details.payment_id, orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, payments.payment_date, payment_details.allocated_amount, orders.id AS order_id").
+		Select("payment_details.id AS detail_id, payment_details.payment_id, orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, payments.created_at AS created_at, payment_details.allocated_amount, orders.id AS order_id").
 		Joins("JOIN payments ON payments.id = payment_details.payment_id").
 		Joins("JOIN invoices ON invoices.id = payment_details.invoice_id").
 		Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
@@ -824,26 +824,26 @@ func GetPaymentHistory(search string, statusFilter string, startDate string, end
 	if startDate != "" {
 		start, err := time.Parse(layout, startDate)
 		if err != nil {
-			return nil, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+			return nil, 0, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		query = query.Where("payments.payment_date >= ?", start)
 	}
 	if endDate != "" {
 		end, err := time.Parse(layout, endDate)
 		if err != nil {
-			return nil, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+			return nil, 0, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 		query = query.Where("payments.payment_date <= ?", end)
 	}
 
-	err := query.Order("payments.payment_date DESC, payment_details.created_at DESC").Scan(&raws).Error
+	err := query.Order("payments.created_at DESC, payment_details.created_at DESC").Scan(&raws).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	if len(raws) == 0 {
-		return []PaymentHistoryDTO{}, nil
+		return []PaymentHistoryDTO{}, 0, nil
 	}
 
 	// 1. Kumpulkan semua ID Order unik untuk ditarik relasinya dalam satu batch query
@@ -862,16 +862,23 @@ func GetPaymentHistory(search string, statusFilter string, startDate string, end
 			Preload("Shipments").
 			Preload("Shipments.Items").
 			Preload("Shipments.Invoice").
-			Preload("Invoices").
 			Where("id IN ?", orderIDs).
 			Find(&orders).Error
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
 	ordersMap := make(map[uuid.UUID]models.Order)
 	for i := range orders {
+		var allInvoices []models.Invoice
+		for _, shp := range orders[i].Shipments {
+			if shp.Invoice != nil {
+				allInvoices = append(allInvoices, *shp.Invoice)
+			}
+		}
+		orders[i].Invoices = allInvoices
+
 		computeOrderPaymentInfo(&orders[i])
 		ordersMap[orders[i].ID] = orders[i]
 	}
@@ -897,7 +904,7 @@ func GetPaymentHistory(search string, statusFilter string, startDate string, end
 			Joins("JOIN users ON users.id = audit_logs.user_id AND users.deleted_at IS NULL").
 			Where("audit_logs.action = ? AND audit_logs.table_name = ? AND audit_logs.resource_id IN ?", models.AuditActionCreate, "payments", paymentIDs).
 			Scan(&auditUsers).Error; err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
@@ -926,10 +933,10 @@ func GetPaymentHistory(search string, statusFilter string, startDate string, end
 		if adminName == "" {
 			adminName = "Unknown"
 		} else {
-			adminName = "Admin - " + adminName
+			adminName = "Admin - " + strings.ToUpper(adminName)
 		}
 
-		createdAtFormatted := r.PaymentDate.Local().Format("2006-01-02 15:04")
+		createdAtFormatted := r.CreatedAt.Local().Format("2006-01-02 15:04")
 
 		statusFormatted := "Unpaid"
 		switch order.PaymentStatus {
@@ -951,12 +958,24 @@ func GetPaymentHistory(search string, statusFilter string, startDate string, end
 		})
 	}
 
+	totalRows := int64(len(results))
+
+	if limit > 0 && page > 0 {
+		offset := (page - 1) * limit
+		if offset >= len(results) {
+			results = []PaymentHistoryDTO{}
+		} else {
+			end := offset + limit
+			if end > len(results) {
+				end = len(results)
+			}
+			results = results[offset:end]
+		}
+	}
+
 	if results == nil {
 		results = []PaymentHistoryDTO{}
 	}
 
-	return results, nil
+	return results, totalRows, nil
 }
-
-
-

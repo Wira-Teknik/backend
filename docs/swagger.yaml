@@ -215,6 +215,21 @@ definitions:
         example: true
         type: boolean
     type: object
+  controllers.PaginatedPaymentHistoryResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/services.PaymentHistoryDTO'
+        type: array
+      message:
+        example: Riwayat pembayaran berhasil diambil
+        type: string
+      pagination:
+        $ref: '#/definitions/controllers.PaginationMeta'
+      success:
+        example: true
+        type: boolean
+    type: object
   controllers.PaginatedPaymentsResponse:
     properties:
       data:
@@ -2206,7 +2221,8 @@ paths:
     get:
       description: Mengambil riwayat cicilan transaksi pembayaran dengan pencarian
         berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran
-        order terkait (all, paid, partial), dan filter rentang tanggal payments.payment_date.
+        order terkait (all, paid, partial), rentang tanggal payments.payment_date,
+        dan pagination (page & limit).
       parameters:
       - description: Cari nomor PO atau transaksi
         in: query
@@ -2224,20 +2240,21 @@ paths:
         in: query
         name: end_date
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/services.PaymentHistoryDTO'
-                  type: array
-              type: object
+            $ref: '#/definitions/controllers.PaginatedPaymentHistoryResponse'
       security:
       - BearerAuth: []
       summary: Ambil Laporan Riwayat Transaksi Pembayaran

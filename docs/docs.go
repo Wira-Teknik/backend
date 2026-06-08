@@ -1966,7 +1966,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran order terkait (all, paid, partial), dan filter rentang tanggal payments.payment_date.",
+                "description": "Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran order terkait (all, paid, partial), rentang tanggal payments.payment_date, dan pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -1998,28 +1998,25 @@ const docTemplate = `{
                         "description": "Tanggal akhir filter (YYYY-MM-DD)",
                         "name": "end_date",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/services.PaymentHistoryDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedPaymentHistoryResponse"
                         }
                     }
                 }
@@ -2829,6 +2826,28 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Data pesanan berhasil diambil"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/controllers.PaginationMeta"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "controllers.PaginatedPaymentHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.PaymentHistoryDTO"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Riwayat pembayaran berhasil diambil"
                 },
                 "pagination": {
                     "$ref": "#/definitions/controllers.PaginationMeta"
