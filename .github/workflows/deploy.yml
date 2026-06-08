@@ -19,7 +19,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: 2204  # Port SSH kustom VPS Anda
+          port: 2204
           script: |
             # 1. Masuk ke folder lokasi backend Anda di VPS
             # Ubah jalur ini jika Anda meletakkannya di folder lain, misal: ~/wira-teknik/backend
