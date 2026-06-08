@@ -114,6 +114,7 @@ type OrderDetailResponse struct {
 	RemainingBalance float64              `json:"remaining_balance"`
 	PaymentStatus    models.PaymentStatus `json:"payment_status"`
 	Payments         []models.Payment     `json:"payments"`
+	UpdatedAt        utils.JSONDateTime   `json:"updated_at"`
 }
 
 // PaginationMeta adalah metadata pagination untuk API response.
@@ -302,6 +303,7 @@ func GetOrder(c *fiber.Ctx) error {
 		TotalAmountToPay: order.TotalAmountToPay,
 		RemainingBalance: order.RemainingBalance,
 		PaymentStatus:    order.PaymentStatus,
+		UpdatedAt:        order.UpdatedAt,
 	}
 
 	if response.Items == nil {

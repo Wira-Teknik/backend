@@ -142,6 +142,8 @@ definitions:
         type: number
       transaction_no:
         type: string
+      updated_at:
+        type: string
     type: object
   controllers.OrderItemRequestPayload:
     properties:
