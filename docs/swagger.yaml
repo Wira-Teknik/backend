@@ -2262,9 +2262,9 @@ paths:
       - Payments
   /payments/history/export:
     get:
-      description: Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran
-        berdasarkan filter pencarian, status pembayaran order terkait, dan rentang
-        tanggal payments.payment_date.
+      description: Mengunduh file Excel atau PDF berisi riwayat alokasi cicilan pembayaran
+        berdasarkan filter pencarian, status pembayaran order terkait, rentang tanggal
+        payments.payment_date, dan parameter format (excel/pdf).
       parameters:
       - description: Cari nomor PO atau transaksi
         in: query
@@ -2282,11 +2282,15 @@ paths:
         in: query
         name: end_date
         type: string
+      - description: 'Format dokumen (excel/pdf, default: excel)'
+        in: query
+        name: format
+        type: string
       produces:
-      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - application/octet-stream
       responses:
         "200":
-          description: File Excel
+          description: File Dokumen
           schema:
             type: string
         "500":
@@ -2295,7 +2299,7 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: Export Riwayat Pembayaran ke Excel
+      summary: Export Riwayat Pembayaran ke Excel / PDF
       tags:
       - Payments
   /shipments:
