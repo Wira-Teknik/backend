@@ -2732,6 +2732,9 @@ const docTemplate = `{
                 },
                 "transaction_no": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
