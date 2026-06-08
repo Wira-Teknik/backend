@@ -39,6 +39,7 @@ type PaymentOrderResponse struct {
 	TransactionNo      string               `json:"transaction_no"`
 	PoNo               string               `json:"po_no"`
 	OrderDate          utils.JSONDate       `json:"order_date"`
+	TotalAmountToPay   float64              `json:"total_amount_to_pay"`
 	RemainingBalance   float64              `json:"remaining_balance"`
 	PaymentStatus      models.PaymentStatus `json:"payment_status"`
 	UnpaidInvoiceTotal float64              `json:"unpaid_invoice_total"`
@@ -224,6 +225,7 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 			TransactionNo:      orders[i].TransactionNo,
 			PoNo:               orders[i].PoNo,
 			OrderDate:          orders[i].OrderDate,
+			TotalAmountToPay:   orders[i].TotalAmountToPay,
 			RemainingBalance:   orders[i].RemainingBalance,
 			PaymentStatus:      orders[i].PaymentStatus,
 			UnpaidInvoiceTotal: roundTwo(unpaidInvoiceTotal),
