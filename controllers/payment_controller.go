@@ -12,6 +12,7 @@ import (
 	"teknik/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/go-pdf/fpdf"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -365,15 +366,16 @@ func GetPaymentHistory(c *fiber.Ctx) error {
 // ─────────────────────────────────────────────
 
 // ExportPaymentHistory godoc
-// @Summary      Export Riwayat Pembayaran ke Excel
-// @Description  Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian, status pembayaran order terkait, dan rentang tanggal payments.payment_date.
+// @Summary      Export Riwayat Pembayaran ke Excel / PDF
+// @Description  Mengunduh file Excel atau PDF berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian, status pembayaran order terkait, rentang tanggal payments.payment_date, dan parameter format (excel/pdf).
 // @Tags         Payments
-// @Produce      application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Produce      application/octet-stream
 // @Param        search      query  string  false  "Cari nomor PO atau transaksi"
 // @Param        status      query  string  false  "Filter status (all, paid, partial)"
 // @Param        start_date  query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
 // @Param        end_date    query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
-// @Success      200  {string}  string  "File Excel"
+// @Param        format      query  string  false  "Format dokumen (excel/pdf, default: excel)"
+// @Success      200  {string}  string  "File Dokumen"
 // @Failure      500  {object}  utils.Response
 // @Router       /payments/history/export [get]
 // @Security     BearerAuth
@@ -382,10 +384,21 @@ func ExportPaymentHistory(c *fiber.Ctx) error {
 	status := c.Query("status", "all")
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
+	format := c.Query("format", "excel")
 
 	history, _, err := services.GetPaymentHistory(search, status, startDate, endDate, 0, 0)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	if format == "pdf" {
+		buf, err := generatePaymentHistoryPDF(history, search, status, startDate, endDate)
+		if err != nil {
+			return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal membuat PDF: "+err.Error())
+		}
+		c.Set(fiber.HeaderContentType, "application/pdf")
+		c.Set(fiber.HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"riwayat-pembayaran-%s.pdf\"", time.Now().Format("2006-01-02-150405")))
+		return c.Send(buf.Bytes())
 	}
 
 	xf := excelize.NewFile()
@@ -641,6 +654,116 @@ func applyPaymentRowStyle(f *excelize.File, sh string, row, numCols int, textSt,
 			f.SetCellStyle(sh, cellRef, cellRef, textSt)
 		}
 	}
+}
+
+func generatePaymentHistoryPDF(history []services.PaymentHistoryDTO, search, status, startDate, endDate string) (*bytes.Buffer, error) {
+	pdf := fpdf.New("L", "mm", "A4", "") // Landscape, A4
+	pdf.AddPage()
+	pdf.SetMargins(10, 10, 10)
+
+	// Colors
+	navyColor := []int{26, 35, 126}      // #1A237E
+	darkNavyColor := []int{40, 53, 147}  // #283593
+	darkGrey := []int{66, 66, 66}
+	textGrey := []int{33, 33, 33}
+	borderColor := []int{189, 189, 189}
+	zebraColor := []int{232, 234, 246}   // #E8EAF6
+
+	// Title
+	pdf.SetFont("Arial", "B", 16)
+	pdf.SetTextColor(navyColor[0], navyColor[1], navyColor[2])
+	pdf.CellFormat(277, 10, "LAPORAN RIWAYAT PEMBAYARAN", "0", 1, "C", false, 0, "")
+	pdf.Ln(4)
+
+	// Metadata
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetTextColor(darkGrey[0], darkGrey[1], darkGrey[2])
+
+	// Waktu Ekspor
+	pdf.CellFormat(40, 6, "Waktu Ekspor", "0", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(textGrey[0], textGrey[1], textGrey[2])
+	pdf.CellFormat(100, 6, ": "+time.Now().Local().Format("2006-01-02 15:04"), "0", 1, "L", false, 0, "")
+
+	// Filter Pencarian
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetTextColor(darkGrey[0], darkGrey[1], darkGrey[2])
+	pdf.CellFormat(40, 6, "Filter Pencarian", "0", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(textGrey[0], textGrey[1], textGrey[2])
+	if search == "" {
+		search = "-"
+	}
+	pdf.CellFormat(100, 6, ": "+search, "0", 1, "L", false, 0, "")
+
+	// Filter Status
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetTextColor(darkGrey[0], darkGrey[1], darkGrey[2])
+	pdf.CellFormat(40, 6, "Filter Status", "0", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(textGrey[0], textGrey[1], textGrey[2])
+	pdf.CellFormat(100, 6, ": "+status, "0", 1, "L", false, 0, "")
+	pdf.Ln(6)
+
+	// Table Headers
+	colWidths := []float64{10, 45, 40, 60, 35, 37, 30, 20}
+	headers := []string{"No", "Nomor Transaksi", "Nomor PO", "Nama Konsumen", "Admin Pembuat", "Tanggal Bayar", "Jumlah Bayar", "Status"}
+
+	pdf.SetFont("Arial", "B", 9)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetFillColor(navyColor[0], navyColor[1], navyColor[2])
+	pdf.SetDrawColor(borderColor[0], borderColor[1], borderColor[2])
+
+	for i, h := range headers {
+		pdf.CellFormat(colWidths[i], 8, h, "1", 0, "C", true, 0, "")
+	}
+	pdf.Ln(8)
+
+	// Table Data
+	pdf.SetFont("Arial", "", 9)
+	pdf.SetTextColor(textGrey[0], textGrey[1], textGrey[2])
+
+	var totalAmt float64
+	for i, item := range history {
+		fill := false
+		if i%2 == 1 {
+			pdf.SetFillColor(zebraColor[0], zebraColor[1], zebraColor[2])
+			fill = true
+		} else {
+			pdf.SetFillColor(255, 255, 255)
+		}
+
+		pdf.CellFormat(colWidths[0], 7, fmt.Sprintf("%d", i+1), "1", 0, "C", fill, 0, "")
+		pdf.CellFormat(colWidths[1], 7, item.TransactionNo, "1", 0, "L", fill, 0, "")
+		pdf.CellFormat(colWidths[2], 7, item.PoNo, "1", 0, "L", fill, 0, "")
+		pdf.CellFormat(colWidths[3], 7, item.CustomerName, "1", 0, "L", fill, 0, "")
+		pdf.CellFormat(colWidths[4], 7, item.AdminName, "1", 0, "L", fill, 0, "")
+		pdf.CellFormat(colWidths[5], 7, item.CreatedAt, "1", 0, "C", fill, 0, "")
+
+		formattedAmount := fmt.Sprintf("Rp %.2f", item.TotalAmount)
+		pdf.CellFormat(colWidths[6], 7, formattedAmount, "1", 0, "R", fill, 0, "")
+
+		pdf.CellFormat(colWidths[7], 7, item.PaymentStatus, "1", 0, "C", fill, 0, "")
+		pdf.Ln(7)
+
+		totalAmt += item.TotalAmount
+	}
+
+	// Total Row
+	pdf.SetFont("Arial", "B", 9)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetFillColor(darkNavyColor[0], darkNavyColor[1], darkNavyColor[2])
+
+	pdf.CellFormat(227, 8, "TOTAL TERBAYAR", "1", 0, "R", true, 0, "")
+	formattedTotal := fmt.Sprintf("Rp %.2f", totalAmt)
+	pdf.CellFormat(colWidths[6], 8, formattedTotal, "1", 0, "R", true, 0, "")
+	pdf.CellFormat(colWidths[7], 8, "", "1", 1, "C", true, 0, "")
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, err
+	}
+	return &buf, nil
 }
 
 

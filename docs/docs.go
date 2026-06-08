@@ -2029,14 +2029,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengunduh file Excel berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian, status pembayaran order terkait, dan rentang tanggal payments.payment_date.",
+                "description": "Mengunduh file Excel atau PDF berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian, status pembayaran order terkait, rentang tanggal payments.payment_date, dan parameter format (excel/pdf).",
                 "produces": [
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    "application/octet-stream"
                 ],
                 "tags": [
                     "Payments"
                 ],
-                "summary": "Export Riwayat Pembayaran ke Excel",
+                "summary": "Export Riwayat Pembayaran ke Excel / PDF",
                 "parameters": [
                     {
                         "type": "string",
@@ -2061,11 +2061,17 @@ const docTemplate = `{
                         "description": "Tanggal akhir filter (YYYY-MM-DD)",
                         "name": "end_date",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Format dokumen (excel/pdf, default: excel)",
+                        "name": "format",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "File Excel",
+                        "description": "File Dokumen",
                         "schema": {
                             "type": "string"
                         }
