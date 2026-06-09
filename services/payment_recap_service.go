@@ -18,6 +18,8 @@ type RecapFilter struct {
 	EndDate   string
 	Search    string
 	Status    string
+	Page      int
+	Limit     int
 }
 
 type RecapSummaryDTO struct {
@@ -49,6 +51,7 @@ type RecapOrderItemDTO struct {
 type DetailPendapatanDTO struct {
 	TotalPendapatan   float64               `json:"total_pendapatan" example:"45200000"`
 	TotalPesananCount int64                 `json:"total_pesanan_count" example:"142"`
+	TotalItemCount    int64                 `json:"total_item_count" example:"98"`
 	Items             []RecapInvoiceItemDTO `json:"items"`
 }
 
@@ -108,13 +111,14 @@ type invoiceRaw struct {
 	PaymentStatus    string
 }
 
+// queryInvoices mengambil SEMUA invoice (tanpa pagination) – dipakai untuk kalkulasi agregat.
 func queryInvoices(start, end time.Time, search string, statusFilter ...models.PaymentStatus) ([]invoiceRaw, error) {
 	var rows []invoiceRaw
 	q := config.DB.Table("invoices").
 		Select("orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, orders.order_date, " +
 			"invoices.total_amount, invoices.remaining_balance, invoices.payment_status").
-		Joins("LEFT JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL").
-		Joins("JOIN orders ON (orders.id = invoices.order_id OR orders.id = shipments.order_id) AND orders.deleted_at IS NULL").
+		Joins("JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL").
+		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
 		Where("orders.order_date >= ? AND orders.order_date <= ?", start, end).
 		Where("invoices.deleted_at IS NULL")
 
@@ -128,6 +132,42 @@ func queryInvoices(start, end time.Time, search string, statusFilter ...models.P
 
 	err := q.Order("orders.order_date DESC").Scan(&rows).Error
 	return rows, err
+}
+
+// queryInvoicesPage mengambil invoice dengan LIMIT/OFFSET (pagination di DB) dan mengembalikan total count.
+func queryInvoicesPage(start, end time.Time, search string, page, limit int, statusFilter ...models.PaymentStatus) ([]invoiceRaw, int64, error) {
+	base := config.DB.Table("invoices").
+		Joins("JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL").
+		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
+		Where("orders.order_date >= ? AND orders.order_date <= ?", start, end).
+		Where("invoices.deleted_at IS NULL")
+
+	if search != "" {
+		s := "%" + strings.ToLower(search) + "%"
+		base = base.Where("LOWER(orders.recipient_name) LIKE ? OR LOWER(orders.po_no) LIKE ?", s, s)
+	}
+	if len(statusFilter) > 0 {
+		base = base.Where("invoices.payment_status IN ?", statusFilter)
+	}
+
+	var total int64
+	if err := base.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var rows []invoiceRaw
+	q := base.
+		Select("orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, orders.order_date, " +
+			"invoices.total_amount, invoices.remaining_balance, invoices.payment_status").
+		Order("orders.order_date DESC")
+
+	if limit > 0 {
+		offset := (page - 1) * limit
+		q = q.Limit(limit).Offset(offset)
+	}
+
+	err := q.Scan(&rows).Error
+	return rows, total, err
 }
 
 func mapPaymentStatus(s string) string {
@@ -202,18 +242,18 @@ func GetPaymentRecapSummary(f RecapFilter) (RecapSummaryDTO, error) {
 // 2. Detail Pendapatan
 // ─────────────────────────────────────────────
 
-func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
+func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, int64, error) {
 	var resp DetailPendapatanDTO
 
 	start, end, err := parseRecapDates(f)
 	if err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
 	// 1. Hitung Total Pendapatan Asli (berdasarkan Tanggal dan Pencarian, tanpa filter Status)
 	unfilteredRows, err := queryInvoices(start, end, f.Search)
 	if err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 	for _, r := range unfilteredRows {
 		resp.TotalPendapatan += r.TotalAmount
@@ -227,10 +267,10 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
 	}
 	if err := orderQ.Count(&resp.TotalPesananCount).Error; err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
-	// 3. Tarik data Invoice yang sudah difilter berdasarkan Status untuk list item
+	// 3. Tarik data Invoice yang sudah difilter berdasarkan Status untuk list item (dengan pagination)
 	var statusFilter []models.PaymentStatus
 	switch strings.ToLower(f.Status) {
 	case "paid":
@@ -239,10 +279,16 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 		statusFilter = []models.PaymentStatus{models.PaymentStatusUnpaid, models.PaymentStatusPartial}
 	}
 
-	rows, err := queryInvoices(start, end, f.Search, statusFilter...)
-	if err != nil {
-		return resp, err
+	page := f.Page
+	if page < 1 {
+		page = 1
 	}
+
+	rows, totalItems, err := queryInvoicesPage(start, end, f.Search, page, f.Limit, statusFilter...)
+	if err != nil {
+		return resp, 0, err
+	}
+	resp.TotalItemCount = totalItems
 
 	resp.Items = []RecapInvoiceItemDTO{}
 	for _, r := range rows {
@@ -256,19 +302,19 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, error) {
 		})
 	}
 
-	return resp, nil
+	return resp, totalItems, nil
 }
 
 // ─────────────────────────────────────────────
 // 3. Detail Pesanan
 // ─────────────────────────────────────────────
 
-func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
+func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, int64, error) {
 	var resp DetailPesananDTO
 
 	start, end, err := parseRecapDates(f)
 	if err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
 	type orderRaw struct {
@@ -296,7 +342,7 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
 
 	var overallRows []orderRaw
 	if err := overallQ.Scan(&overallRows).Error; err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
 	resp.TotalPesananCount = int64(len(overallRows))
@@ -305,7 +351,26 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
 	}
 	resp.TotalPesananAmount = roundTwo(resp.TotalPesananAmount)
 
-	// 2. Tarik daftar pesanan terfilter status untuk List Item di bawahnya
+	// 2. Tarik daftar pesanan terfilter status untuk List Item (dengan pagination di DB)
+	statusLower := strings.ToLower(f.Status)
+
+	// Hitung total item yang akan dipaginasi (menggunakan count distinct)
+	var totalItems int64
+	countDistQ := config.DB.Table("orders").
+		Joins("LEFT JOIN order_items items ON items.order_id = orders.id AND items.deleted_at IS NULL").
+		Where("orders.order_date >= ? AND orders.order_date <= ?", start, end).
+		Where("orders.deleted_at IS NULL")
+	if f.Search != "" {
+		s := "%" + strings.ToLower(f.Search) + "%"
+		countDistQ = countDistQ.Where("LOWER(orders.recipient_name) LIKE ? OR LOWER(orders.po_no) LIKE ?", s, s)
+	}
+	if statusLower != "" && statusLower != "all" {
+		countDistQ = countDistQ.Where("orders.order_status = ?", statusLower)
+	}
+	if err := countDistQ.Distinct("orders.id").Count(&totalItems).Error; err != nil {
+		return resp, 0, err
+	}
+
 	q := config.DB.Table("orders").
 		Select("orders.transaction_no, orders.po_no, orders.recipient_name AS customer_name, orders.order_date, "+
 			"orders.order_status, COALESCE(SUM(items.subtotal), 0) AS total_amount").
@@ -318,15 +383,23 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
 		s := "%" + strings.ToLower(f.Search) + "%"
 		q = q.Where("LOWER(orders.recipient_name) LIKE ? OR LOWER(orders.po_no) LIKE ?", s, s)
 	}
-
-	statusLower := strings.ToLower(f.Status)
 	if statusLower != "" && statusLower != "all" {
 		q = q.Where("orders.order_status = ?", statusLower)
 	}
 
+	page := f.Page
+	if page < 1 {
+		page = 1
+	}
+	q = q.Order("orders.order_date DESC")
+	if f.Limit > 0 {
+		offset := (page - 1) * f.Limit
+		q = q.Limit(f.Limit).Offset(offset)
+	}
+
 	var rows []orderRaw
-	if err := q.Order("orders.order_date DESC").Scan(&rows).Error; err != nil {
-		return resp, err
+	if err := q.Scan(&rows).Error; err != nil {
+		return resp, 0, err
 	}
 
 	resp.Items = []RecapOrderItemDTO{}
@@ -341,19 +414,19 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, error) {
 		})
 	}
 
-	return resp, nil
+	return resp, totalItems, nil
 }
 
 // ─────────────────────────────────────────────
 // 4. Detail Unpaid
 // ─────────────────────────────────────────────
 
-func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, error) {
+func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, int64, error) {
 	var resp DetailUnpaidDTO
 
 	start, end, err := parseRecapDates(f)
 	if err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
 	// 1. Hitung Total Pesanan (berdasarkan Tanggal dan Pencarian) untuk Header Badge
@@ -363,19 +436,32 @@ func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, error) {
 		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
 	}
 	if err := orderQ.Count(&resp.TotalPesananCount).Error; err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
-	// 2. Tarik daftar invoice Unpaid & Partial
-	rows, err := queryInvoices(start, end, f.Search, models.PaymentStatusUnpaid, models.PaymentStatusPartial)
+	// 2. Hitung total invoice Unpaid & Partial (untuk header aggregat)
+	allRows, err := queryInvoices(start, end, f.Search, models.PaymentStatusUnpaid, models.PaymentStatusPartial)
 	if err != nil {
-		return resp, err
+		return resp, 0, err
+	}
+	resp.TotalCount = int64(len(allRows))
+	for _, r := range allRows {
+		resp.TotalUnpaid += r.RemainingBalance
+	}
+	resp.TotalUnpaid = roundTwo(resp.TotalUnpaid)
+
+	// 3. Tarik item dengan pagination di DB
+	page := f.Page
+	if page < 1 {
+		page = 1
+	}
+	rows, _, err := queryInvoicesPage(start, end, f.Search, page, f.Limit, models.PaymentStatusUnpaid, models.PaymentStatusPartial)
+	if err != nil {
+		return resp, 0, err
 	}
 
-	resp.TotalCount = int64(len(rows))
 	resp.Items = []RecapInvoiceItemDTO{}
 	for _, r := range rows {
-		resp.TotalUnpaid += r.RemainingBalance
 		resp.Items = append(resp.Items, RecapInvoiceItemDTO{
 			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
@@ -385,20 +471,19 @@ func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, error) {
 			PaymentStatus: mapPaymentStatus(r.PaymentStatus),
 		})
 	}
-	resp.TotalUnpaid = roundTwo(resp.TotalUnpaid)
-	return resp, nil
+	return resp, resp.TotalCount, nil
 }
 
 // ─────────────────────────────────────────────
 // 5. Detail Paid
 // ─────────────────────────────────────────────
 
-func GetDetailPaid(f RecapFilter) (DetailPaidDTO, error) {
+func GetDetailPaid(f RecapFilter) (DetailPaidDTO, int64, error) {
 	var resp DetailPaidDTO
 
 	start, end, err := parseRecapDates(f)
 	if err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
 	// 1. Hitung Total Pesanan (berdasarkan Tanggal dan Pencarian) untuk Header Badge
@@ -408,19 +493,32 @@ func GetDetailPaid(f RecapFilter) (DetailPaidDTO, error) {
 		orderQ = orderQ.Where("LOWER(recipient_name) LIKE ? OR LOWER(po_no) LIKE ?", s, s)
 	}
 	if err := orderQ.Count(&resp.TotalPesananCount).Error; err != nil {
-		return resp, err
+		return resp, 0, err
 	}
 
-	// 2. Tarik daftar invoice Paid
-	rows, err := queryInvoices(start, end, f.Search, models.PaymentStatusPaid)
+	// 2. Hitung total invoice Paid (untuk header agregat)
+	allRows, err := queryInvoices(start, end, f.Search, models.PaymentStatusPaid)
 	if err != nil {
-		return resp, err
+		return resp, 0, err
+	}
+	resp.TotalCount = int64(len(allRows))
+	for _, r := range allRows {
+		resp.TotalPaid += r.TotalAmount
+	}
+	resp.TotalPaid = roundTwo(resp.TotalPaid)
+
+	// 3. Tarik item dengan pagination di DB
+	page := f.Page
+	if page < 1 {
+		page = 1
+	}
+	rows, _, err := queryInvoicesPage(start, end, f.Search, page, f.Limit, models.PaymentStatusPaid)
+	if err != nil {
+		return resp, 0, err
 	}
 
-	resp.TotalCount = int64(len(rows))
 	resp.Items = []RecapInvoiceItemDTO{}
 	for _, r := range rows {
-		resp.TotalPaid += r.TotalAmount
 		resp.Items = append(resp.Items, RecapInvoiceItemDTO{
 			TransactionNo: r.TransactionNo,
 			PoNo:          r.PoNo,
@@ -430,6 +528,5 @@ func GetDetailPaid(f RecapFilter) (DetailPaidDTO, error) {
 			PaymentStatus: "Paid",
 		})
 	}
-	resp.TotalPaid = roundTwo(resp.TotalPaid)
-	return resp, nil
+	return resp, resp.TotalCount, nil
 }

@@ -245,6 +245,16 @@ definitions:
         example: true
         type: boolean
     type: object
+  controllers.PaginatedRecapResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/controllers.PaginationMeta'
+      success:
+        type: boolean
+    type: object
   controllers.PaginationMeta:
     properties:
       limit:
@@ -699,64 +709,6 @@ definitions:
         example: 1284
         type: integer
     type: object
-  services.DetailPaidDTO:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/services.RecapInvoiceItemDTO'
-        type: array
-      total_count:
-        example: 134
-        type: integer
-      total_paid:
-        example: 32400000
-        type: number
-      total_pesanan_count:
-        example: 142
-        type: integer
-    type: object
-  services.DetailPendapatanDTO:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/services.RecapInvoiceItemDTO'
-        type: array
-      total_pendapatan:
-        example: 45200000
-        type: number
-      total_pesanan_count:
-        example: 142
-        type: integer
-    type: object
-  services.DetailPesananDTO:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/services.RecapOrderItemDTO'
-        type: array
-      total_pesanan_amount:
-        example: 45200000
-        type: number
-      total_pesanan_count:
-        example: 142
-        type: integer
-    type: object
-  services.DetailUnpaidDTO:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/services.RecapInvoiceItemDTO'
-        type: array
-      total_count:
-        example: 8
-        type: integer
-      total_pesanan_count:
-        example: 142
-        type: integer
-      total_unpaid:
-        example: 12800000
-        type: number
-    type: object
   services.OrderPaymentDTO:
     properties:
       allocated_amount:
@@ -849,54 +801,14 @@ definitions:
         type: string
       remaining_balance:
         type: number
+      total_amount_to_pay:
+        type: number
       transaction_no:
         type: string
       unpaid_invoice_count:
         type: integer
       unpaid_invoice_total:
         type: number
-    type: object
-  services.RecapInvoiceItemDTO:
-    properties:
-      customer_name:
-        example: PT.KIRANA PERMATA
-        type: string
-      date:
-        example: Oct 21, 2026
-        type: string
-      payment_status:
-        example: Unpaid
-        type: string
-      po_no:
-        example: P2152KPT22
-        type: string
-      total_amount:
-        example: 1120000
-        type: number
-      transaction_no:
-        example: T10001
-        type: string
-    type: object
-  services.RecapOrderItemDTO:
-    properties:
-      customer_name:
-        example: PT.KIRANA PERMATA
-        type: string
-      date:
-        example: Oct 23, 2026
-        type: string
-      order_status:
-        example: Pending
-        type: string
-      po_no:
-        example: P5537XJJ22
-        type: string
-      total_amount:
-        example: 2000000
-        type: number
-      transaction_no:
-        example: T10001
-        type: string
     type: object
   services.RecapSummaryDTO:
     properties:
@@ -1711,6 +1623,7 @@ paths:
   /payment-recap/detail-paid:
     get:
       description: Menampilkan daftar invoice yang sudah lunas pada periode tertentu.
+        Mendukung pagination (page & limit).
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
         in: query
@@ -1724,18 +1637,21 @@ paths:
         in: query
         name: search
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/services.DetailPaidDTO'
-              type: object
+            $ref: '#/definitions/controllers.PaginatedRecapResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -1780,7 +1696,7 @@ paths:
   /payment-recap/detail-pendapatan:
     get:
       description: Menampilkan daftar invoice berdasarkan periode dan filter status
-        pembayaran (all, paid, unpaid).
+        pembayaran (all, paid, unpaid). Mendukung pagination (page & limit).
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
         in: query
@@ -1798,18 +1714,21 @@ paths:
         in: query
         name: status
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/services.DetailPendapatanDTO'
-              type: object
+            $ref: '#/definitions/controllers.PaginatedRecapResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -1859,7 +1778,8 @@ paths:
   /payment-recap/detail-pesanan:
     get:
       description: Menampilkan daftar pesanan berdasarkan periode dan filter status
-        (all, pending, partial, shipped, completed).
+        (all, pending, partial, shipped, completed). Mendukung pagination (page &
+        limit).
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
         in: query
@@ -1877,18 +1797,21 @@ paths:
         in: query
         name: status
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/services.DetailPesananDTO'
-              type: object
+            $ref: '#/definitions/controllers.PaginatedRecapResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -1938,7 +1861,7 @@ paths:
   /payment-recap/detail-unpaid:
     get:
       description: Menampilkan daftar invoice yang belum/sebagian lunas pada periode
-        tertentu.
+        tertentu. Mendukung pagination (page & limit).
       parameters:
       - description: Tanggal awal (YYYY-MM-DD)
         in: query
@@ -1952,18 +1875,21 @@ paths:
         in: query
         name: search
         type: string
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/services.DetailUnpaidDTO'
-              type: object
+            $ref: '#/definitions/controllers.PaginatedRecapResponse'
         "500":
           description: Internal Server Error
           schema:

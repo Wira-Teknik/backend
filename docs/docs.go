@@ -1273,7 +1273,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menampilkan daftar invoice yang sudah lunas pada periode tertentu.",
+                "description": "Menampilkan daftar invoice yang sudah lunas pada periode tertentu. Mendukung pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -1299,25 +1299,25 @@ const docTemplate = `{
                         "description": "Cari berdasarkan nama konsumen atau PO",
                         "name": "search",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/services.DetailPaidDTO"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedRecapResponse"
                         }
                     },
                     "500": {
@@ -1387,7 +1387,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menampilkan daftar invoice berdasarkan periode dan filter status pembayaran (all, paid, unpaid).",
+                "description": "Menampilkan daftar invoice berdasarkan periode dan filter status pembayaran (all, paid, unpaid). Mendukung pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -1419,25 +1419,25 @@ const docTemplate = `{
                         "description": "Filter status: all, paid, unpaid",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/services.DetailPendapatanDTO"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedRecapResponse"
                         }
                     },
                     "500": {
@@ -1513,7 +1513,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menampilkan daftar pesanan berdasarkan periode dan filter status (all, pending, partial, shipped, completed).",
+                "description": "Menampilkan daftar pesanan berdasarkan periode dan filter status (all, pending, partial, shipped, completed). Mendukung pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -1545,25 +1545,25 @@ const docTemplate = `{
                         "description": "Filter status: all, pending, partial, shipped, completed",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/services.DetailPesananDTO"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedRecapResponse"
                         }
                     },
                     "500": {
@@ -1639,7 +1639,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menampilkan daftar invoice yang belum/sebagian lunas pada periode tertentu.",
+                "description": "Menampilkan daftar invoice yang belum/sebagian lunas pada periode tertentu. Mendukung pagination (page \u0026 limit).",
                 "produces": [
                     "application/json"
                 ],
@@ -1665,25 +1665,25 @@ const docTemplate = `{
                         "description": "Cari berdasarkan nama konsumen atau PO",
                         "name": "search",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/services.DetailUnpaidDTO"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedRecapResponse"
                         }
                     },
                     "500": {
@@ -2886,6 +2886,21 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.PaginatedRecapResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/controllers.PaginationMeta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "controllers.PaginationMeta": {
             "type": "object",
             "properties": {
@@ -3550,90 +3565,6 @@ const docTemplate = `{
                 }
             }
         },
-        "services.DetailPaidDTO": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.RecapInvoiceItemDTO"
-                    }
-                },
-                "total_count": {
-                    "type": "integer",
-                    "example": 134
-                },
-                "total_paid": {
-                    "type": "number",
-                    "example": 32400000
-                },
-                "total_pesanan_count": {
-                    "type": "integer",
-                    "example": 142
-                }
-            }
-        },
-        "services.DetailPendapatanDTO": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.RecapInvoiceItemDTO"
-                    }
-                },
-                "total_pendapatan": {
-                    "type": "number",
-                    "example": 45200000
-                },
-                "total_pesanan_count": {
-                    "type": "integer",
-                    "example": 142
-                }
-            }
-        },
-        "services.DetailPesananDTO": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.RecapOrderItemDTO"
-                    }
-                },
-                "total_pesanan_amount": {
-                    "type": "number",
-                    "example": 45200000
-                },
-                "total_pesanan_count": {
-                    "type": "integer",
-                    "example": 142
-                }
-            }
-        },
-        "services.DetailUnpaidDTO": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.RecapInvoiceItemDTO"
-                    }
-                },
-                "total_count": {
-                    "type": "integer",
-                    "example": 8
-                },
-                "total_pesanan_count": {
-                    "type": "integer",
-                    "example": 142
-                },
-                "total_unpaid": {
-                    "type": "number",
-                    "example": 12800000
-                }
-            }
-        },
         "services.OrderPaymentDTO": {
             "type": "object",
             "properties": {
@@ -3770,6 +3701,9 @@ const docTemplate = `{
                 "remaining_balance": {
                     "type": "number"
                 },
+                "total_amount_to_pay": {
+                    "type": "number"
+                },
                 "transaction_no": {
                     "type": "string"
                 },
@@ -3778,64 +3712,6 @@ const docTemplate = `{
                 },
                 "unpaid_invoice_total": {
                     "type": "number"
-                }
-            }
-        },
-        "services.RecapInvoiceItemDTO": {
-            "type": "object",
-            "properties": {
-                "customer_name": {
-                    "type": "string",
-                    "example": "PT.KIRANA PERMATA"
-                },
-                "date": {
-                    "type": "string",
-                    "example": "Oct 21, 2026"
-                },
-                "payment_status": {
-                    "type": "string",
-                    "example": "Unpaid"
-                },
-                "po_no": {
-                    "type": "string",
-                    "example": "P2152KPT22"
-                },
-                "total_amount": {
-                    "type": "number",
-                    "example": 1120000
-                },
-                "transaction_no": {
-                    "type": "string",
-                    "example": "T10001"
-                }
-            }
-        },
-        "services.RecapOrderItemDTO": {
-            "type": "object",
-            "properties": {
-                "customer_name": {
-                    "type": "string",
-                    "example": "PT.KIRANA PERMATA"
-                },
-                "date": {
-                    "type": "string",
-                    "example": "Oct 23, 2026"
-                },
-                "order_status": {
-                    "type": "string",
-                    "example": "Pending"
-                },
-                "po_no": {
-                    "type": "string",
-                    "example": "P5537XJJ22"
-                },
-                "total_amount": {
-                    "type": "number",
-                    "example": 2000000
-                },
-                "transaction_no": {
-                    "type": "string",
-                    "example": "T10001"
                 }
             }
         },

@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"teknik/services"
 	"teknik/utils"
 
@@ -14,18 +15,59 @@ import (
 // Helper: build RecapFilter from query params
 // ─────────────────────────────────────────────
 
+// parsePaginationParams mengambil query param page & limit dengan nilai default.
+func parsePaginationParams(c *fiber.Ctx) (page, limit int) {
+	page = 1
+	if p := c.Query("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+	limit = 20
+	if l := c.Query("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+	return
+}
+
+// buildRecapFilter mengambil semua query param standar recap + pagination.
 func buildRecapFilter(c *fiber.Ctx) services.RecapFilter {
+	page, limit := parsePaginationParams(c)
 	return services.RecapFilter{
 		StartDate: c.Query("start_date"),
 		EndDate:   c.Query("end_date"),
 		Search:    c.Query("search"),
 		Status:    c.Query("status", "all"),
+		Page:      page,
+		Limit:     limit,
+	}
+}
+
+// buildRecapFilterNoPage mengambil filter tanpa pagination (untuk export).
+func buildRecapFilterNoPage(c *fiber.Ctx) services.RecapFilter {
+	return services.RecapFilter{
+		StartDate: c.Query("start_date"),
+		EndDate:   c.Query("end_date"),
+		Search:    c.Query("search"),
+		Status:    c.Query("status", "all"),
+		Page:      1,
+		Limit:     0, // 0 = ambil semua
 	}
 }
 
 // ─────────────────────────────────────────────
 // 1. GET /payment-recap
 // ─────────────────────────────────────────────
+
+// PaginatedRecapResponse adalah wrapper generic untuk response paginasi recap.
+type PaginatedRecapResponse struct {
+	Success    bool           `json:"success"`
+	Message    string         `json:"message"`
+	Data       interface{}    `json:"data"`
+	Pagination PaginationMeta `json:"pagination"`
+}
 
 // GetPaymentRecapSummary godoc
 // @Summary      Ringkasan Rekapitulasi Pembayaran
@@ -54,24 +96,42 @@ func GetPaymentRecapSummary(c *fiber.Ctx) error {
 
 // GetDetailPendapatan godoc
 // @Summary      Detail Total Pendapatan
-// @Description  Menampilkan daftar invoice berdasarkan periode dan filter status pembayaran (all, paid, unpaid).
+// @Description  Menampilkan daftar invoice berdasarkan periode dan filter status pembayaran (all, paid, unpaid). Mendukung pagination (page & limit).
 // @Tags         Payment Recap
 // @Produce      json
 // @Param        start_date  query  string  false  "Tanggal awal (YYYY-MM-DD)"
 // @Param        end_date    query  string  false  "Tanggal akhir (YYYY-MM-DD)"
 // @Param        search      query  string  false  "Cari berdasarkan nama konsumen"
 // @Param        status      query  string  false  "Filter status: all, paid, unpaid"
-// @Success      200  {object}  utils.Response{data=services.DetailPendapatanDTO}
+// @Param        page        query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit       query  int     false  "Jumlah baris per halaman (default: 20)"
+// @Success      200  {object}  controllers.PaginatedRecapResponse
 // @Failure      500  {object}  utils.Response
 // @Router       /payment-recap/detail-pendapatan [get]
 // @Security     BearerAuth
 func GetDetailPendapatan(c *fiber.Ctx) error {
 	f := buildRecapFilter(c)
-	data, err := services.GetDetailPendapatan(f)
+	data, totalItems, err := services.GetDetailPendapatan(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
-	return utils.JSONSuccess(c, "Detail pendapatan berhasil diambil", data)
+
+	totalPages := 0
+	if totalItems > 0 && f.Limit > 0 {
+		totalPages = int((totalItems + int64(f.Limit) - 1) / int64(f.Limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedRecapResponse{
+		Success: true,
+		Message: "Detail pendapatan berhasil diambil",
+		Data:    data,
+		Pagination: PaginationMeta{
+			Page:       f.Page,
+			Limit:      f.Limit,
+			TotalRows:  totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 // ─────────────────────────────────────────────
@@ -80,24 +140,42 @@ func GetDetailPendapatan(c *fiber.Ctx) error {
 
 // GetDetailPesanan godoc
 // @Summary      Detail Total Pesanan
-// @Description  Menampilkan daftar pesanan berdasarkan periode dan filter status (all, pending, partial, shipped, completed).
+// @Description  Menampilkan daftar pesanan berdasarkan periode dan filter status (all, pending, partial, shipped, completed). Mendukung pagination (page & limit).
 // @Tags         Payment Recap
 // @Produce      json
 // @Param        start_date  query  string  false  "Tanggal awal (YYYY-MM-DD)"
 // @Param        end_date    query  string  false  "Tanggal akhir (YYYY-MM-DD)"
 // @Param        search      query  string  false  "Cari berdasarkan nama konsumen atau PO"
 // @Param        status      query  string  false  "Filter status: all, pending, partial, shipped, completed"
-// @Success      200  {object}  utils.Response{data=services.DetailPesananDTO}
+// @Param        page        query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit       query  int     false  "Jumlah baris per halaman (default: 20)"
+// @Success      200  {object}  controllers.PaginatedRecapResponse
 // @Failure      500  {object}  utils.Response
 // @Router       /payment-recap/detail-pesanan [get]
 // @Security     BearerAuth
 func GetDetailPesanan(c *fiber.Ctx) error {
 	f := buildRecapFilter(c)
-	data, err := services.GetDetailPesanan(f)
+	data, totalItems, err := services.GetDetailPesanan(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
-	return utils.JSONSuccess(c, "Detail pesanan berhasil diambil", data)
+
+	totalPages := 0
+	if totalItems > 0 && f.Limit > 0 {
+		totalPages = int((totalItems + int64(f.Limit) - 1) / int64(f.Limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedRecapResponse{
+		Success: true,
+		Message: "Detail pesanan berhasil diambil",
+		Data:    data,
+		Pagination: PaginationMeta{
+			Page:       f.Page,
+			Limit:      f.Limit,
+			TotalRows:  totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 // ─────────────────────────────────────────────
@@ -106,23 +184,41 @@ func GetDetailPesanan(c *fiber.Ctx) error {
 
 // GetDetailUnpaid godoc
 // @Summary      Detail Total Unpaid
-// @Description  Menampilkan daftar invoice yang belum/sebagian lunas pada periode tertentu.
+// @Description  Menampilkan daftar invoice yang belum/sebagian lunas pada periode tertentu. Mendukung pagination (page & limit).
 // @Tags         Payment Recap
 // @Produce      json
 // @Param        start_date  query  string  false  "Tanggal awal (YYYY-MM-DD)"
 // @Param        end_date    query  string  false  "Tanggal akhir (YYYY-MM-DD)"
 // @Param        search      query  string  false  "Cari berdasarkan nama konsumen atau PO"
-// @Success      200  {object}  utils.Response{data=services.DetailUnpaidDTO}
+// @Param        page        query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit       query  int     false  "Jumlah baris per halaman (default: 20)"
+// @Success      200  {object}  controllers.PaginatedRecapResponse
 // @Failure      500  {object}  utils.Response
 // @Router       /payment-recap/detail-unpaid [get]
 // @Security     BearerAuth
 func GetDetailUnpaid(c *fiber.Ctx) error {
 	f := buildRecapFilter(c)
-	data, err := services.GetDetailUnpaid(f)
+	data, totalItems, err := services.GetDetailUnpaid(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
-	return utils.JSONSuccess(c, "Detail unpaid berhasil diambil", data)
+
+	totalPages := 0
+	if totalItems > 0 && f.Limit > 0 {
+		totalPages = int((totalItems + int64(f.Limit) - 1) / int64(f.Limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedRecapResponse{
+		Success: true,
+		Message: "Detail unpaid berhasil diambil",
+		Data:    data,
+		Pagination: PaginationMeta{
+			Page:       f.Page,
+			Limit:      f.Limit,
+			TotalRows:  totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 // ─────────────────────────────────────────────
@@ -131,23 +227,41 @@ func GetDetailUnpaid(c *fiber.Ctx) error {
 
 // GetDetailPaid godoc
 // @Summary      Detail Total Paid
-// @Description  Menampilkan daftar invoice yang sudah lunas pada periode tertentu.
+// @Description  Menampilkan daftar invoice yang sudah lunas pada periode tertentu. Mendukung pagination (page & limit).
 // @Tags         Payment Recap
 // @Produce      json
 // @Param        start_date  query  string  false  "Tanggal awal (YYYY-MM-DD)"
 // @Param        end_date    query  string  false  "Tanggal akhir (YYYY-MM-DD)"
 // @Param        search      query  string  false  "Cari berdasarkan nama konsumen atau PO"
-// @Success      200  {object}  utils.Response{data=services.DetailPaidDTO}
+// @Param        page        query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit       query  int     false  "Jumlah baris per halaman (default: 20)"
+// @Success      200  {object}  controllers.PaginatedRecapResponse
 // @Failure      500  {object}  utils.Response
 // @Router       /payment-recap/detail-paid [get]
 // @Security     BearerAuth
 func GetDetailPaid(c *fiber.Ctx) error {
 	f := buildRecapFilter(c)
-	data, err := services.GetDetailPaid(f)
+	data, totalItems, err := services.GetDetailPaid(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
-	return utils.JSONSuccess(c, "Detail paid berhasil diambil", data)
+
+	totalPages := 0
+	if totalItems > 0 && f.Limit > 0 {
+		totalPages = int((totalItems + int64(f.Limit) - 1) / int64(f.Limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedRecapResponse{
+		Success: true,
+		Message: "Detail paid berhasil diambil",
+		Data:    data,
+		Pagination: PaginationMeta{
+			Page:       f.Page,
+			Limit:      f.Limit,
+			TotalRows:  totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 // ─────────────────────────────────────────────
@@ -332,8 +446,8 @@ func applyRowStyle(f *excelize.File, sh string, row, numCols int, textSt, numSt 
 // @Router       /payment-recap/detail-pendapatan/export [get]
 // @Security     BearerAuth
 func ExportDetailPendapatan(c *fiber.Ctx) error {
-	f := buildRecapFilter(c)
-	data, err := services.GetDetailPendapatan(f)
+	f := buildRecapFilterNoPage(c)
+	data, _, err := services.GetDetailPendapatan(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
@@ -431,8 +545,8 @@ func ExportDetailPendapatan(c *fiber.Ctx) error {
 // @Router       /payment-recap/detail-pesanan/export [get]
 // @Security     BearerAuth
 func ExportDetailPesanan(c *fiber.Ctx) error {
-	f := buildRecapFilter(c)
-	data, err := services.GetDetailPesanan(f)
+	f := buildRecapFilterNoPage(c)
+	data, _, err := services.GetDetailPesanan(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
@@ -523,8 +637,8 @@ func ExportDetailPesanan(c *fiber.Ctx) error {
 // @Router       /payment-recap/detail-unpaid/export [get]
 // @Security     BearerAuth
 func ExportDetailUnpaid(c *fiber.Ctx) error {
-	f := buildRecapFilter(c)
-	data, err := services.GetDetailUnpaid(f)
+	f := buildRecapFilterNoPage(c)
+	data, _, err := services.GetDetailUnpaid(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
@@ -616,8 +730,8 @@ func ExportDetailUnpaid(c *fiber.Ctx) error {
 // @Router       /payment-recap/detail-paid/export [get]
 // @Security     BearerAuth
 func ExportDetailPaid(c *fiber.Ctx) error {
-	f := buildRecapFilter(c)
-	data, err := services.GetDetailPaid(f)
+	f := buildRecapFilterNoPage(c)
+	data, _, err := services.GetDetailPaid(f)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
