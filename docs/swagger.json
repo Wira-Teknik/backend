@@ -709,7 +709,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar lengkap seluruh aktivitas pengiriman terbaru untuk disajikan pada layar \"Lihat Semua\" Aktivitas Terakhir di Dashboard.",
+                "description": "Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman, pemesanan, dan pembayaran) untuk disajikan pada layar \"Lihat Semua\" Aktivitas Terakhir di Dashboard dengan dukungan pagination.",
                 "produces": [
                     "application/json"
                 ],
@@ -717,26 +717,25 @@
                     "Dashboard"
                 ],
                 "summary": "Ambil Semua Aktivitas Terakhir Dashboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Halaman aktif (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah baris per halaman (default: 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/services.DashboardActivityDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/controllers.PaginatedActivitiesResponse"
                         }
                     },
                     "500": {
@@ -2810,6 +2809,28 @@
                 "transaction_no": {
                     "type": "string",
                     "example": "NF/WT/100/2026"
+                }
+            }
+        },
+        "controllers.PaginatedActivitiesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.DashboardActivityDTO"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Semua aktivitas dashboard berhasil diambil"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/controllers.PaginationMeta"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },

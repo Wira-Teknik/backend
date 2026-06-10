@@ -167,11 +167,88 @@ func generateAuditDescription(logVal models.AuditLog) string {
 	case models.AuditActionLogin:
 		return "Admin Login ke Sistem"
 	case models.AuditActionUploadDoc:
-		fileName := getStringFromJSON(logVal.NewValue, "file_name", "filename")
-		if fileName == "" {
-			fileName = "Dokumen Baru"
+		category := getStringFromJSON(logVal.NewValue, "category")
+		categoryFriendly := ""
+		switch category {
+		case "shipment_delivery":
+			categoryFriendly = "Bukti Pengiriman"
+		case "shipment_received":
+			categoryFriendly = "Bukti Penerimaan"
+		case "invoice":
+			categoryFriendly = "Invoice"
+		case "payment_proof":
+			categoryFriendly = "Bukti Pembayaran"
+		case "bon":
+			categoryFriendly = "Bon"
+		case "surat_jalan":
+			categoryFriendly = "Surat Jalan"
+		default:
+			categoryFriendly = "Dokumen Baru"
 		}
-		return "Admin Mengunggah Dokumen " + fileName
+
+		fileURL := getStringFromJSON(logVal.NewValue, "file_url")
+		fileName := ""
+		if fileURL != "" {
+			for i := len(fileURL) - 1; i >= 0; i-- {
+				if fileURL[i] == '/' || fileURL[i] == '\\' {
+					fileName = fileURL[i+1:]
+					break
+				}
+			}
+			if fileName == "" {
+				fileName = fileURL
+			}
+		}
+
+		var docInfo string
+		relatedID := getStringFromJSON(logVal.NewValue, "related_id")
+		if relatedID != "" {
+			switch category {
+			case "shipment_delivery", "shipment_received":
+				var info struct {
+					RecipientName string
+					TransactionNo string
+				}
+				config.DB.Table("shipments").
+					Select("orders.recipient_name, orders.transaction_no").
+					Joins("JOIN orders ON orders.id = shipments.order_id").
+					Where("shipments.id = ?", relatedID).
+					Scan(&info)
+				if info.TransactionNo != "" {
+					docInfo = fmt.Sprintf(" untuk Pengiriman Pesanan %s (%s)", info.RecipientName, info.TransactionNo)
+				}
+			case "invoice":
+				var info struct {
+					InvoiceNo     string
+					RecipientName string
+				}
+				config.DB.Table("invoices").
+					Select("invoices.invoice_no, orders.recipient_name").
+					Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+					Joins("JOIN orders ON orders.id = shipments.order_id").
+					Where("invoices.id = ?", relatedID).
+					Scan(&info)
+				if info.InvoiceNo != "" {
+					docInfo = fmt.Sprintf(" untuk Invoice %s (%s)", info.InvoiceNo, info.RecipientName)
+				}
+			case "payment_proof":
+				var info struct {
+					PaymentTotal float64
+				}
+				config.DB.Table("payments").
+					Select("payment_total").
+					Where("id = ?", relatedID).
+					Scan(&info)
+				if info.PaymentTotal > 0 {
+					docInfo = fmt.Sprintf(" untuk Pembayaran Sebesar %s", formatRupiah(info.PaymentTotal))
+				}
+			}
+		}
+
+		if fileName != "" {
+			return fmt.Sprintf("Admin Mengunggah Dokumen %s (%s)%s", categoryFriendly, fileName, docInfo)
+		}
+		return fmt.Sprintf("Admin Mengunggah Dokumen %s%s", categoryFriendly, docInfo)
 	}
 
 	target := ""
@@ -181,40 +258,141 @@ func generateAuditDescription(logVal models.AuditLog) string {
 		if trxNo == "" {
 			trxNo = getStringFromJSON(logVal.OldValue, "transaction_no")
 		}
+		recipientName := getStringFromJSON(logVal.NewValue, "recipient_name")
+		if recipientName == "" {
+			recipientName = getStringFromJSON(logVal.OldValue, "recipient_name")
+		}
+		poNo := getStringFromJSON(logVal.NewValue, "po_no")
+		if poNo == "" {
+			poNo = getStringFromJSON(logVal.OldValue, "po_no")
+		}
+
 		if trxNo != "" {
-			target = "Pemesanan " + trxNo
+			if poNo != "" {
+				target = fmt.Sprintf("Pemesanan %s dengan No Transaksi %s (PO: %s)", recipientName, trxNo, poNo)
+			} else {
+				target = fmt.Sprintf("Pemesanan %s dengan No Transaksi %s", recipientName, trxNo)
+			}
 		} else {
 			target = "Pemesanan"
 		}
 	case "payments":
+		type paymentAllocInfo struct {
+			InvoiceNo       string
+			RecipientName   string
+			TransactionNo   string
+			PoNo            string
+			AllocatedAmount float64
+		}
+		var allocs []paymentAllocInfo
+		config.DB.Table("payment_details").
+			Select("invoices.invoice_no, orders.recipient_name, orders.transaction_no, orders.po_no, payment_details.allocated_amount").
+			Joins("JOIN invoices ON invoices.id = payment_details.invoice_id").
+			Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+			Joins("JOIN orders ON orders.id = shipments.order_id").
+			Where("payment_details.payment_id = ?", logVal.ResourceID).
+			Scan(&allocs)
+
 		total := getFloatFromJSON(logVal.NewValue, "payment_total")
 		if total == 0 {
 			total = getFloatFromJSON(logVal.OldValue, "payment_total")
 		}
-		if total > 0 {
-			target = fmt.Sprintf("Pembayaran Sebesar Rp %.0f", total)
+
+		if len(allocs) > 0 {
+			formattedTotal := formatRupiah(total)
+			if len(allocs) == 1 {
+				alloc := allocs[0]
+				var orderDetail string
+				if alloc.PoNo != "" {
+					orderDetail = fmt.Sprintf(" untuk Invoice %s (Pesanan %s - %s [PO: %s])", alloc.InvoiceNo, alloc.RecipientName, alloc.TransactionNo, alloc.PoNo)
+				} else {
+					orderDetail = fmt.Sprintf(" untuk Invoice %s (Pesanan %s - %s)", alloc.InvoiceNo, alloc.RecipientName, alloc.TransactionNo)
+				}
+				target = fmt.Sprintf("Pembayaran Sebesar %s%s", formattedTotal, orderDetail)
+			} else {
+				customersMap := make(map[string]bool)
+				for _, a := range allocs {
+					customersMap[a.RecipientName] = true
+				}
+				var customers []string
+				for name := range customersMap {
+					customers = append(customers, name)
+				}
+				
+				custStr := ""
+				if len(customers) == 1 {
+					custStr = customers[0]
+				} else if len(customers) == 2 {
+					custStr = fmt.Sprintf("%s dan %s", customers[0], customers[1])
+				} else {
+					custStr = fmt.Sprintf("%s, %s, dan lainnya", customers[0], customers[1])
+				}
+				target = fmt.Sprintf("Pembayaran Sebesar %s untuk %d Invoice (%s)", formattedTotal, len(allocs), custStr)
+			}
+		} else if total > 0 {
+			target = fmt.Sprintf("Pembayaran Sebesar %s", formatRupiah(total))
 		} else {
 			target = "Pembayaran"
 		}
 	case "shipments":
-		shipmentNo := getStringFromJSON(logVal.NewValue, "shipment_no")
-		if shipmentNo == "" {
-			shipmentNo = getStringFromJSON(logVal.OldValue, "shipment_no")
+		type shipmentOrderInfo struct {
+			RecipientName string
+			TransactionNo string
+			PoNo          string
 		}
-		if shipmentNo != "" {
-			target = "Pengiriman " + shipmentNo
+		var info shipmentOrderInfo
+		config.DB.Table("shipments").
+			Select("orders.recipient_name, orders.transaction_no, orders.po_no").
+			Joins("JOIN orders ON orders.id = shipments.order_id").
+			Where("shipments.id = ?", logVal.ResourceID).
+			Scan(&info)
+
+		if info.TransactionNo != "" {
+			var orderDetail string
+			if info.PoNo != "" {
+				orderDetail = fmt.Sprintf(" untuk Pesanan %s dengan No Transaksi %s (PO: %s)", info.RecipientName, info.TransactionNo, info.PoNo)
+			} else {
+				orderDetail = fmt.Sprintf(" untuk Pesanan %s dengan No Transaksi %s", info.RecipientName, info.TransactionNo)
+			}
+			target = "Pengiriman" + orderDetail
 		} else {
 			target = "Pengiriman"
 		}
 	case "invoices":
-		invNo := getStringFromJSON(logVal.NewValue, "invoice_no")
-		if invNo == "" {
-			invNo = getStringFromJSON(logVal.OldValue, "invoice_no")
+		type invoiceOrderInfo struct {
+			RecipientName string
+			TransactionNo string
+			PoNo          string
+			InvoiceNo     string
+			TotalAmount   float64
 		}
-		if invNo != "" {
-			target = "Tagihan " + invNo
+		var info invoiceOrderInfo
+		config.DB.Table("invoices").
+			Select("orders.recipient_name, orders.transaction_no, orders.po_no, invoices.invoice_no, invoices.total_amount").
+			Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+			Joins("JOIN orders ON orders.id = shipments.order_id").
+			Where("invoices.id = ?", logVal.ResourceID).
+			Scan(&info)
+
+		if info.InvoiceNo != "" {
+			formattedAmount := formatRupiah(info.TotalAmount)
+			var orderDetail string
+			if info.PoNo != "" {
+				orderDetail = fmt.Sprintf(" Sebesar %s untuk Pesanan %s (No Transaksi: %s, PO: %s)", formattedAmount, info.RecipientName, info.TransactionNo, info.PoNo)
+			} else {
+				orderDetail = fmt.Sprintf(" Sebesar %s untuk Pesanan %s (No Transaksi: %s)", formattedAmount, info.RecipientName, info.TransactionNo)
+			}
+			target = "Tagihan " + info.InvoiceNo + orderDetail
 		} else {
-			target = "Tagihan"
+			invNo := getStringFromJSON(logVal.NewValue, "invoice_no")
+			if invNo == "" {
+				invNo = getStringFromJSON(logVal.OldValue, "invoice_no")
+			}
+			if invNo != "" {
+				target = "Tagihan " + invNo
+			} else {
+				target = "Tagihan"
+			}
 		}
 	case "customers":
 		custName := getStringFromJSON(logVal.NewValue, "customer_name")

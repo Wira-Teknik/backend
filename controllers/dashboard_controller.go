@@ -28,24 +28,47 @@ func GetDashboard(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, "Metrik dashboard berhasil diambil", metrics)
 }
 
-// ─────────────────────────────────────────────
-// Get All Dashboard Activities
-// ─────────────────────────────────────────────
+// PaginatedActivitiesResponse adalah wrapper response paginasi untuk daftar aktivitas dashboard.
+type PaginatedActivitiesResponse struct {
+	Success    bool                           `json:"success"    example:"true"`
+	Message    string                         `json:"message"    example:"Semua aktivitas dashboard berhasil diambil"`
+	Data       []services.DashboardActivityDTO `json:"data"`
+	Pagination PaginationMeta                 `json:"pagination"`
+}
 
 // GetAllDashboardActivities godoc
 // @Summary      Ambil Semua Aktivitas Terakhir Dashboard
-// @Description  Mengambil daftar lengkap seluruh aktivitas pengiriman terbaru untuk disajikan pada layar "Lihat Semua" Aktivitas Terakhir di Dashboard.
+// @Description  Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman, pemesanan, dan pembayaran) untuk disajikan pada layar "Lihat Semua" Aktivitas Terakhir di Dashboard dengan dukungan pagination.
 // @Tags         Dashboard
 // @Produce      json
-// @Success      200  {object}  utils.Response{data=[]services.DashboardActivityDTO}
+// @Param        page   query  int  false  "Halaman aktif (default: 1)"
+// @Param        limit  query  int  false  "Jumlah baris per halaman (default: 20)"
+// @Success      200  {object}  controllers.PaginatedActivitiesResponse
 // @Failure      500  {object}  utils.Response
 // @Router       /dashboard/activities [get]
 // @Security     BearerAuth
 func GetAllDashboardActivities(c *fiber.Ctx) error {
-	activities, err := services.GetAllDashboardActivities()
+	page, limit := parsePaginationParams(c)
+	activities, totalRows, err := services.GetAllDashboardActivities(page, limit)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil semua aktivitas dashboard: "+err.Error())
 	}
-	return utils.JSONSuccess(c, "Semua aktivitas dashboard berhasil diambil", activities)
+
+	totalPages := 0
+	if totalRows > 0 && limit > 0 {
+		totalPages = int((totalRows + int64(limit) - 1) / int64(limit))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(PaginatedActivitiesResponse{
+		Success: true,
+		Message: "Semua aktivitas dashboard berhasil diambil",
+		Data:    activities,
+		Pagination: PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalRows:  totalRows,
+			TotalPages: totalPages,
+		},
+	})
 }
 

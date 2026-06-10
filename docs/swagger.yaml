@@ -200,6 +200,21 @@ definitions:
         example: NF/WT/100/2026
         type: string
     type: object
+  controllers.PaginatedActivitiesResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/services.DashboardActivityDTO'
+        type: array
+      message:
+        example: Semua aktivitas dashboard berhasil diambil
+        type: string
+      pagination:
+        $ref: '#/definitions/controllers.PaginationMeta'
+      success:
+        example: true
+        type: boolean
+    type: object
   controllers.PaginatedOrdersResponse:
     properties:
       data:
@@ -1288,22 +1303,25 @@ paths:
       - Dashboard
   /dashboard/activities:
     get:
-      description: Mengambil daftar lengkap seluruh aktivitas pengiriman terbaru untuk
-        disajikan pada layar "Lihat Semua" Aktivitas Terakhir di Dashboard.
+      description: Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman,
+        pemesanan, dan pembayaran) untuk disajikan pada layar "Lihat Semua" Aktivitas
+        Terakhir di Dashboard dengan dukungan pagination.
+      parameters:
+      - description: 'Halaman aktif (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Jumlah baris per halaman (default: 20)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/services.DashboardActivityDTO'
-                  type: array
-              type: object
+            $ref: '#/definitions/controllers.PaginatedActivitiesResponse'
         "500":
           description: Internal Server Error
           schema:

@@ -30,6 +30,43 @@ type DashboardResponseDTO struct {
 	AktivitasTerakhir          []DashboardActivityDTO `json:"aktivitas_terakhir"`
 }
 
+type dbActivity struct {
+	ActivityType  string    `gorm:"column:activity_type"`
+	Timestamp     time.Time `gorm:"column:timestamp"`
+	PoNo          string    `gorm:"column:po_no"`
+	TransactionNo string    `gorm:"column:transaction_no"`
+	RecipientName string    `gorm:"column:recipient_name"`
+	Amount        float64   `gorm:"column:amount"`
+	Status        string    `gorm:"column:status"`
+}
+
+func formatRupiah(amount float64) string {
+	val := int64(amount)
+	s := fmt.Sprintf("%d", val)
+	if len(s) <= 3 {
+		return "Rp " + s
+	}
+	
+	var result []string
+	for len(s) > 3 {
+		result = append([]string{s[len(s)-3:]}, result...)
+		s = s[:len(s)-3]
+	}
+	if len(s) > 0 {
+		result = append([]string{s}, result...)
+	}
+	
+	var joined string
+	for i, part := range result {
+		if i == 0 {
+			joined = part
+		} else {
+			joined += "." + part
+		}
+	}
+	return "Rp " + joined
+}
+
 // ─────────────────────────────────────────────
 // Get Dashboard Metrics
 // ─────────────────────────────────────────────
@@ -77,45 +114,68 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 	resp.BelumBayarCount = unpaidStats.Count
 	resp.BelumBayarAmount = unpaidStats.Amount
 
-	// 7. Aktivitas Terakhir (Mengambil 10 Shipment terbaru yang tidak di-soft-delete)
-	type shipmentActivity struct {
-		ShippingStatus string
-		UpdatedAt      time.Time
-		PoNo           string
-		TransactionNo  string
-	}
-	var recents []shipmentActivity
-	if err := config.DB.Model(&models.Shipment{}).
-		Select("shipments.shipping_status, shipments.updated_at, orders.po_no, orders.transaction_no").
-		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
-		Order("shipments.updated_at DESC").
-		Limit(10).
-		Scan(&recents).Error; err != nil {
+	// 7. Aktivitas Terakhir (Mengambil 10 aktivitas gabungan terbaru menggunakan SQL UNION)
+	var rows []dbActivity
+	unionQuery := `
+		SELECT 'shipment' AS activity_type, shipments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, shipments.shipping_status AS status
+		FROM shipments
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE shipments.deleted_at IS NULL
+
+		UNION ALL
+
+		SELECT 'order' AS activity_type, orders.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, '' AS status
+		FROM orders
+		WHERE orders.deleted_at IS NULL
+
+		UNION ALL
+
+		SELECT 'payment' AS activity_type, payments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, '' AS status
+		FROM payments
+		JOIN payment_details ON payment_details.payment_id = payments.id AND payment_details.deleted_at IS NULL
+		JOIN invoices ON invoices.id = payment_details.invoice_id AND invoices.deleted_at IS NULL
+		JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE payments.deleted_at IS NULL
+	`
+	paginatedQuery := fmt.Sprintf("SELECT * FROM (%s) AS combined_activities ORDER BY timestamp DESC LIMIT 10", unionQuery)
+	if err := config.DB.Raw(paginatedQuery).Scan(&rows).Error; err != nil {
 		return resp, err
 	}
 
-	for _, s := range recents {
-		title := "Pengiriman Terkonfirmasi"
+	resp.AktivitasTerakhir = make([]DashboardActivityDTO, 0, len(rows))
+	for _, r := range rows {
+		var title string
+		var desc string
 		
-		// Gunakan transaction_no sebagai identitas utama, jika ada po_no tampilkan juga
 		var identifier string
-		if s.PoNo != "" {
-			identifier = fmt.Sprintf("%s (PO: %s)", s.TransactionNo, s.PoNo)
+		if r.PoNo != "" {
+			identifier = fmt.Sprintf("%s dengan No Transaksi %s (PO: %s)", r.RecipientName, r.TransactionNo, r.PoNo)
 		} else {
-			identifier = s.TransactionNo
+			identifier = fmt.Sprintf("%s dengan No Transaksi %s", r.RecipientName, r.TransactionNo)
 		}
-		
-		desc := fmt.Sprintf("Pesanan %s dikirim", identifier)
 
-		if s.ShippingStatus == string(models.ShippingStatusDiterima) {
-			title = "Pengiriman Selesai"
-			desc = fmt.Sprintf("Pesanan %s diterima", identifier)
+		switch r.ActivityType {
+		case "shipment":
+			title = "Pengiriman Terkonfirmasi"
+			desc = fmt.Sprintf("Pesanan %s dikirim", identifier)
+			if r.Status == string(models.ShippingStatusDiterima) {
+				title = "Pengiriman Selesai"
+				desc = fmt.Sprintf("Pesanan %s diterima", identifier)
+			}
+		case "order":
+			title = "Pesanan Baru"
+			desc = fmt.Sprintf("Pesanan %s telah dibuat", identifier)
+		case "payment":
+			title = "Pembayaran Diterima"
+			formattedAmount := formatRupiah(r.Amount)
+			desc = fmt.Sprintf("Pembayaran sebesar %s untuk pesanan %s berhasil diproses", formattedAmount, identifier)
 		}
 
 		resp.AktivitasTerakhir = append(resp.AktivitasTerakhir, DashboardActivityDTO{
 			Title:       title,
 			Description: desc,
-			Date:        s.UpdatedAt.Local().Format("2006-01-02"),
+			Date:        r.Timestamp.Local().Format("2006-01-02"),
 		})
 	}
 
@@ -130,43 +190,78 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 // Get All Dashboard Activities
 // ─────────────────────────────────────────────
 
-func GetAllDashboardActivities() ([]DashboardActivityDTO, error) {
-	type shipmentActivity struct {
-		ShippingStatus string
-		UpdatedAt      time.Time
-		PoNo           string
-		TransactionNo  string
-	}
-	var recents []shipmentActivity
-	if err := config.DB.Model(&models.Shipment{}).
-		Select("shipments.shipping_status, shipments.updated_at, orders.po_no, orders.transaction_no").
-		Joins("JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL").
-		Order("shipments.updated_at DESC").
-		Scan(&recents).Error; err != nil {
-		return nil, err
+func GetAllDashboardActivities(page, limit int) ([]DashboardActivityDTO, int64, error) {
+	unionQuery := `
+		SELECT 'shipment' AS activity_type, shipments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, shipments.shipping_status AS status
+		FROM shipments
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE shipments.deleted_at IS NULL
+
+		UNION ALL
+
+		SELECT 'order' AS activity_type, orders.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, '' AS status
+		FROM orders
+		WHERE orders.deleted_at IS NULL
+
+		UNION ALL
+
+		SELECT 'payment' AS activity_type, payments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, '' AS status
+		FROM payments
+		JOIN payment_details ON payment_details.payment_id = payments.id AND payment_details.deleted_at IS NULL
+		JOIN invoices ON invoices.id = payment_details.invoice_id AND invoices.deleted_at IS NULL
+		JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE payments.deleted_at IS NULL
+	`
+
+	// Hitung total data untuk keperluan paginasi
+	var totalRows int64
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS combined_activities", unionQuery)
+	if err := config.DB.Raw(countQuery).Scan(&totalRows).Error; err != nil {
+		return nil, 0, err
 	}
 
-	var activities []DashboardActivityDTO
-	for _, s := range recents {
-		title := "Pengiriman Terkonfirmasi"
-		var identifier string
-		if s.PoNo != "" {
-			identifier = fmt.Sprintf("%s (PO: %s)", s.TransactionNo, s.PoNo)
-		} else {
-			identifier = s.TransactionNo
-		}
+	// Ambil data terpaginasi
+	offset := (page - 1) * limit
+	paginatedQuery := fmt.Sprintf("SELECT * FROM (%s) AS combined_activities ORDER BY timestamp DESC LIMIT ? OFFSET ?", unionQuery)
+	var rows []dbActivity
+	if err := config.DB.Raw(paginatedQuery, limit, offset).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	activities := make([]DashboardActivityDTO, 0, len(rows))
+	for _, r := range rows {
+		var title string
+		var desc string
 		
-		desc := fmt.Sprintf("Pesanan %s dikirim", identifier)
+		var identifier string
+		if r.PoNo != "" {
+			identifier = fmt.Sprintf("%s dengan No Transaksi %s (PO: %s)", r.RecipientName, r.TransactionNo, r.PoNo)
+		} else {
+			identifier = fmt.Sprintf("%s dengan No Transaksi %s", r.RecipientName, r.TransactionNo)
+		}
 
-		if s.ShippingStatus == string(models.ShippingStatusDiterima) {
-			title = "Pengiriman Selesai"
-			desc = fmt.Sprintf("Pesanan %s diterima", identifier)
+		switch r.ActivityType {
+		case "shipment":
+			title = "Pengiriman Terkonfirmasi"
+			desc = fmt.Sprintf("Pesanan %s dikirim", identifier)
+			if r.Status == string(models.ShippingStatusDiterima) {
+				title = "Pengiriman Selesai"
+				desc = fmt.Sprintf("Pesanan %s diterima", identifier)
+			}
+		case "order":
+			title = "Pesanan Baru"
+			desc = fmt.Sprintf("Pesanan %s telah dibuat", identifier)
+		case "payment":
+			title = "Pembayaran Diterima"
+			formattedAmount := formatRupiah(r.Amount)
+			desc = fmt.Sprintf("Pembayaran sebesar %s untuk pesanan %s berhasil diproses", formattedAmount, identifier)
 		}
 
 		activities = append(activities, DashboardActivityDTO{
 			Title:       title,
 			Description: desc,
-			Date:        s.UpdatedAt.Local().Format("2006-01-02"),
+			Date:        r.Timestamp.Local().Format("2006-01-02"),
 		})
 	}
 
@@ -174,6 +269,6 @@ func GetAllDashboardActivities() ([]DashboardActivityDTO, error) {
 		activities = []DashboardActivityDTO{}
 	}
 
-	return activities, nil
+	return activities, totalRows, nil
 }
 
