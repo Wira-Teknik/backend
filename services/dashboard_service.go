@@ -190,7 +190,7 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 // Get All Dashboard Activities
 // ─────────────────────────────────────────────
 
-func GetAllDashboardActivities(page, limit int) ([]DashboardActivityDTO, int64, error) {
+func GetAllDashboardActivities(startDate, endDate string, page, limit int) ([]DashboardActivityDTO, int64, error) {
 	unionQuery := `
 		SELECT 'shipment' AS activity_type, shipments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, shipments.shipping_status AS status
 		FROM shipments
@@ -214,18 +214,58 @@ func GetAllDashboardActivities(page, limit int) ([]DashboardActivityDTO, int64, 
 		WHERE payments.deleted_at IS NULL
 	`
 
+	var startLimit time.Time
+	var endLimit time.Time
+	var hasStart, hasEnd bool
+	layout := "2006-01-02"
+
+	if startDate != "" {
+		t, err := time.Parse(layout, startDate)
+		if err != nil {
+			return nil, 0, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		startLimit = t
+		hasStart = true
+	}
+	if endDate != "" {
+		t, err := time.Parse(layout, endDate)
+		if err != nil {
+			return nil, 0, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
+		}
+		endLimit = t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		hasEnd = true
+	}
+
+	var args []interface{}
+	whereClause := ""
+
+	if hasStart {
+		whereClause += " WHERE timestamp >= ?"
+		args = append(args, startLimit)
+	}
+	if hasEnd {
+		if whereClause == "" {
+			whereClause += " WHERE timestamp <= ?"
+		} else {
+			whereClause += " AND timestamp <= ?"
+		}
+		args = append(args, endLimit)
+	}
+
 	// Hitung total data untuk keperluan paginasi
 	var totalRows int64
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS combined_activities", unionQuery)
-	if err := config.DB.Raw(countQuery).Scan(&totalRows).Error; err != nil {
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS combined_activities%s", unionQuery, whereClause)
+	if err := config.DB.Raw(countQuery, args...).Scan(&totalRows).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// Ambil data terpaginasi
 	offset := (page - 1) * limit
-	paginatedQuery := fmt.Sprintf("SELECT * FROM (%s) AS combined_activities ORDER BY timestamp DESC LIMIT ? OFFSET ?", unionQuery)
+	paginatedQuery := fmt.Sprintf("SELECT * FROM (%s) AS combined_activities%s ORDER BY timestamp DESC LIMIT ? OFFSET ?", unionQuery, whereClause)
+	
+	paginatedArgs := append(args, limit, offset)
 	var rows []dbActivity
-	if err := config.DB.Raw(paginatedQuery, limit, offset).Scan(&rows).Error; err != nil {
+	if err := config.DB.Raw(paginatedQuery, paginatedArgs...).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 

@@ -38,20 +38,25 @@ type PaginatedActivitiesResponse struct {
 
 // GetAllDashboardActivities godoc
 // @Summary      Ambil Semua Aktivitas Terakhir Dashboard
-// @Description  Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman, pemesanan, dan pembayaran) untuk disajikan pada layar "Lihat Semua" Aktivitas Terakhir di Dashboard dengan dukungan pagination.
+// @Description  Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman, pemesanan, dan pembayaran) untuk disajikan pada layar "Lihat Semua" Aktivitas Terakhir di Dashboard dengan dukungan pagination dan filter rentang tanggal.
 // @Tags         Dashboard
 // @Produce      json
-// @Param        page   query  int  false  "Halaman aktif (default: 1)"
-// @Param        limit  query  int  false  "Jumlah baris per halaman (default: 20)"
+// @Param        start_date      query  string  false  "Tanggal awal filter (YYYY-MM-DD)"
+// @Param        end_date        query  string  false  "Tanggal akhir filter (YYYY-MM-DD)"
+// @Param        page            query  int     false  "Halaman aktif (default: 1)"
+// @Param        limit           query  int     false  "Jumlah baris per halaman (default: 20)"
 // @Success      200  {object}  controllers.PaginatedActivitiesResponse
+// @Failure      400  {object}  utils.Response
 // @Failure      500  {object}  utils.Response
 // @Router       /dashboard/activities [get]
 // @Security     BearerAuth
 func GetAllDashboardActivities(c *fiber.Ctx) error {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
 	page, limit := parsePaginationParams(c)
-	activities, totalRows, err := services.GetAllDashboardActivities(page, limit)
+	activities, totalRows, err := services.GetAllDashboardActivities(startDate, endDate, page, limit)
 	if err != nil {
-		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil semua aktivitas dashboard: "+err.Error())
+		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
 	totalPages := 0
