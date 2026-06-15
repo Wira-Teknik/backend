@@ -62,7 +62,7 @@ func SeedOrders() {
 
 	tx := DB.Begin()
 	for _, so := range seedOrders {
-		orderDate, err := time.Parse("2006-01-02", so.OrderDate)
+		orderDate, err := time.ParseInLocation("2006-01-02", so.OrderDate, time.Local)
 		if err != nil {
 			log.Printf("Warning: failed to parse order date '%s' for order %s: %v", so.OrderDate, so.TransactionNo, err)
 			continue

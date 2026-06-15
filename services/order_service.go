@@ -146,14 +146,14 @@ func GetAllOrders(startDate, endDate, search, orderStatus string, page, limit in
 
 	layout := "2006-01-02"
 	if startDate != "" {
-		start, err := time.Parse(layout, startDate)
+		start, err := time.ParseInLocation(layout, startDate, time.Local)
 		if err != nil {
 			return nil, 0, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		query = query.Where("order_date >= ?", start)
 	}
 	if endDate != "" {
-		end, err := time.Parse(layout, endDate)
+		end, err := time.ParseInLocation(layout, endDate, time.Local)
 		if err != nil {
 			return nil, 0, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}
@@ -267,7 +267,7 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 		return models.Order{}, ErrOrderDuplicateTransactionNo
 	}
 
-	orderDate, err := time.Parse("2006-01-02", input.OrderDate)
+	orderDate, err := time.ParseInLocation("2006-01-02", input.OrderDate, time.Local)
 	if err != nil {
 		return models.Order{}, fmt.Errorf("format tanggal tidak valid (gunakan YYYY-MM-DD)")
 	}
@@ -351,7 +351,7 @@ func UpdateOrder(id string, input UpdateOrderInput, userID uuid.UUID) (models.Or
 	}
 
 	if input.OrderDate != "" {
-		orderDate, err := time.Parse("2006-01-02", input.OrderDate)
+		orderDate, err := time.ParseInLocation("2006-01-02", input.OrderDate, time.Local)
 		if err != nil {
 			return models.Order{}, fmt.Errorf("format tanggal tidak valid (gunakan YYYY-MM-DD)")
 		}

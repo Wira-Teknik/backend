@@ -111,7 +111,7 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 		return models.Shipment{}, ErrShipmentInvalidOrderID
 	}
 
-	shippingDate, err := time.Parse("2006-01-02", input.ShippingDate)
+	shippingDate, err := time.ParseInLocation("2006-01-02", input.ShippingDate, time.Local)
 	if err != nil {
 		return models.Shipment{}, fmt.Errorf("format tanggal tidak valid (gunakan YYYY-MM-DD)")
 	}

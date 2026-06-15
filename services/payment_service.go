@@ -116,14 +116,14 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 
 	layout := "2006-01-02"
 	if startDate != "" {
-		start, err := time.Parse(layout, startDate)
+		start, err := time.ParseInLocation(layout, startDate, time.Local)
 		if err != nil {
 			return nil, 0, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		query = query.Where("order_date >= ?", start)
 	}
 	if endDate != "" {
-		end, err := time.Parse(layout, endDate)
+		end, err := time.ParseInLocation(layout, endDate, time.Local)
 		if err != nil {
 			return nil, 0, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}
@@ -310,7 +310,7 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 		return models.Payment{}, fmt.Errorf("total pembayaran harus lebih dari 0")
 	}
 
-	paymentDate, err := time.Parse("2006-01-02", input.PaymentDate)
+	paymentDate, err := time.ParseInLocation("2006-01-02", input.PaymentDate, time.Local)
 	if err != nil {
 		return models.Payment{}, fmt.Errorf("format tanggal tidak valid (gunakan YYYY-MM-DD)")
 	}
@@ -604,12 +604,12 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilter string, startDate string, endDate string) (CustomerPaymentDetailResponse, error) {
 	var orders []models.Order
 
-	// 1. Ambil seluruh pesanan untuk customerName tersebut
+	// 1. Ambil seluruh pesanan untuk customerName tersebut (case-insensitive)
 	err := config.DB.Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
-		Where("recipient_name = ?", customerName).
+		Where("LOWER(recipient_name) = LOWER(?)", customerName).
 		Order("order_date DESC, created_at DESC").
 		Find(&orders).Error
 
@@ -645,7 +645,7 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 
 	layout := "2006-01-02"
 	if startDate != "" {
-		t, err := time.Parse(layout, startDate)
+		t, err := time.ParseInLocation(layout, startDate, time.Local)
 		if err != nil {
 			return CustomerPaymentDetailResponse{}, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
@@ -653,7 +653,7 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 		hasStart = true
 	}
 	if endDate != "" {
-		t, err := time.Parse(layout, endDate)
+		t, err := time.ParseInLocation(layout, endDate, time.Local)
 		if err != nil {
 			return CustomerPaymentDetailResponse{}, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}
@@ -824,14 +824,14 @@ func GetPaymentHistory(search string, statusFilter string, startDate string, end
 
 	layout := "2006-01-02"
 	if startDate != "" {
-		start, err := time.Parse(layout, startDate)
+		start, err := time.ParseInLocation(layout, startDate, time.Local)
 		if err != nil {
 			return nil, 0, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
 		query = query.Where("payments.payment_date >= ?", start)
 	}
 	if endDate != "" {
-		end, err := time.Parse(layout, endDate)
+		end, err := time.ParseInLocation(layout, endDate, time.Local)
 		if err != nil {
 			return nil, 0, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}

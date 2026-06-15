@@ -81,18 +81,18 @@ type DetailPaidDTO struct {
 
 func parseRecapDates(f RecapFilter) (time.Time, time.Time, error) {
 	layout := "2006-01-02"
-	start := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	start := time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local)
 	end := time.Now().Add(24 * time.Hour)
 	var err error
 
 	if f.StartDate != "" {
-		start, err = time.Parse(layout, f.StartDate)
+		start, err = time.ParseInLocation(layout, f.StartDate, time.Local)
 		if err != nil {
 			return start, end, fmt.Errorf("format start_date tidak valid, gunakan YYYY-MM-DD")
 		}
 	}
 	if f.EndDate != "" {
-		end, err = time.Parse(layout, f.EndDate)
+		end, err = time.ParseInLocation(layout, f.EndDate, time.Local)
 		if err != nil {
 			return start, end, fmt.Errorf("format end_date tidak valid, gunakan YYYY-MM-DD")
 		}
