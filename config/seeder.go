@@ -127,6 +127,78 @@ func SeedOrders() {
 	log.Printf("Successfully seeded %d orders into the database.", len(seedOrders))
 }
 
+type seedCustomer struct {
+	CustomerName    string `json:"customer_name"`
+	CustomerEmail   string `json:"customer_email"`
+	CustomerPhone   string `json:"customer_phone"`
+	CustomerAddress string `json:"customer_address"`
+}
+
+// SeedCustomers seeds the customers table from customer-seed.json if the table is empty.
+func SeedCustomers() {
+	var count int64
+	if err := DB.Unscoped().Model(&models.Customer{}).Count(&count).Error; err != nil {
+		log.Printf("Failed to count customers for seeding: %v", err)
+		return
+	}
+
+	if count > 0 {
+		return // Already seeded
+	}
+
+	log.Println("Seeding database with default customers from config/customer-seed.json...")
+
+	filePath := "config/customer-seed.json"
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Printf("Failed to read customer seed file %s: %v", filePath, err)
+		return
+	}
+
+	var seedCusts []seedCustomer
+	if err := json.Unmarshal(data, &seedCusts); err != nil {
+		log.Printf("Failed to unmarshal customer seed data: %v", err)
+		return
+	}
+
+	tx := DB.Begin()
+	for _, sc := range seedCusts {
+		// Check if customer name already exists (unscoped) to prevent unique/duplicate constraints
+		var existingCount int64
+		if err := tx.Unscoped().Model(&models.Customer{}).Where("LOWER(customer_name) = LOWER(?)", sc.CustomerName).Count(&existingCount).Error; err != nil {
+			tx.Rollback()
+			log.Printf("Failed to check existing customer %s: %v", sc.CustomerName, err)
+			return
+		}
+		if existingCount > 0 {
+			log.Printf("Customer %s already exists, skipping...", sc.CustomerName)
+			continue
+		}
+
+		customer := models.Customer{
+			ID:              uuid.New(),
+			CustomerName:    sc.CustomerName,
+			CustomerEmail:   sc.CustomerEmail,
+			CustomerPhone:   sc.CustomerPhone,
+			CustomerAddress: sc.CustomerAddress,
+		}
+
+		if err := tx.Create(&customer).Error; err != nil {
+			tx.Rollback()
+			log.Printf("Failed to seed customer %s: %v", sc.CustomerName, err)
+			return
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log.Printf("Failed to commit customer seed transaction: %v", err)
+		return
+	}
+
+	log.Printf("Successfully seeded %d customers into the database.", len(seedCusts))
+}
+
+
 func mathRoundTwo(val float64) float64 {
 	return math.Round(val*100) / 100
 }

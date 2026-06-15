@@ -92,7 +92,8 @@ func main() {
 		log.Println("Database migration completed after reset.")
 
 
-		// Seed orders if empty
+		// Seed orders & customers if empty
+		config.SeedCustomers()
 		config.SeedOrders()
 		log.Println("Database reset, migrated, and seeded successfully.")
 		os.Exit(0)
@@ -120,7 +121,8 @@ func main() {
 	log.Println("Database migration completed.")
 
 
-	// Seed orders if empty
+	// Seed orders & customers if empty
+	config.SeedCustomers()
 	config.SeedOrders()
 
 	// Connect to Redis
