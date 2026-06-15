@@ -87,3 +87,8 @@ uploads/*
 
 docker-compose.yml
 summary_perubahan.html
+
+# Ignore Excel report files
+reports/*.xlsx
+
+randomize_dates.py

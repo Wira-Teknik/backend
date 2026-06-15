@@ -28,6 +28,12 @@ COPY --from=builder /app/main .
 # Copy folder docs untuk swagger
 COPY --from=builder /app/docs ./docs
 
+# 👈 PASTIKAN baris ini ada untuk membawa file json seeder Anda masuk ke kontainer
+COPY --from=builder /app/config/ ./config/ 
+
+# Jika ada folder uploads
+COPY --from=builder /app/uploads/ ./uploads/
+
 # Expose port sesuai .env (7001)
 EXPOSE 7001
 
