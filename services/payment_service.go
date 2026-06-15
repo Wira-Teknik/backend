@@ -604,12 +604,12 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilter string, startDate string, endDate string) (CustomerPaymentDetailResponse, error) {
 	var orders []models.Order
 
-	// 1. Ambil seluruh pesanan untuk customerName tersebut
+	// 1. Ambil seluruh pesanan untuk customerName tersebut (case-insensitive)
 	err := config.DB.Preload("Items").
 		Preload("Shipments").
 		Preload("Shipments.Items").
 		Preload("Shipments.Invoice").
-		Where("recipient_name = ?", customerName).
+		Where("LOWER(recipient_name) = LOWER(?)", customerName).
 		Order("order_date DESC, created_at DESC").
 		Find(&orders).Error
 
