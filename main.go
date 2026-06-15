@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	_ "teknik/docs"
 
@@ -39,6 +40,16 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/joho/godotenv"
 )
+
+func init() {
+	// Set default timezone to Asia/Jakarta (+7)
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err == nil {
+		time.Local = loc
+	} else {
+		time.Local = time.FixedZone("WIB", 7*3600)
+	}
+}
 
 func main() {
 	// Load environment variables
