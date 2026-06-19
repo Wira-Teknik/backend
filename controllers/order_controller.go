@@ -474,6 +474,9 @@ func DeleteOrder(c *fiber.Ctx) error {
 		if errors.Is(err, services.ErrOrderNotFound) {
 			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
 		}
+		if errors.Is(err, services.ErrOrderNotPending) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 

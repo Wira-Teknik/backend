@@ -47,9 +47,11 @@ type PaymentOrderResponse struct {
 }
 
 type CustomerPaymentSummary struct {
-	CustomerName string                 `json:"customer_name"`
-	Orders       []PaymentOrderResponse `json:"orders"`
-	TotalTagihan float64                `json:"total_tagihan"`
+	CustomerName string  `json:"customer_name"`
+	TotalUnpaid  int     `json:"total_unpaid"`
+	TotalPaid    int     `json:"total_paid"`
+	TotalPartial int     `json:"total_partial"`
+	TotalTagihan float64 `json:"total_tagihan"`
 }
 
 type OrderPaymentDTO struct {
@@ -205,34 +207,23 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 		if _, exists := customerMap[custName]; !exists {
 			customerMap[custName] = &CustomerPaymentSummary{
 				CustomerName: custName,
-				Orders:       []PaymentOrderResponse{},
+				TotalUnpaid:  0,
+				TotalPaid:    0,
+				TotalPartial: 0,
 				TotalTagihan: 0,
 			}
 			orderedCustomerNames = append(orderedCustomerNames, custName)
 		}
 
-		var unpaidInvoiceTotal float64
-		var unpaidInvoiceCount int
-		for _, inv := range orders[i].Invoices {
-			if inv.PaymentStatus == models.PaymentStatusUnpaid || inv.PaymentStatus == models.PaymentStatusPartial {
-				unpaidInvoiceTotal += inv.RemainingBalance
-				unpaidInvoiceCount++
-			}
+		switch orders[i].PaymentStatus {
+		case models.PaymentStatusUnpaid:
+			customerMap[custName].TotalUnpaid++
+		case models.PaymentStatusPaid:
+			customerMap[custName].TotalPaid++
+		case models.PaymentStatusPartial:
+			customerMap[custName].TotalPartial++
 		}
 
-		pOrder := PaymentOrderResponse{
-			ID:                 orders[i].ID,
-			TransactionNo:      orders[i].TransactionNo,
-			PoNo:               orders[i].PoNo,
-			OrderDate:          orders[i].OrderDate,
-			TotalAmountToPay:   orders[i].TotalAmountToPay,
-			RemainingBalance:   orders[i].RemainingBalance,
-			PaymentStatus:      orders[i].PaymentStatus,
-			UnpaidInvoiceTotal: roundTwo(unpaidInvoiceTotal),
-			UnpaidInvoiceCount: unpaidInvoiceCount,
-		}
-
-		customerMap[custName].Orders = append(customerMap[custName].Orders, pOrder)
 		customerMap[custName].TotalTagihan += orders[i].RemainingBalance
 	}
 

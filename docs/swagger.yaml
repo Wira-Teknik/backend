@@ -674,12 +674,14 @@ definitions:
     properties:
       customer_name:
         type: string
-      orders:
-        items:
-          $ref: '#/definitions/services.PaymentOrderResponse'
-        type: array
+      total_paid:
+        type: integer
+      total_partial:
+        type: integer
       total_tagihan:
         type: number
+      total_unpaid:
+        type: integer
     type: object
   services.DashboardActivityDTO:
     properties:
@@ -802,27 +804,6 @@ definitions:
       shipment_id:
         type: string
       total_amount:
-        type: number
-    type: object
-  services.PaymentOrderResponse:
-    properties:
-      id:
-        type: string
-      order_date:
-        type: string
-      payment_status:
-        $ref: '#/definitions/models.PaymentStatus'
-      po_no:
-        type: string
-      remaining_balance:
-        type: number
-      total_amount_to_pay:
-        type: number
-      transaction_no:
-        type: string
-      unpaid_invoice_count:
-        type: integer
-      unpaid_invoice_total:
         type: number
     type: object
   services.RecapSummaryDTO:
@@ -1305,8 +1286,16 @@ paths:
     get:
       description: Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman,
         pemesanan, dan pembayaran) untuk disajikan pada layar "Lihat Semua" Aktivitas
-        Terakhir di Dashboard dengan dukungan pagination.
+        Terakhir di Dashboard dengan dukungan pagination dan filter rentang tanggal.
       parameters:
+      - description: Tanggal awal filter (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal akhir filter (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
       - description: 'Halaman aktif (default: 1)'
         in: query
         name: page
@@ -1322,6 +1311,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/controllers.PaginatedActivitiesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
         "500":
           description: Internal Server Error
           schema:

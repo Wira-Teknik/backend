@@ -15,9 +15,10 @@ import (
 
 // Sentinel errors for Shipment service
 var (
-	ErrShipmentInvalidUUID    = errors.New("ID pengiriman tidak valid")
-	ErrShipmentInvalidOrderID = errors.New("ID pesanan tidak valid")
-	ErrShipmentNotFound       = errors.New("pengiriman tidak ditemukan")
+	ErrShipmentInvalidUUID         = errors.New("ID pengiriman tidak valid")
+	ErrShipmentInvalidOrderID      = errors.New("ID pesanan tidak valid")
+	ErrShipmentNotFound            = errors.New("pengiriman tidak ditemukan")
+	ErrShipmentDateBeforeOrderDate = errors.New("tanggal pengiriman tidak boleh kurang dari tanggal pesanan dibuat")
 )
 
 // ─────────────────────────────────────────────
@@ -123,6 +124,12 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 			return models.Shipment{}, ErrOrderNotFound
 		}
 		return models.Shipment{}, err
+	}
+
+	// Validasi tanggal pengiriman tidak boleh kurang dari tanggal pesanan dibuat
+	orderDate := time.Time(order.OrderDate)
+	if shippingDate.Before(orderDate) {
+		return models.Shipment{}, ErrShipmentDateBeforeOrderDate
 	}
 
 	if order.OrderStatus == models.OrderStatusShipped || order.OrderStatus == models.OrderStatusCompleted {

@@ -203,6 +203,9 @@ func CreateShipment(c *fiber.Ctx) error {
 		if errors.Is(err, services.ErrOrderNotFound) {
 			return utils.JSONError(c, fiber.StatusNotFound, err.Error())
 		}
+		if errors.Is(err, services.ErrShipmentDateBeforeOrderDate) {
+			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
+		}
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 

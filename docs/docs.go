@@ -716,7 +716,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman, pemesanan, dan pembayaran) untuk disajikan pada layar \"Lihat Semua\" Aktivitas Terakhir di Dashboard dengan dukungan pagination.",
+                "description": "Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman, pemesanan, dan pembayaran) untuk disajikan pada layar \"Lihat Semua\" Aktivitas Terakhir di Dashboard dengan dukungan pagination dan filter rentang tanggal.",
                 "produces": [
                     "application/json"
                 ],
@@ -725,6 +725,18 @@ const docTemplate = `{
                 ],
                 "summary": "Ambil Semua Aktivitas Terakhir Dashboard",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tanggal awal filter (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir filter (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
                     {
                         "type": "integer",
                         "description": "Halaman aktif (default: 1)",
@@ -743,6 +755,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/controllers.PaginatedActivitiesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
@@ -3515,14 +3533,17 @@ const docTemplate = `{
                 "customer_name": {
                     "type": "string"
                 },
-                "orders": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.PaymentOrderResponse"
-                    }
+                "total_paid": {
+                    "type": "integer"
+                },
+                "total_partial": {
+                    "type": "integer"
                 },
                 "total_tagihan": {
                     "type": "number"
+                },
+                "total_unpaid": {
+                    "type": "integer"
                 }
             }
         },
@@ -3700,38 +3721,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "total_amount": {
-                    "type": "number"
-                }
-            }
-        },
-        "services.PaymentOrderResponse": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "order_date": {
-                    "type": "string"
-                },
-                "payment_status": {
-                    "$ref": "#/definitions/models.PaymentStatus"
-                },
-                "po_no": {
-                    "type": "string"
-                },
-                "remaining_balance": {
-                    "type": "number"
-                },
-                "total_amount_to_pay": {
-                    "type": "number"
-                },
-                "transaction_no": {
-                    "type": "string"
-                },
-                "unpaid_invoice_count": {
-                    "type": "integer"
-                },
-                "unpaid_invoice_total": {
                     "type": "number"
                 }
             }

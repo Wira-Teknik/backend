@@ -20,6 +20,7 @@ var (
 	ErrOrderInvalidUUID            = errors.New("ID pesanan tidak valid")
 	ErrOrderNotFound               = errors.New("pesanan tidak ditemukan")
 	ErrOrderDuplicateTransactionNo = errors.New("nomor transaksi sudah terdaftar")
+	ErrOrderNotPending             = errors.New("pesanan hanya dapat dihapus ketika status masih pending")
 )
 
 // ─────────────────────────────────────────────
@@ -386,7 +387,7 @@ func DeleteOrder(id string, userID uuid.UUID) error {
 	}
 
 	if order.OrderStatus != models.OrderStatusPending {
-		return fmt.Errorf("pesanan yang sudah diproses tidak dapat dihapus")
+		return ErrOrderNotPending
 	}
 
 	if err := config.DB.Select("Items").Delete(&order).Error; err != nil {
