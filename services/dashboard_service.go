@@ -117,26 +117,49 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 	// 7. Aktivitas Terakhir (Mengambil 10 aktivitas gabungan terbaru menggunakan SQL UNION)
 	var rows []dbActivity
 	unionQuery := `
-		SELECT 'shipment' AS activity_type, shipments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, shipments.shipping_status AS status
+		SELECT 'shipment' AS activity_type, shipments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'dikirim' AS status
 		FROM shipments
 		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
 		WHERE shipments.deleted_at IS NULL
 
 		UNION ALL
 
-		SELECT 'order' AS activity_type, orders.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, '' AS status
+		SELECT 'shipment' AS activity_type, shipments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'diterima' AS status
+		FROM shipments
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE shipments.deleted_at IS NULL AND shipments.shipping_status = 'diterima'
+
+		UNION ALL
+
+		SELECT 'order' AS activity_type, orders.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'pending' AS status
 		FROM orders
 		WHERE orders.deleted_at IS NULL
 
 		UNION ALL
 
-		SELECT 'payment' AS activity_type, payments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, '' AS status
+		SELECT 'order' AS activity_type, orders.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'completed' AS status
+		FROM orders
+		WHERE orders.deleted_at IS NULL AND orders.order_status = 'completed'
+
+		UNION ALL
+
+		SELECT 'payment' AS activity_type, payments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, 'diterima' AS status
 		FROM payments
 		JOIN payment_details ON payment_details.payment_id = payments.id AND payment_details.deleted_at IS NULL
 		JOIN invoices ON invoices.id = payment_details.invoice_id AND invoices.deleted_at IS NULL
 		JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL
 		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
 		WHERE payments.deleted_at IS NULL
+
+		UNION ALL
+
+		SELECT 'payment' AS activity_type, payments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, 'diperbarui' AS status
+		FROM payments
+		JOIN payment_details ON payment_details.payment_id = payments.id AND payment_details.deleted_at IS NULL
+		JOIN invoices ON invoices.id = payment_details.invoice_id AND invoices.deleted_at IS NULL
+		JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE payments.deleted_at IS NULL AND payments.updated_at > payments.created_at
 	`
 	paginatedQuery := fmt.Sprintf("SELECT * FROM (%s) AS combined_activities ORDER BY timestamp DESC LIMIT 10", unionQuery)
 	if err := config.DB.Raw(paginatedQuery).Scan(&rows).Error; err != nil {
@@ -166,10 +189,18 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 		case "order":
 			title = "Pesanan Baru"
 			desc = fmt.Sprintf("Pesanan %s telah dibuat", identifier)
+			if r.Status == "completed" {
+				title = "Pesanan Selesai"
+				desc = fmt.Sprintf("Pesanan %s telah selesai diproses", identifier)
+			}
 		case "payment":
 			title = "Pembayaran Diterima"
 			formattedAmount := formatRupiah(r.Amount)
 			desc = fmt.Sprintf("Pembayaran sebesar %s untuk pesanan %s berhasil diproses", formattedAmount, identifier)
+			if r.Status == "diperbarui" {
+				title = "Pembayaran Diperbarui"
+				desc = fmt.Sprintf("Pembayaran sebesar %s untuk pesanan %s telah diperbarui", formattedAmount, identifier)
+			}
 		}
 
 		resp.AktivitasTerakhir = append(resp.AktivitasTerakhir, DashboardActivityDTO{
@@ -192,26 +223,49 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 
 func GetAllDashboardActivities(startDate, endDate string, page, limit int) ([]DashboardActivityDTO, int64, error) {
 	unionQuery := `
-		SELECT 'shipment' AS activity_type, shipments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, shipments.shipping_status AS status
+		SELECT 'shipment' AS activity_type, shipments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'dikirim' AS status
 		FROM shipments
 		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
 		WHERE shipments.deleted_at IS NULL
 
 		UNION ALL
 
-		SELECT 'order' AS activity_type, orders.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, '' AS status
+		SELECT 'shipment' AS activity_type, shipments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'diterima' AS status
+		FROM shipments
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE shipments.deleted_at IS NULL AND shipments.shipping_status = 'diterima'
+
+		UNION ALL
+
+		SELECT 'order' AS activity_type, orders.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'pending' AS status
 		FROM orders
 		WHERE orders.deleted_at IS NULL
 
 		UNION ALL
 
-		SELECT 'payment' AS activity_type, payments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, '' AS status
+		SELECT 'order' AS activity_type, orders.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'completed' AS status
+		FROM orders
+		WHERE orders.deleted_at IS NULL AND orders.order_status = 'completed'
+
+		UNION ALL
+
+		SELECT 'payment' AS activity_type, payments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, 'diterima' AS status
 		FROM payments
 		JOIN payment_details ON payment_details.payment_id = payments.id AND payment_details.deleted_at IS NULL
 		JOIN invoices ON invoices.id = payment_details.invoice_id AND invoices.deleted_at IS NULL
 		JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL
 		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
 		WHERE payments.deleted_at IS NULL
+
+		UNION ALL
+
+		SELECT 'payment' AS activity_type, payments.updated_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, payment_details.allocated_amount AS amount, 'diperbarui' AS status
+		FROM payments
+		JOIN payment_details ON payment_details.payment_id = payments.id AND payment_details.deleted_at IS NULL
+		JOIN invoices ON invoices.id = payment_details.invoice_id AND invoices.deleted_at IS NULL
+		JOIN shipments ON shipments.id = invoices.shipment_id AND shipments.deleted_at IS NULL
+		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
+		WHERE payments.deleted_at IS NULL AND payments.updated_at > payments.created_at
 	`
 
 	var startLimit time.Time
@@ -292,10 +346,18 @@ func GetAllDashboardActivities(startDate, endDate string, page, limit int) ([]Da
 		case "order":
 			title = "Pesanan Baru"
 			desc = fmt.Sprintf("Pesanan %s telah dibuat", identifier)
+			if r.Status == "completed" {
+				title = "Pesanan Selesai"
+				desc = fmt.Sprintf("Pesanan %s telah selesai diproses", identifier)
+			}
 		case "payment":
 			title = "Pembayaran Diterima"
 			formattedAmount := formatRupiah(r.Amount)
 			desc = fmt.Sprintf("Pembayaran sebesar %s untuk pesanan %s berhasil diproses", formattedAmount, identifier)
+			if r.Status == "diperbarui" {
+				title = "Pembayaran Diperbarui"
+				desc = fmt.Sprintf("Pembayaran sebesar %s untuk pesanan %s telah diperbarui", formattedAmount, identifier)
+			}
 		}
 
 		activities = append(activities, DashboardActivityDTO{
