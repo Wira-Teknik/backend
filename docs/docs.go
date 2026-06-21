@@ -2159,7 +2159,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Memperbarui jumlah total pembayaran (payment_total) dan secara otomatis mengalokasikan ulang sisa saldo ke invoice yang bersangkutan secara kronologis.",
+                "description": "Memperbarui jumlah total pembayaran (payment_total) beserta alokasi detail order tanpa memperbarui tanggal dan bukti bayar.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2169,7 +2169,7 @@ const docTemplate = `{
                 "tags": [
                     "Payments"
                 ],
-                "summary": "Edit total pembayaran",
+                "summary": "Edit pembayaran",
                 "parameters": [
                     {
                         "type": "string",
@@ -2961,6 +2961,15 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.PaymentDetailRequest": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                }
+            }
+        },
         "controllers.RegisterRequest": {
             "type": "object",
             "properties": {
@@ -3074,6 +3083,12 @@ const docTemplate = `{
         "controllers.UpdatePaymentTotalRequest": {
             "type": "object",
             "properties": {
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.PaymentDetailRequest"
+                    }
+                },
                 "payment_total": {
                     "type": "number",
                     "example": 7500000

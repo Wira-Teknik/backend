@@ -429,7 +429,7 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 }
 
 // UpdatePaymentTotal memperbarui payment_total pembayaran yang ada dan mengalokasikan ulang secara atomik.
-func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID) (models.Payment, error) {
+func UpdatePaymentTotal(paymentIDStr string, newTotal float64, orderIDs []string, userID uuid.UUID) (models.Payment, error) {
 	paymentID, err := uuid.Parse(paymentIDStr)
 	if err != nil {
 		return models.Payment{}, ErrPaymentInvalidUUID
@@ -437,6 +437,16 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 
 	if newTotal <= 0 {
 		return models.Payment{}, fmt.Errorf("total pembayaran baru harus lebih dari 0")
+	}
+
+	// Validasi dan parsing semua OrderIDs ke UUID untuk mencegah PostgreSQL parsing crash
+	var parsedOrderIDs []uuid.UUID
+	for _, idStr := range orderIDs {
+		parsedID, err := uuid.Parse(idStr)
+		if err != nil {
+			return models.Payment{}, fmt.Errorf("ID order %s tidak valid", idStr)
+		}
+		parsedOrderIDs = append(parsedOrderIDs, parsedID)
 	}
 
 	// 1. Mulai transaksi database
@@ -459,74 +469,87 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 
 	// 3. REVERT: Kembalikan alokasi lama ke masing-masing Invoice
 	invoiceAllocations := make(map[uuid.UUID]float64)
-	var invoiceIDs []uuid.UUID
+	var oldInvoiceIDs []uuid.UUID
 	for _, detail := range payment.Details {
 		invoiceAllocations[detail.InvoiceID] += detail.AllocatedAmount
-		invoiceIDs = append(invoiceIDs, detail.InvoiceID)
+		oldInvoiceIDs = append(oldInvoiceIDs, detail.InvoiceID)
 	}
 
-	if len(invoiceIDs) == 0 {
-		tx.Rollback()
-		return models.Payment{}, fmt.Errorf("pembayaran tidak memiliki detail alokasi")
+	if len(oldInvoiceIDs) > 0 {
+		// Ambil data invoice lama yang terdampak
+		var oldInvoices []models.Invoice
+		if err := tx.Where("id IN ?", oldInvoiceIDs).Find(&oldInvoices).Error; err != nil {
+			tx.Rollback()
+			return models.Payment{}, fmt.Errorf("gagal mengambil data invoice terkait: %w", err)
+		}
+
+		// Buat map invoice lama untuk mempermudah update
+		oldInvoiceMap := make(map[uuid.UUID]*models.Invoice)
+		for i := range oldInvoices {
+			oldInvoiceMap[oldInvoices[i].ID] = &oldInvoices[i]
+		}
+
+		// Kembalikan saldo dan status masing-masing invoice lama
+		for invID, oldAlloc := range invoiceAllocations {
+			inv, exists := oldInvoiceMap[invID]
+			if !exists {
+				tx.Rollback()
+				return models.Payment{}, fmt.Errorf("invoice %s tidak ditemukan dalam database", invID)
+			}
+
+			inv.RemainingBalance = roundTwo(inv.RemainingBalance + oldAlloc)
+			if inv.RemainingBalance >= inv.TotalAmount {
+				inv.PaymentStatus = models.PaymentStatusUnpaid
+				inv.RemainingBalance = inv.TotalAmount
+			} else if inv.RemainingBalance > 0 {
+				inv.PaymentStatus = models.PaymentStatusPartial
+			} else {
+				inv.PaymentStatus = models.PaymentStatusPaid
+			}
+
+			if err := tx.Save(inv).Error; err != nil {
+				tx.Rollback()
+				return models.Payment{}, fmt.Errorf("gagal mengembalikan saldo invoice %s: %w", inv.ID, err)
+			}
+		}
 	}
 
-	// Ambil data invoice yang terdampak
+	// 4. Ambil semua invoice terkait order_ids baru yang belum lunas (dari transaksi tx saat ini)
 	var invoices []models.Invoice
-	if err := tx.Where("id IN ?", invoiceIDs).
-		Order("created_at ASC").
-		Find(&invoices).Error; err != nil {
+	err = tx.
+		Joins("JOIN shipments ON shipments.id = invoices.shipment_id").
+		Where("shipments.order_id IN ? AND invoices.payment_status != ?", parsedOrderIDs, models.PaymentStatusPaid).
+		Order("invoices.created_at ASC"). // urutkan yang paling lama dahulu
+		Find(&invoices).Error
+
+	if err != nil {
 		tx.Rollback()
-		return models.Payment{}, fmt.Errorf("gagal mengambil data invoice terkait: %w", err)
+		return models.Payment{}, fmt.Errorf("gagal mengambil tagihan baru: %w", err)
 	}
 
-	// Buat map invoice untuk mempermudah update
-	invoiceMap := make(map[uuid.UUID]*models.Invoice)
-	for i := range invoices {
-		invoiceMap[invoices[i].ID] = &invoices[i]
+	if len(invoices) == 0 {
+		tx.Rollback()
+		return models.Payment{}, fmt.Errorf("tidak ada tagihan yang belum lunas untuk order yang dipilih")
 	}
 
-	// Kembalikan saldo dan status masing-masing invoice
-	for invID, oldAlloc := range invoiceAllocations {
-		inv, exists := invoiceMap[invID]
-		if !exists {
-			tx.Rollback()
-			return models.Payment{}, fmt.Errorf("invoice %s tidak ditemukan dalam database", invID)
-		}
-
-		inv.RemainingBalance = roundTwo(inv.RemainingBalance + oldAlloc)
-		if inv.RemainingBalance >= inv.TotalAmount {
-			inv.PaymentStatus = models.PaymentStatusUnpaid
-			inv.RemainingBalance = inv.TotalAmount
-		} else if inv.RemainingBalance > 0 {
-			inv.PaymentStatus = models.PaymentStatusPartial
-		} else {
-			inv.PaymentStatus = models.PaymentStatusPaid
-		}
-
-		if err := tx.Save(inv).Error; err != nil {
-			tx.Rollback()
-			return models.Payment{}, fmt.Errorf("gagal mengembalikan saldo invoice %s: %w", inv.ID, err)
-		}
-	}
-
-	// 4. Validasi batas total tagihan yang telah direvert
-	var totalTagihanReverted float64
+	// 5. Validasi total payment <= total remaining balance baru
+	var totalTagihan float64
 	for _, inv := range invoices {
-		totalTagihanReverted += inv.RemainingBalance
+		totalTagihan += inv.RemainingBalance
 	}
 
-	if newTotal > totalTagihanReverted {
+	if newTotal > totalTagihan {
 		tx.Rollback()
-		return models.Payment{}, fmt.Errorf("jumlah pembayaran baru (%.2f) melebihi total sisa tagihan yang tersedia (%.2f)", newTotal, totalTagihanReverted)
+		return models.Payment{}, fmt.Errorf("jumlah pembayaran baru (%.2f) melebihi total sisa tagihan yang tersedia (%.2f)", newTotal, totalTagihan)
 	}
 
-	// 5. Hapus detail pembayaran lama
+	// 6. Hapus detail pembayaran lama
 	if err := tx.Where("payment_id = ?", payment.ID).Delete(&models.PaymentDetail{}).Error; err != nil {
 		tx.Rollback()
 		return models.Payment{}, fmt.Errorf("gagal menghapus detail alokasi lama: %w", err)
 	}
 
-	// 6. REALLOCATE: Alokasikan newTotal secara kronologis ke invoice-invoice tersebut
+	// 7. REALLOCATE: Alokasikan newTotal secara kronologis ke invoice-invoice baru
 	var newDetails []models.PaymentDetail
 	sisaDana := newTotal
 
@@ -572,7 +595,7 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 		sisaDana = roundTwo(sisaDana - alokasi)
 	}
 
-	// 7. Update Payment utama
+	// 8. Update Payment utama
 	payment.PaymentTotal = newTotal
 	payment.Details = newDetails
 	if err := tx.Save(&payment).Error; err != nil {
@@ -585,7 +608,7 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, userID uuid.UUID)
 		return models.Payment{}, fmt.Errorf("gagal melakukan commit transaksi: %w", err)
 	}
 
-	// 8. Catat Audit Log UPDATE
+	// 9. Catat Audit Log UPDATE
 	CreateAuditLog(userID, payment.ID, models.AuditActionUpdate, "payments", oldPaymentData, payment)
 
 	return payment, nil

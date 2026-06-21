@@ -34,7 +34,8 @@ type CreatePaymentRequest struct {
 
 // UpdatePaymentTotalRequest adalah request body untuk memperbarui total pembayaran.
 type UpdatePaymentTotalRequest struct {
-	PaymentTotal float64 `json:"payment_total" example:"7500000"`
+	PaymentTotal float64                `json:"payment_total" example:"7500000"`
+	Details      []PaymentDetailRequest `json:"details"`
 }
 
 // PaginatedPaymentsResponse adalah wrapper response paginasi untuk daftar pembayaran customer.
@@ -215,8 +216,8 @@ func CreatePayment(c *fiber.Ctx) error {
 }
 
 // UpdatePaymentTotal godoc
-// @Summary      Edit total pembayaran
-// @Description  Memperbarui jumlah total pembayaran (payment_total) dan secara otomatis mengalokasikan ulang sisa saldo ke invoice yang bersangkutan secara kronologis.
+// @Summary      Edit pembayaran
+// @Description  Memperbarui jumlah total pembayaran (payment_total) beserta alokasi detail order tanpa memperbarui tanggal dan bukti bayar.
 // @Tags         Payments
 // @Accept       json
 // @Produce      json
@@ -242,12 +243,23 @@ func UpdatePaymentTotal(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "Total pembayaran harus berupa angka valid dan lebih dari 0")
 	}
 
+	if len(req.Details) == 0 {
+		return utils.JSONError(c, fiber.StatusBadRequest, "Details alokasi pembayaran tidak boleh kosong")
+	}
+
 	userID, err := services.ParseUserID(c.Locals("userID").(string))
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
 
-	payment, err := services.UpdatePaymentTotal(id, req.PaymentTotal, userID)
+	var orderIDs []string
+	for _, detail := range req.Details {
+		if detail.OrderID != "" {
+			orderIDs = append(orderIDs, detail.OrderID)
+		}
+	}
+
+	payment, err := services.UpdatePaymentTotal(id, req.PaymentTotal, orderIDs, userID)
 	if err != nil {
 		if errors.Is(err, services.ErrPaymentInvalidUUID) {
 			return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
@@ -258,7 +270,7 @@ func UpdatePaymentTotal(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	return utils.JSONSuccess(c, "Total pembayaran berhasil diperbarui", payment)
+	return utils.JSONSuccess(c, "Pembayaran berhasil diperbarui", payment)
 }
 
 // GetCustomerPaymentDetail godoc

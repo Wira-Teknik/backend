@@ -285,6 +285,12 @@ definitions:
         example: 100
         type: integer
     type: object
+  controllers.PaymentDetailRequest:
+    properties:
+      order_id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+    type: object
   controllers.RegisterRequest:
     properties:
       email:
@@ -363,6 +369,10 @@ definitions:
     type: object
   controllers.UpdatePaymentTotalRequest:
     properties:
+      details:
+        items:
+          $ref: '#/definitions/controllers.PaymentDetailRequest'
+        type: array
       payment_total:
         example: 7500000
         type: number
@@ -2066,9 +2076,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Memperbarui jumlah total pembayaran (payment_total) dan secara
-        otomatis mengalokasikan ulang sisa saldo ke invoice yang bersangkutan secara
-        kronologis.
+      description: Memperbarui jumlah total pembayaran (payment_total) beserta alokasi
+        detail order tanpa memperbarui tanggal dan bukti bayar.
       parameters:
       - description: Payment ID
         in: path
@@ -2103,7 +2112,7 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: Edit total pembayaran
+      summary: Edit pembayaran
       tags:
       - Payments
   /payments/customer/{name}:
