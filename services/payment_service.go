@@ -54,10 +54,21 @@ type CustomerPaymentSummary struct {
 	TotalTagihan float64 `json:"total_tagihan"`
 }
 
+type PaymentDetailDTO struct {
+	ID              uuid.UUID          `json:"id"`
+	PaymentID       uuid.UUID          `json:"payment_id"`
+	InvoiceID       uuid.UUID          `json:"invoice_id"`
+	InvoiceNo       string             `json:"invoice_no"`
+	AllocatedAmount float64            `json:"allocated_amount"`
+	CreatedAt       utils.JSONDateTime `json:"created_at"`
+	UpdatedAt       utils.JSONDateTime `json:"updated_at"`
+}
+
 type OrderPaymentDTO struct {
-	PaymentID       uuid.UUID      `json:"payment_id"`
-	PaymentDate     utils.JSONDate `json:"payment_date"`
-	AllocatedAmount float64        `json:"allocated_amount"`
+	PaymentID       uuid.UUID          `json:"payment_id"`
+	PaymentDate     utils.JSONDate     `json:"payment_date"`
+	AllocatedAmount float64            `json:"allocated_amount"`
+	Details         []PaymentDetailDTO `json:"details"`
 }
 
 type OrderWithPaymentsDTO struct {
@@ -770,7 +781,42 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 			return CustomerPaymentDetailResponse{}, err
 		}
 
+		// Kumpulkan semua InvoiceID dari payment details untuk mengambil data invoice_no secara massal
+		var allInvoiceIDs []uuid.UUID
 		for _, p := range payments {
+			for _, d := range p.Details {
+				allInvoiceIDs = append(allInvoiceIDs, d.InvoiceID)
+			}
+		}
+
+		invoiceNoMap := make(map[uuid.UUID]string)
+		if len(allInvoiceIDs) > 0 {
+			var invoices []models.Invoice
+			if err := config.DB.Select("id, invoice_no").Where("id IN ?", allInvoiceIDs).Find(&invoices).Error; err == nil {
+				for _, inv := range invoices {
+					invoiceNoMap[inv.ID] = inv.InvoiceNo
+				}
+			}
+		}
+
+		for _, p := range payments {
+			// Konversi details ke DTO yang memuat invoice_no
+			var detailsDTO []PaymentDetailDTO
+			for _, d := range p.Details {
+				detailsDTO = append(detailsDTO, PaymentDetailDTO{
+					ID:              d.ID,
+					PaymentID:       d.PaymentID,
+					InvoiceID:       d.InvoiceID,
+					InvoiceNo:       invoiceNoMap[d.InvoiceID],
+					AllocatedAmount: d.AllocatedAmount,
+					CreatedAt:       d.CreatedAt,
+					UpdatedAt:       d.UpdatedAt,
+				})
+			}
+			if detailsDTO == nil {
+				detailsDTO = []PaymentDetailDTO{}
+			}
+
 			for _, detail := range p.Details {
 				if orderIdx, exists := invoiceToOrderIndexMap[detail.InvoiceID]; exists {
 					// Tambah ke riwayat pembayaran order yang sesuai
@@ -778,6 +824,7 @@ func GetCustomerPaymentDetail(customerName string, poNoFilter string, statusFilt
 						PaymentID:       p.ID,
 						PaymentDate:     p.PaymentDate,
 						AllocatedAmount: detail.AllocatedAmount,
+						Details:         detailsDTO,
 					})
 				}
 			}
