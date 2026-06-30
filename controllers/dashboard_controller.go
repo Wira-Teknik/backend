@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"strconv"
 	"teknik/services"
 	"teknik/utils"
 
@@ -21,7 +22,21 @@ import (
 // @Router       /dashboard [get]
 // @Security     BearerAuth
 func GetDashboard(c *fiber.Ctx) error {
-	metrics, err := services.GetDashboardMetrics()
+	var monthVal *int
+	var yearVal *int
+
+	if monthStr := c.Query("month"); monthStr != "" {
+		if m, err := strconv.Atoi(monthStr); err == nil && m >= 1 && m <= 12 {
+			monthVal = &m
+		}
+	}
+	if yearStr := c.Query("year"); yearStr != "" {
+		if y, err := strconv.Atoi(yearStr); err == nil {
+			yearVal = &y
+		}
+	}
+
+	metrics, err := services.GetDashboardMetrics(monthVal, yearVal)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusInternalServerError, "Gagal mengambil metrik dashboard: "+err.Error())
 	}

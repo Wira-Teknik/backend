@@ -71,32 +71,47 @@ func formatRupiah(amount float64) string {
 // Get Dashboard Metrics
 // ─────────────────────────────────────────────
 
-func GetDashboardMetrics() (DashboardResponseDTO, error) {
+func GetDashboardMetrics(monthParam *int, yearParam *int) (DashboardResponseDTO, error) {
 	var resp DashboardResponseDTO
 
+	now := time.Now()
+	year := now.Year()
+	month := now.Month()
+
+	if yearParam != nil {
+		year = *yearParam
+	}
+	if monthParam != nil {
+		month = time.Month(*monthParam)
+	}
+
+	// Calculate range of month
+	startOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, now.Location())
+	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Nanosecond)
+
 	// 1. Total Pesanan
-	if err := config.DB.Model(&models.Order{}).Count(&resp.TotalPesananCount).Error; err != nil {
+	if err := config.DB.Model(&models.Order{}).Where("order_date >= ? AND order_date <= ?", startOfMonth, endOfMonth).Count(&resp.TotalPesananCount).Error; err != nil {
 		return resp, err
 	}
 
 	// 2. Pesanan Selesai
-	if err := config.DB.Model(&models.Order{}).Where("order_status = ?", models.OrderStatusCompleted).Count(&resp.PesananSelesaiCount).Error; err != nil {
+	if err := config.DB.Model(&models.Order{}).Where("order_date >= ? AND order_date <= ? AND order_status = ?", startOfMonth, endOfMonth, models.OrderStatusCompleted).Count(&resp.PesananSelesaiCount).Error; err != nil {
 		return resp, err
 	}
 
 	// 3. Pesanan Di Proses (Pending + Partial + Shipped)
-	if err := config.DB.Model(&models.Order{}).Where("order_status IN ?", []models.OrderStatus{models.OrderStatusPending, models.OrderStatusPartial, models.OrderStatusShipped}).Count(&resp.PesananDiprosesCount).Error; err != nil {
+	if err := config.DB.Model(&models.Order{}).Where("order_date >= ? AND order_date <= ? AND order_status IN ?", startOfMonth, endOfMonth, []models.OrderStatus{models.OrderStatusPending, models.OrderStatusPartial, models.OrderStatusShipped}).Count(&resp.PesananDiprosesCount).Error; err != nil {
 		return resp, err
 	}
 
 	// 4. Pengiriman Berlangsung / Dikirim
-	if err := config.DB.Model(&models.Shipment{}).Where("shipping_status = ?", models.ShippingStatusDikirim).Count(&resp.DikirimCount).Error; err != nil {
+	if err := config.DB.Model(&models.Shipment{}).Where("shipping_date >= ? AND shipping_date <= ? AND shipping_status = ?", startOfMonth, endOfMonth, models.ShippingStatusDikirim).Count(&resp.DikirimCount).Error; err != nil {
 		return resp, err
 	}
 	resp.PengirimanBerlangsungCount = resp.DikirimCount
 
 	// 5. Pengiriman Selesai
-	if err := config.DB.Model(&models.Shipment{}).Where("shipping_status = ?", models.ShippingStatusDiterima).Count(&resp.PengirimanSelesaiCount).Error; err != nil {
+	if err := config.DB.Model(&models.Shipment{}).Where("shipping_date >= ? AND shipping_date <= ? AND shipping_status = ?", startOfMonth, endOfMonth, models.ShippingStatusDiterima).Count(&resp.PengirimanSelesaiCount).Error; err != nil {
 		return resp, err
 	}
 
@@ -107,6 +122,7 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 	}
 	if err := config.DB.Model(&models.Invoice{}).
 		Select("COUNT(*) AS count, COALESCE(SUM(remaining_balance), 0) AS amount").
+		Where("created_at >= ? AND created_at <= ?", startOfMonth, endOfMonth).
 		Where("payment_status IN ?", []models.PaymentStatus{models.PaymentStatusUnpaid, models.PaymentStatusPartial}).
 		Scan(&unpaidStats).Error; err != nil {
 		return resp, err
@@ -161,8 +177,8 @@ func GetDashboardMetrics() (DashboardResponseDTO, error) {
 		JOIN orders ON orders.id = shipments.order_id AND orders.deleted_at IS NULL
 		WHERE payments.deleted_at IS NULL AND payments.updated_at > payments.created_at
 	`
-	paginatedQuery := fmt.Sprintf("SELECT * FROM (%s) AS combined_activities ORDER BY timestamp DESC LIMIT 10", unionQuery)
-	if err := config.DB.Raw(paginatedQuery).Scan(&rows).Error; err != nil {
+	paginatedQuery := fmt.Sprintf("SELECT * FROM (%s) AS combined_activities WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp DESC LIMIT 10", unionQuery)
+	if err := config.DB.Raw(paginatedQuery, startOfMonth, endOfMonth).Scan(&rows).Error; err != nil {
 		return resp, err
 	}
 
