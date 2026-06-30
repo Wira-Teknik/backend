@@ -30,6 +30,7 @@ import (
 	"teknik/config"
 	"teknik/models"
 	"teknik/routes"
+	"teknik/services"
 
 	swagger "github.com/gofiber/swagger"
 
@@ -72,7 +73,7 @@ func main() {
 	if *resetDbFlag {
 		config.ConnectDatabase()
 		config.ResetDatabase()
-		
+
 		log.Println("Running AutoMigrate after schema reset...")
 		if err := config.DB.AutoMigrate(
 			&models.User{},
@@ -90,7 +91,6 @@ func main() {
 			log.Fatalf("AutoMigrate failed: %v", err)
 		}
 		log.Println("Database migration completed after reset.")
-
 
 		// Seed orders & customers if empty
 		config.SeedCustomers()
@@ -119,7 +119,6 @@ func main() {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 	log.Println("Database migration completed.")
-
 
 	// Seed orders & customers if empty
 	config.SeedCustomers()
@@ -188,6 +187,35 @@ func main() {
 
 	log.Printf("Server %s berjalan di port %s", os.Getenv("APP_NAME"), port)
 	log.Printf("Swagger UI: http://localhost:%s/api/docs/index.html", port)
+
+	// Start background cron job for 3-month overdue reminders
+	go func() {
+		// Menunggu 10 detik setelah startup agar inisialisasi koneksi database selesai sempurna
+		time.Sleep(10 * time.Second)
+
+		// Jalankan scan awal saat server pertama kali dinyalakan
+		log.Println("[Cron Worker] Menjalankan pengecekan awal untuk pengingat jatuh tempo 3 bulan...")
+		count, err := services.Send3MonthOverduePaymentReminders()
+		if err != nil {
+			log.Printf("[Cron Worker] Pengecekan awal gagal: %v\n", err)
+		} else {
+			log.Printf("[Cron Worker] Pengecekan awal selesai, %d email terkirim.\n", count)
+		}
+
+		// Jalankan secara periodik setiap 24 jam sekali
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			log.Println("[Cron Worker] Menjalankan pengecekan berkala untuk pengingat jatuh tempo 3 bulan...")
+			count, err := services.Send3MonthOverduePaymentReminders()
+			if err != nil {
+				log.Printf("[Cron Worker] Pengecekan berkala gagal: %v\n", err)
+			} else {
+				log.Printf("[Cron Worker] Pengecekan berkala selesai, %d email terkirim.\n", count)
+			}
+		}
+	}()
 
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatalf("Server error: %v", err)
