@@ -251,6 +251,13 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 		shipment.Invoice = &invoice
 	}
 
+	// Trigger email notification in background
+	go func(id uuid.UUID) {
+		if err := SendShipmentNotificationEmail(id); err != nil {
+			fmt.Printf("Error sending shipment email: %v\n", err)
+		}
+	}(shipment.ID)
+
 	// Audit log
 	CreateAuditLog(userID, shipmentID, models.AuditActionCreate, "shipments", nil, shipment)
 	if invoiceCreated {
@@ -330,6 +337,13 @@ func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, erro
 	if err := tx.Commit().Error; err != nil {
 		return models.Shipment{}, fmt.Errorf("gagal menyimpan data penerimaan: %w", err)
 	}
+
+	// Trigger received email notification with invoice attachment in background
+	go func(id uuid.UUID) {
+		if err := SendShipmentReceivedNotificationEmail(id); err != nil {
+			fmt.Printf("Error sending shipment received email: %v\n", err)
+		}
+	}(shipment.ID)
 
 	CreateAuditLog(userID, shipment.ID, models.AuditActionUpdate, "shipments", oldShipment, shipment)
 

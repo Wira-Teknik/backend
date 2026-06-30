@@ -18,6 +18,7 @@ const (
 type Invoice struct {
 	ID               uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	ShipmentID       uuid.UUID      `gorm:"type:uuid;not null;index" json:"shipment_id"`
+	Shipment         Shipment       `gorm:"foreignKey:ShipmentID;references:ID" json:"shipment"`
 	InvoiceNo        string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"invoice_no"`
 	TotalAmount      float64        `gorm:"not null" json:"total_amount"`
 	RemainingBalance float64        `gorm:"not null" json:"remaining_balance"`

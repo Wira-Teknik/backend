@@ -408,6 +408,7 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 	}
 
 	// Update setiap invoice
+	var newlyPaidInvoiceIDs []uuid.UUID
 	for _, alloc := range allocations {
 		newBalance := roundTwo(alloc.invoice.RemainingBalance - alloc.allocatedAmount)
 
@@ -428,10 +429,23 @@ func CreatePayment(input CreatePaymentInput, userID uuid.UUID) (models.Payment, 
 			tx.Rollback()
 			return models.Payment{}, fmt.Errorf("gagal memperbarui invoice: %w", err)
 		}
+
+		if alloc.invoice.PaymentStatus != models.PaymentStatusPaid && newStatus == models.PaymentStatusPaid {
+			newlyPaidInvoiceIDs = append(newlyPaidInvoiceIDs, alloc.invoice.ID)
+		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		return models.Payment{}, fmt.Errorf("gagal menyimpan data pembayaran: %w", err)
+	}
+
+	// Kirim notifikasi email pembayaran lunas untuk invoice yang baru lunas
+	for _, invID := range newlyPaidInvoiceIDs {
+		go func(id uuid.UUID) {
+			if err := SendInvoicePaidNotificationEmail(id); err != nil {
+				fmt.Printf("Error sending invoice paid email for invoice %s: %v\n", id, err)
+			}
+		}(invID)
 	}
 
 	CreateAuditLog(userID, paymentID, models.AuditActionCreate, "payments", nil, payment)
@@ -562,6 +576,7 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, orderIDs []string
 
 	// 7. REALLOCATE: Alokasikan newTotal secara kronologis ke invoice-invoice baru
 	var newDetails []models.PaymentDetail
+	var newlyPaidInvoiceIDs []uuid.UUID
 	sisaDana := newTotal
 
 	for i := range invoices {
@@ -577,9 +592,11 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, orderIDs []string
 
 		// Update invoice dengan alokasi baru
 		inv.RemainingBalance = roundTwo(inv.RemainingBalance - alokasi)
+		var isPaidNow bool
 		if inv.RemainingBalance <= 0 {
 			inv.PaymentStatus = models.PaymentStatusPaid
 			inv.RemainingBalance = 0
+			isPaidNow = true
 		} else {
 			inv.PaymentStatus = models.PaymentStatusPartial
 		}
@@ -587,6 +604,10 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, orderIDs []string
 		if err := tx.Save(inv).Error; err != nil {
 			tx.Rollback()
 			return models.Payment{}, fmt.Errorf("gagal memperbarui alokasi saldo invoice %s: %w", inv.ID, err)
+		}
+
+		if isPaidNow {
+			newlyPaidInvoiceIDs = append(newlyPaidInvoiceIDs, inv.ID)
 		}
 
 		// Buat detail alokasi baru
@@ -617,6 +638,15 @@ func UpdatePaymentTotal(paymentIDStr string, newTotal float64, orderIDs []string
 	// Commit transaksi
 	if err := tx.Commit().Error; err != nil {
 		return models.Payment{}, fmt.Errorf("gagal melakukan commit transaksi: %w", err)
+	}
+
+	// Kirim notifikasi email pembayaran lunas untuk invoice yang baru lunas
+	for _, invID := range newlyPaidInvoiceIDs {
+		go func(id uuid.UUID) {
+			if err := SendInvoicePaidNotificationEmail(id); err != nil {
+				fmt.Printf("Error sending invoice paid email for invoice %s: %v\n", id, err)
+			}
+		}(invID)
 	}
 
 	// 9. Catat Audit Log UPDATE
