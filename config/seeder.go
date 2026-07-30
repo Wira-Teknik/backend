@@ -96,6 +96,8 @@ func SeedOrders() {
 				UnitPrice:    item.UnitPrice,
 				PPN:          ppn,
 				Subtotal:     subtotal,
+				CreatedAt:    utils.JSONDateTime(orderDate),
+				UpdatedAt:    utils.JSONDateTime(orderDate),
 			})
 		}
 
@@ -110,6 +112,8 @@ func SeedOrders() {
 			RecipientEmail:   so.RecipientEmail,
 			OrderStatus:      models.OrderStatusPending,
 			Items:            items,
+			CreatedAt:        utils.JSONDateTime(orderDate),
+			UpdatedAt:        utils.JSONDateTime(orderDate),
 		}
 
 		if err := tx.Create(&order).Error; err != nil {
