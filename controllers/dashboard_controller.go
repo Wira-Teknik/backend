@@ -12,6 +12,7 @@ import (
 // Dashboard
 // ─────────────────────────────────────────────
 
+// GetDashboard menangani permintaan untuk mengambil metrik ringkasan dashboard.
 // GetDashboard godoc
 // @Summary      Ambil Metrik Dashboard
 // @Description  Mengambil agregasi metrik untuk keperluan halaman Dashboard (mendukung format untuk Admin maupun Owner).
@@ -51,6 +52,7 @@ type PaginatedActivitiesResponse struct {
 	Pagination PaginationMeta                 `json:"pagination"`
 }
 
+// GetAllDashboardActivities menangani permintaan untuk mengambil semua aktivitas terbaru (pesanan, pengiriman, pembayaran) dengan paginasi dan filter tanggal.
 // GetAllDashboardActivities godoc
 // @Summary      Ambil Semua Aktivitas Terakhir Dashboard
 // @Description  Mengambil daftar lengkap seluruh aktivitas terbaru (pengiriman, pemesanan, dan pembayaran) untuk disajikan pada layar "Lihat Semua" Aktivitas Terakhir di Dashboard dengan dukungan pagination dan filter rentang tanggal.

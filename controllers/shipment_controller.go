@@ -35,6 +35,7 @@ type UpdateShipmentItemsRequest struct {
 // Get Shipments by Order
 // ─────────────────────────────────────────────
 
+// GetShipmentsByOrder menangani permintaan untuk mengambil daftar pengiriman berdasarkan ID Order.
 // GetShipmentsByOrder godoc
 // @Summary      Ambil semua pengiriman berdasarkan Order
 // @Description  Mengambil daftar pengiriman beserta item-nya untuk order tertentu
@@ -84,6 +85,7 @@ func GetShipmentsByOrder(c *fiber.Ctx) error {
 // Get Shipment Detail
 // ─────────────────────────────────────────────
 
+// GetShipment menangani permintaan untuk mengambil detail pengiriman berdasarkan ID.
 // GetShipment godoc
 // @Summary      Ambil detail pengiriman
 // @Description  Mengambil detail pengiriman termasuk item-itemnya (tanpa created_at & updated_at)
@@ -134,6 +136,7 @@ func GetShipment(c *fiber.Ctx) error {
 // Create Shipment (Partial Shipment)
 // ─────────────────────────────────────────────
 
+// CreateShipment menangani permintaan pembuatan pengiriman baru.
 // CreateShipment godoc
 // @Summary      Buat pengiriman baru (partial shipment)
 // @Description  Membuat pengiriman baru dari order. Jumlah kirim tidak boleh melebihi sisa qty. Invoice otomatis di-generate. Status order diperbarui otomatis (partial/shipped).
@@ -231,6 +234,7 @@ func CreateShipment(c *fiber.Ctx) error {
 // Confirm Received
 // ─────────────────────────────────────────────
 
+// ConfirmShipmentReceived menangani permintaan konfirmasi penerimaan pengiriman barang.
 // ConfirmShipmentReceived godoc
 // @Summary      Konfirmasi penerimaan barang
 // @Description  Mengubah status pengiriman menjadi 'diterima' dan mencatat tanggal penerimaan (tanpa created_at & updated_at). Jika semua item terkirim dan semua shipment diterima, status order menjadi 'completed'.
@@ -282,6 +286,7 @@ func ConfirmShipmentReceived(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, "Penerimaan barang berhasil dikonfirmasi", response)
 }
 
+// UpdateShipmentItems menangani permintaan untuk memperbarui daftar item dan kuantitas barang pengiriman.
 // UpdateShipmentItems godoc
 // @Summary      Edit kuantitas barang dikirim
 // @Description  Memperbarui daftar item dan kuantitas barang pada pengiriman yang sudah dibuat. Menghitung ulang remaining_qty pesanan dan nominal invoice secara otomatis.

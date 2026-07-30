@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Payment merepresentasikan data pembayaran (payment) dari pelanggan.
 type Payment struct {
 	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	PaymentTotal float64        `gorm:"not null" json:"payment_total"`

@@ -75,6 +75,7 @@ func GenerateTransactionNo() string {
 }
 
 // roundTwo pembulatan 2 desimal.
+// roundTwo membulatkan nilai desimal float64 ke dua tempat desimal.
 func roundTwo(val float64) float64 {
 	return math.Round(val*100) / 100
 }
@@ -137,6 +138,7 @@ func computeOrderPaymentInfo(order *models.Order) {
 	}
 }
 
+// GetAllOrders mengambil daftar pesanan yang difilter dan diurutkan beserta total data untuk paginasi.
 func GetAllOrders(startDate, endDate, search, orderStatus string, page, limit int) ([]models.Order, int64, error) {
 	var orders []models.Order
 	query := config.DB.Model(&models.Order{}).
@@ -202,6 +204,7 @@ func GetAllOrders(startDate, endDate, search, orderStatus string, page, limit in
 // Get Order By ID
 // ─────────────────────────────────────────────
 
+// GetOrderByID mengambil detail pesanan lengkap berdasarkan ID.
 func GetOrderByID(id string) (models.Order, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return models.Order{}, ErrOrderInvalidUUID
@@ -238,6 +241,7 @@ func GetOrderByID(id string) (models.Order, error) {
 // Create Order (with Items)
 // ─────────────────────────────────────────────
 
+// CreateOrder membuat pesanan baru beserta detail barang-barangnya.
 func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error) {
 	input.RecipientName = strings.TrimSpace(input.RecipientName)
 	input.TransactionNo = strings.TrimSpace(input.TransactionNo)
@@ -331,6 +335,7 @@ func CreateOrder(input CreateOrderInput, userID uuid.UUID) (models.Order, error)
 // Update Order (header only, status must be pending)
 // ─────────────────────────────────────────────
 
+// UpdateOrder memperbarui data header pesanan (hanya jika statusnya masih pending).
 func UpdateOrder(id string, input UpdateOrderInput, userID uuid.UUID) (models.Order, error) {
 	order, err := GetOrderByID(id)
 	if err != nil {
@@ -380,6 +385,7 @@ func UpdateOrder(id string, input UpdateOrderInput, userID uuid.UUID) (models.Or
 // Delete Order (only if pending)
 // ─────────────────────────────────────────────
 
+// DeleteOrder menghapus pesanan beserta item-itemnya jika statusnya masih pending.
 func DeleteOrder(id string, userID uuid.UUID) error {
 	order, err := GetOrderByID(id)
 	if err != nil {

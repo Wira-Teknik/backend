@@ -40,6 +40,7 @@ type dbActivity struct {
 	Status        string    `gorm:"column:status"`
 }
 
+// formatRupiah memformat nilai angka float64 menjadi format string mata uang Rupiah.
 func formatRupiah(amount float64) string {
 	val := int64(amount)
 	s := fmt.Sprintf("%d", val)
@@ -71,6 +72,7 @@ func formatRupiah(amount float64) string {
 // Get Dashboard Metrics
 // ─────────────────────────────────────────────
 
+// GetDashboardMetrics mengagregasikan berbagai metrik untuk keperluan tampilan ringkasan dashboard.
 func GetDashboardMetrics(monthParam *int, yearParam *int) (DashboardResponseDTO, error) {
 	var resp DashboardResponseDTO
 
@@ -237,6 +239,7 @@ func GetDashboardMetrics(monthParam *int, yearParam *int) (DashboardResponseDTO,
 // Get All Dashboard Activities
 // ─────────────────────────────────────────────
 
+// GetAllDashboardActivities mengambil daftar seluruh aktivitas dashboard secara terpaginasi dengan filter tanggal.
 func GetAllDashboardActivities(startDate, endDate string, page, limit int) ([]DashboardActivityDTO, int64, error) {
 	unionQuery := `
 		SELECT 'shipment' AS activity_type, shipments.created_at AS timestamp, orders.po_no, orders.transaction_no, orders.recipient_name, 0.0 AS amount, 'dikirim' AS status

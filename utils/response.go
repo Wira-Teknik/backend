@@ -9,7 +9,7 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-// JSONSuccess sends a 200 OK JSON response.
+// JSONSuccess mengirimkan respons JSON 200 OK.
 func JSONSuccess(c *fiber.Ctx, message string, data interface{}) error {
 	return c.Status(fiber.StatusOK).JSON(Response{
 		Success: true,
@@ -18,7 +18,7 @@ func JSONSuccess(c *fiber.Ctx, message string, data interface{}) error {
 	})
 }
 
-// JSONCreated sends a 201 Created JSON response.
+// JSONCreated mengirimkan respons JSON 201 Created.
 func JSONCreated(c *fiber.Ctx, message string, data interface{}) error {
 	return c.Status(fiber.StatusCreated).JSON(Response{
 		Success: true,
@@ -27,7 +27,7 @@ func JSONCreated(c *fiber.Ctx, message string, data interface{}) error {
 	})
 }
 
-// JSONError sends an error JSON response with the given status code.
+// JSONError mengirimkan respons JSON error dengan status code yang ditentukan.
 func JSONError(c *fiber.Ctx, status int, message string) error {
 	return c.Status(status).JSON(Response{
 		Success: false,

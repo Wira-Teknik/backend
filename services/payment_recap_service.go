@@ -79,6 +79,7 @@ type DetailPaidDTO struct {
 // Helpers
 // ─────────────────────────────────────────────
 
+// parseRecapDates mem-parse tanggal rentang dari RecapFilter menjadi tipe time.Time.
 func parseRecapDates(f RecapFilter) (time.Time, time.Time, error) {
 	layout := "2006-01-02"
 	start := time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local)
@@ -170,6 +171,7 @@ func queryInvoicesPage(start, end time.Time, search string, page, limit int, sta
 	return rows, total, err
 }
 
+// mapPaymentStatus memetakan string status pembayaran database ke string teks ramah client.
 func mapPaymentStatus(s string) string {
 	switch models.PaymentStatus(s) {
 	case models.PaymentStatusPaid:
@@ -181,6 +183,7 @@ func mapPaymentStatus(s string) string {
 	}
 }
 
+// mapOrderStatus memetakan string status order database ke string teks ramah client.
 func mapOrderStatus(s string) string {
 	switch models.OrderStatus(s) {
 	case models.OrderStatusCompleted:
@@ -198,6 +201,7 @@ func mapOrderStatus(s string) string {
 // 1. Summary
 // ─────────────────────────────────────────────
 
+// GetPaymentRecapSummary menghitung ringkasan rekapitulasi pembayaran berdasarkan filter.
 func GetPaymentRecapSummary(f RecapFilter) (RecapSummaryDTO, error) {
 	var resp RecapSummaryDTO
 
@@ -242,6 +246,7 @@ func GetPaymentRecapSummary(f RecapFilter) (RecapSummaryDTO, error) {
 // 2. Detail Pendapatan
 // ─────────────────────────────────────────────
 
+// GetDetailPendapatan mengambil detail pendapatan total dan daftar invoice terfilter.
 func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, int64, error) {
 	var resp DetailPendapatanDTO
 
@@ -309,6 +314,7 @@ func GetDetailPendapatan(f RecapFilter) (DetailPendapatanDTO, int64, error) {
 // 3. Detail Pesanan
 // ─────────────────────────────────────────────
 
+// GetDetailPesanan mengambil detail nominal pesanan total dan daftar pesanan terfilter.
 func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, int64, error) {
 	var resp DetailPesananDTO
 
@@ -421,6 +427,7 @@ func GetDetailPesanan(f RecapFilter) (DetailPesananDTO, int64, error) {
 // 4. Detail Unpaid
 // ─────────────────────────────────────────────
 
+// GetDetailUnpaid mengambil detail sisa tagihan/belum lunas beserta daftar invoice terkait.
 func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, int64, error) {
 	var resp DetailUnpaidDTO
 
@@ -478,6 +485,7 @@ func GetDetailUnpaid(f RecapFilter) (DetailUnpaidDTO, int64, error) {
 // 5. Detail Paid
 // ─────────────────────────────────────────────
 
+// GetDetailPaid mengambil detail tagihan yang lunas beserta daftar invoice terkait.
 func GetDetailPaid(f RecapFilter) (DetailPaidDTO, int64, error) {
 	var resp DetailPaidDTO
 

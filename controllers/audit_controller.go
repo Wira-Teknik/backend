@@ -11,6 +11,7 @@ import (
 // Get Audit Logs
 // ─────────────────────────────────────────────
 
+// GetAuditLogs menangani permintaan untuk mengambil log audit aktivitas admin (khusus untuk role owner).
 // GetAuditLogs godoc
 // @Summary      Ambil audit logs
 // @Description  Mengambil daftar log audit aktivitas admin. Khusus untuk role owner.

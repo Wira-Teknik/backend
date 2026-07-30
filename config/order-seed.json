@@ -9,14 +9,14 @@
     "recipient_email": "dwj@djambiwaras.co.id",
     "items": [
       {
-        "product_name": "Bearing SKF 6205",
-        "order_qty": 50,
-        "unit_price": 75000
+        "product_name": "BEARING SP",
+        "order_qty": 10,
+        "unit_price": 750000
       },
       {
-        "product_name": "Gasket Oil Seal",
-        "order_qty": 100,
-        "unit_price": 12500
+        "product_name": "RODA GIGI X PS 100",
+        "order_qty": 5,
+        "unit_price": 200000
       }
     ]
   },
@@ -30,9 +30,14 @@
     "recipient_email": "kmp@kiranamusi.co.id",
     "items": [
       {
-        "product_name": "Pelumas Mesin 1L",
-        "order_qty": 30,
-        "unit_price": 65000
+        "product_name": "RODA GIGI PINION 25T",
+        "order_qty": 2,
+        "unit_price": 2500000
+      },
+      {
+        "product_name": "1PC+1PCS YG PAKAI K KAMBING",
+        "order_qty": 4,
+        "unit_price": 2750000
       }
     ]
   },
@@ -46,14 +51,14 @@
     "recipient_email": "kp@kiranapermata.co.id",
     "items": [
       {
-        "product_name": "V-Belt A30",
-        "order_qty": 40,
-        "unit_price": 45000
+        "product_name": "RODA GIGI 72T",
+        "order_qty": 8,
+        "unit_price": 905000
       },
       {
-        "product_name": "Baut M10x50",
-        "order_qty": 500,
-        "unit_price": 2500
+        "product_name": "RODA GIGI 18T",
+        "order_qty": 12,
+        "unit_price": 200000
       }
     ]
   },
@@ -67,9 +72,14 @@
     "recipient_email": "djj@djambiwaras.co.id",
     "items": [
       {
-        "product_name": "Bearing SKF 6205",
-        "order_qty": 100,
-        "unit_price": 75000
+        "product_name": "WORM GEAR 18T",
+        "order_qty": 15,
+        "unit_price": 693000
+      },
+      {
+        "product_name": "WORM SHARFT 110X80",
+        "order_qty": 3,
+        "unit_price": 1000000
       }
     ]
   },
@@ -83,14 +93,14 @@
     "recipient_email": "kjp@komeringjaya.co.id",
     "items": [
       {
-        "product_name": "Gasket Oil Seal",
-        "order_qty": 150,
-        "unit_price": 12500
+        "product_name": "WORM GEAR 96T",
+        "order_qty": 6,
+        "unit_price": 3000000
       },
       {
-        "product_name": "Mur M10",
-        "order_qty": 1000,
-        "unit_price": 1000
+        "product_name": "WORM SHARFT 100X300",
+        "order_qty": 2,
+        "unit_price": 0
       }
     ]
   },
@@ -104,9 +114,14 @@
     "recipient_email": "aal@andalasagro.co.id",
     "items": [
       {
-        "product_name": "Pelumas Mesin 1L",
-        "order_qty": 20,
-        "unit_price": 65000
+        "product_name": "RODA GIGI PINION 20T R",
+        "order_qty": 10,
+        "unit_price": 1000000
+      },
+      {
+        "product_name": "RODA GIGI PINION 20T L",
+        "order_qty": 10,
+        "unit_price": 1000000
       }
     ]
   },
@@ -120,14 +135,14 @@
     "recipient_email": "abl@anugerahbungo.co.id",
     "items": [
       {
-        "product_name": "Bearing SKF 6205",
-        "order_qty": 30,
-        "unit_price": 75000
+        "product_name": "RODA GIGI PAYUNG 30T",
+        "order_qty": 4,
+        "unit_price": 0
       },
       {
-        "product_name": "V-Belt A30",
-        "order_qty": 15,
-        "unit_price": 45000
+        "product_name": "RODA GIGI PAYUNG 20T",
+        "order_qty": 4,
+        "unit_price": 0
       }
     ]
   },
@@ -141,9 +156,14 @@
     "recipient_email": "nkp@newkalbar.co.id",
     "items": [
       {
-        "product_name": "Baut M10x50",
-        "order_qty": 800,
-        "unit_price": 2500
+        "product_name": "WORM SHARFT SETIUR",
+        "order_qty": 5,
+        "unit_price": 0
+      },
+      {
+        "product_name": "WORM GEAR SETIUR",
+        "order_qty": 5,
+        "unit_price": 0
       }
     ]
   },
@@ -157,9 +177,14 @@
     "recipient_email": "tss@tirtasari.co.id",
     "items": [
       {
-        "product_name": "Pelumas Mesin 1L",
-        "order_qty": 50,
-        "unit_price": 65000
+        "product_name": "PLAT KUNINGAN 150X72X5",
+        "order_qty": 20,
+        "unit_price": 150000
+      },
+      {
+        "product_name": "AS PISAU",
+        "order_qty": 6,
+        "unit_price": 0
       }
     ]
   },
@@ -173,14 +198,354 @@
     "recipient_email": "bgp@bintanggasing.co.id",
     "items": [
       {
-        "product_name": "V-Belt A30",
-        "order_qty": 50,
-        "unit_price": 45000
+        "product_name": "AS UNTUK GEARBOX 2PCS",
+        "order_qty": 2,
+        "unit_price": 0
       },
       {
-        "product_name": "Bearing SKF 6205",
-        "order_qty": 40,
-        "unit_price": 75000
+        "product_name": "BUSHING GERDANG 2PCS",
+        "order_qty": 8,
+        "unit_price": 0
+      },
+      {
+        "product_name": "BLOCK GERDANG",
+        "order_qty": 1,
+        "unit_price": 0
+      },
+      {
+        "product_name": "BARU GRENDA",
+        "order_qty": 50,
+        "unit_price": 20000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/11/2026",
+    "po_no": "511/PO-WT/VII/26",
+    "order_date": "2026-07-01",
+    "recipient_name": "PT. KAHAYAN BERSERI",
+    "recipient_address": "JL. TRANS KALIMANTAN KM 71 GARONG JABIREN RAYA PULANG PISAU KALIMANTAN TENGAH",
+    "recipient_phone": "082256361323",
+    "recipient_email": "kb@kahayanberseri.co.id",
+    "items": [
+      {
+        "product_name": "BEARING SP",
+        "order_qty": 20,
+        "unit_price": 750000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/12/2026",
+    "po_no": "512/PO-WT/VII/26",
+    "order_date": "2026-07-02",
+    "recipient_name": "BPK. ELIADI",
+    "recipient_address": "JL. LINTAS SUMATERA KM.3 MUARA BUNGO",
+    "recipient_phone": "082155353388",
+    "recipient_email": "eliadi@dummy.com",
+    "items": [
+      {
+        "product_name": "RODA GIGI X PS 100",
+        "order_qty": 10,
+        "unit_price": 200000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/13/2026",
+    "po_no": "513/PO-WT/VII/26",
+    "order_date": "2026-07-04",
+    "recipient_name": "PANTJA SURYA",
+    "recipient_address": "PERDAGANGAN",
+    "recipient_phone": "085372533700",
+    "recipient_email": "pantjasurya@dummy.com",
+    "items": [
+      {
+        "product_name": "RODA GIGI PINION 25T",
+        "order_qty": 5,
+        "unit_price": 2500000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/14/2026",
+    "po_no": "514/PO-WT/VII/26",
+    "order_date": "2026-07-05",
+    "recipient_name": "PT. VICTORINDO KENCANA TEKNIK",
+    "recipient_address": "JL. PULAU BUNAKEN NO. A-3 KIM III KEL TANGKAHAN KEC MEDAN LABUHAN",
+    "recipient_phone": "08126043887",
+    "recipient_email": "vkt@victorindo.co.id",
+    "items": [
+      {
+        "product_name": "1PC+1PCS YG PAKAI K KAMBING",
+        "order_qty": 6,
+        "unit_price": 2750000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/15/2026",
+    "po_no": "515/PO-WT/VII/26",
+    "order_date": "2026-07-07",
+    "recipient_name": "PT. KIRANA WINDU",
+    "recipient_address": "JL. LINTAS SUMATERA KM.98 PASAR SURULANGUN KEC. RAWAS ULU KAB. MUSI RAWAS SUMATERA SELATAN",
+    "recipient_phone": "081298620825",
+    "recipient_email": "kw@kiranawindu.co.id",
+    "items": [
+      {
+        "product_name": "RODA GIGI 72T",
+        "order_qty": 15,
+        "unit_price": 905000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/16/2026",
+    "po_no": "516/PO-WT/VII/26",
+    "order_date": "2026-07-08",
+    "recipient_name": "PT. BORNEO MAKMUR LESTARI",
+    "recipient_address": "JL. TJILIK RIWUT KM-47 PALANGKARAYA KALIMANTAN TENGAH",
+    "recipient_phone": "082154734214",
+    "recipient_email": "bml@borneomakmur.co.id",
+    "items": [
+      {
+        "product_name": "RODA GIGI 18T",
+        "order_qty": 30,
+        "unit_price": 200000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/17/2026",
+    "po_no": "517/PO-WT/VII/26",
+    "order_date": "2026-07-10",
+    "recipient_name": "PT. SUMBETRI MEGAH",
+    "recipient_address": "JL. RAYA MEDAN-BANDA ACEH KM.91 BESITANG KAB, LANGKAT SUMATERA UTARA",
+    "recipient_phone": "082165367660",
+    "recipient_email": "sm@sumbetrimegah.co.id",
+    "items": [
+      {
+        "product_name": "WORM GEAR 18T",
+        "order_qty": 20,
+        "unit_price": 693000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/18/2026",
+    "po_no": "518/PO-WT/VII/26",
+    "order_date": "2026-07-11",
+    "recipient_name": "PT. FAJAR BERSERI",
+    "recipient_address": "JL. PLTU AIR ANYER DUSUN MUDEL MERAWANG BANGKA, BANGKA BELITUNG",
+    "recipient_phone": "+6287797538707",
+    "recipient_email": "fb@fajarberseri.co.id",
+    "items": [
+      {
+        "product_name": "WORM SHARFT 110X80",
+        "order_qty": 8,
+        "unit_price": 1000000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/19/2026",
+    "po_no": "519/PO-WT/VII/26",
+    "order_date": "2026-07-13",
+    "recipient_name": "PT. LINGGA DJAJA",
+    "recipient_address": "JALAN MESJID LAMA NO. 136, 17 ILIR, ILIR TIMUR 1 PALEMBANG",
+    "recipient_phone": "08127122108",
+    "recipient_email": "ld@linggadjaja.co.id",
+    "items": [
+      {
+        "product_name": "WORM GEAR 96T",
+        "order_qty": 10,
+        "unit_price": 3000000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/20/2026",
+    "po_no": "520/PO-WT/VII/26",
+    "order_date": "2026-07-14",
+    "recipient_name": "PT. KIRANA SAPTA",
+    "recipient_address": "JL RAYA AEK GODANG GUNUNG TUA KM-26, KAB TAPANULI SELATAN SUMATERA UTARA",
+    "recipient_phone": "082368880418",
+    "recipient_email": "ks@kiranasapta.co.id",
+    "items": [
+      {
+        "product_name": "WORM SHARFT 100X300",
+        "order_qty": 5,
+        "unit_price": 0
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/21/2026",
+    "po_no": "521/PO-WT/VII/26",
+    "order_date": "2026-07-16",
+    "recipient_name": "PT. WILSON LAUTAN KARET",
+    "recipient_address": "JL. BARITO HULU 43, BANJARMASIN 70118 KALIMANTAN SELATAN",
+    "recipient_phone": "082155619564",
+    "recipient_email": "wlk@wilsonlautan.co.id",
+    "items": [
+      {
+        "product_name": "RODA GIGI PINION 20T R",
+        "order_qty": 15,
+        "unit_price": 1000000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/22/2026",
+    "po_no": "522/PO-WT/VII/26",
+    "order_date": "2026-07-17",
+    "recipient_name": "BPK. MESMAN",
+    "recipient_address": "POLONIA",
+    "recipient_phone": "-",
+    "recipient_email": "mesman@dummy.com",
+    "items": [
+      {
+        "product_name": "RODA GIGI PINION 20T L",
+        "order_qty": 15,
+        "unit_price": 1000000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/23/2026",
+    "po_no": "523/PO-WT/VII/26",
+    "order_date": "2026-07-19",
+    "recipient_name": "PT. BINTANG AGUNG PERSADA",
+    "recipient_address": "KARANG ANYAR SUMBER MARGA TELANG, KAB. BANYUASIN , SUMATERA SELATAN",
+    "recipient_phone": "082177997129",
+    "recipient_email": "bap@bintangagung.co.id",
+    "items": [
+      {
+        "product_name": "RODA GIGI PAYUNG 30T",
+        "order_qty": 6,
+        "unit_price": 0
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/24/2026",
+    "po_no": "524/PO-WT/VII/26",
+    "order_date": "2026-07-20",
+    "recipient_name": "PT. KARET BATIN DELAPAN",
+    "recipient_address": "SAROLANGUN",
+    "recipient_phone": "-",
+    "recipient_email": "kbd@karetbatindelapan.co.id",
+    "items": [
+      {
+        "product_name": "RODA GIGI PAYUNG 20T",
+        "order_qty": 6,
+        "unit_price": 0
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/25/2026",
+    "po_no": "525/PO-WT/VII/26",
+    "order_date": "2026-07-22",
+    "recipient_name": "PT. MADJIN CRUMB RUBBER FACTORY",
+    "recipient_address": "JL MESJID LINGK. VI PEKAN INDRAPURA-AIR PUTIH",
+    "recipient_phone": "085296955060",
+    "recipient_email": "mcrf@madjincumb.co.id",
+    "items": [
+      {
+        "product_name": "WORM SHARFT SETIUR",
+        "order_qty": 10,
+        "unit_price": 0
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/26/2026",
+    "po_no": "526/PO-WT/VII/26",
+    "order_date": "2026-07-23",
+    "recipient_name": "PT. MAXIMA DAYA INDONESIA",
+    "recipient_address": "JL. RAYA MEDAN-BANDA ACEH KM.91 BESITANG KAB, LANGKAT SUMATERA UTARA",
+    "recipient_phone": "082165367660",
+    "recipient_email": "mdi@maximadaya.co.id",
+    "items": [
+      {
+        "product_name": "WORM GEAR SETIUR",
+        "order_qty": 10,
+        "unit_price": 0
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/27/2026",
+    "po_no": "527/PO-WT/VII/26",
+    "order_date": "2026-07-25",
+    "recipient_name": "PT. DJAMBI WARAS (DWJ)",
+    "recipient_address": "KOPTU A. GULTOM RT006 TANJUNG JOHOR PELAYANGAN KOTA JAMBI-JAMBI",
+    "recipient_phone": "085378890986",
+    "recipient_email": "dwj@djambiwaras.co.id",
+    "items": [
+      {
+        "product_name": "PLAT KUNINGAN 150X72X5",
+        "order_qty": 30,
+        "unit_price": 150000
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/28/2026",
+    "po_no": "528/PO-WT/VII/26",
+    "order_date": "2026-07-26",
+    "recipient_name": "PT. KIRANA MUSI PERSADA",
+    "recipient_address": "BATAS KOTA SEKAYU SUKARAME KM.13 MUBA SEKAYU",
+    "recipient_phone": "082175631004",
+    "recipient_email": "kmp@kiranamusi.co.id",
+    "items": [
+      {
+        "product_name": "AS PISAU",
+        "order_qty": 12,
+        "unit_price": 0
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/29/2026",
+    "po_no": "529/PO-WT/VII/26",
+    "order_date": "2026-07-28",
+    "recipient_name": "PT. KIRANA PERMATA",
+    "recipient_address": "JL. LINTAS PRABUMULI BATU RAJA KM 44 DESA AUR KEC LUBAI PRABUMULIH",
+    "recipient_phone": "085381648160",
+    "recipient_email": "kp@kiranapermata.co.id",
+    "items": [
+      {
+        "product_name": "AS UNTUK GEARBOX 2PCS",
+        "order_qty": 4,
+        "unit_price": 0
+      },
+      {
+        "product_name": "BUSHING GERDANG 2PCS",
+        "order_qty": 10,
+        "unit_price": 0
+      }
+    ]
+  },
+  {
+    "transaction_no": "NF/WT/30/2026",
+    "po_no": "530/PO-WT/VII/26",
+    "order_date": "2026-07-29",
+    "recipient_name": "PT. DJAMBI WARAS (DJJ)",
+    "recipient_address": "JL. LINTAS SUMATERA KM.54 KEL. SIRIH SEKAPUR KEC. JUJUHAN KAB. MUARA BUNGO Prov. JAMBI",
+    "recipient_phone": "085263504105",
+    "recipient_email": "djj@djambiwaras.co.id",
+    "items": [
+      {
+        "product_name": "BLOCK GERDANG",
+        "order_qty": 5,
+        "unit_price": 0
+      },
+      {
+        "product_name": "BARU GRENDA",
+        "order_qty": 100,
+        "unit_price": 20000
       }
     ]
   }

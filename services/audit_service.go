@@ -63,6 +63,7 @@ type AuditLogDTO struct {
 	Description string `json:"description"`
 }
 
+// GetAuditLogs mengambil daftar log audit berdasarkan pencarian nama admin.
 func GetAuditLogs(searchAdminName string) ([]AuditLogDTO, error) {
 	var logs []models.AuditLog
 
@@ -101,6 +102,7 @@ func GetAuditLogs(searchAdminName string) ([]AuditLogDTO, error) {
 	return dtos, nil
 }
 
+// getFriendlyAction memetakan aksi audit mentah ke bentuk teks ramah pengguna.
 func getFriendlyAction(action models.AuditAction) string {
 	switch action {
 	case models.AuditActionCreate:
@@ -118,6 +120,7 @@ func getFriendlyAction(action models.AuditAction) string {
 	}
 }
 
+// getStringFromJSON mengekstrak nilai string dari string JSON berdasarkan kunci.
 func getStringFromJSON(jsonStr string, keys ...string) string {
 	if jsonStr == "" || jsonStr == "null" {
 		return ""
@@ -139,6 +142,7 @@ func getStringFromJSON(jsonStr string, keys ...string) string {
 	return ""
 }
 
+// getFloatFromJSON mengekstrak nilai float64 dari string JSON berdasarkan kunci.
 func getFloatFromJSON(jsonStr string, key string) float64 {
 	if jsonStr == "" || jsonStr == "null" {
 		return 0
@@ -155,6 +159,7 @@ func getFloatFromJSON(jsonStr string, key string) float64 {
 	return 0
 }
 
+// generateAuditDescription menyusun deskripsi ramah pengguna secara otomatis untuk log audit.
 func generateAuditDescription(logVal models.AuditLog) string {
 	actionWord := ""
 	switch logVal.Action {

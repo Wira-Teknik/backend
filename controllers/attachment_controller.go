@@ -13,6 +13,7 @@ import (
 // Get Attachments by Related ID
 // ─────────────────────────────────────────────
 
+// GetAttachments menangani permintaan untuk mengambil semua lampiran berdasarkan related ID.
 // GetAttachments godoc
 // @Summary      Ambil semua lampiran berdasarkan related ID
 // @Description  Mengambil daftar lampiran (foto/video/pdf) yang terkait dengan resource tertentu (shipment, invoice, payment, dll)
@@ -38,6 +39,7 @@ func GetAttachments(c *fiber.Ctx) error {
 // Upload Attachment
 // ─────────────────────────────────────────────
 
+// UploadAttachment menangani pengunggahan file lampiran dan menyimpannya ke database.
 // UploadAttachment godoc
 // @Summary      Upload lampiran
 // @Description  Mengunggah file lampiran (image/video/pdf) yang terkait dengan resource tertentu. Gunakan form-data dengan field: file, related_id, category. Kategori yang tersedia: shipment_delivery, shipment_received, invoice, payment_proof, bon, surat_jalan.

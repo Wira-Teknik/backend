@@ -61,6 +61,7 @@ func GenerateInvoiceNo(tx *gorm.DB) string {
 // Get Shipments by Order ID
 // ─────────────────────────────────────────────
 
+// GetShipmentsByOrderID mengambil daftar pengiriman berdasarkan ID Order.
 func GetShipmentsByOrderID(orderID string) ([]models.Shipment, error) {
 	if _, err := uuid.Parse(orderID); err != nil {
 		return nil, ErrShipmentInvalidOrderID
@@ -81,6 +82,7 @@ func GetShipmentsByOrderID(orderID string) ([]models.Shipment, error) {
 // Get Shipment By ID
 // ─────────────────────────────────────────────
 
+// GetShipmentByID mengambil detail pengiriman berdasarkan ID.
 func GetShipmentByID(id string) (models.Shipment, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return models.Shipment{}, ErrShipmentInvalidUUID
@@ -102,6 +104,7 @@ func GetShipmentByID(id string) (models.Shipment, error) {
 // Create Shipment (Partial Shipment)
 // ─────────────────────────────────────────────
 
+// CreateShipment membuat pengiriman baru dan menghasilkan invoice secara otomatis.
 func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipment, error) {
 	if len(input.Items) == 0 {
 		return models.Shipment{}, fmt.Errorf("pengiriman harus memiliki minimal 1 item")
@@ -271,6 +274,7 @@ func CreateShipment(input CreateShipmentInput, userID uuid.UUID) (models.Shipmen
 // Confirm Received (Atomic Transaction)
 // ─────────────────────────────────────────────
 
+// ConfirmShipmentReceived mengonfirmasi penerimaan pengiriman barang.
 func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return models.Shipment{}, ErrShipmentInvalidUUID
@@ -352,6 +356,7 @@ func ConfirmShipmentReceived(id string, userID uuid.UUID) (models.Shipment, erro
 
 // UpdateShipmentItems memperbarui daftar item dan kuantitas pengiriman yang sudah dibuat.
 // Fungsi ini juga secara otomatis menyesuaikan remaining_qty di order_items serta total tagihan di invoices.
+// UpdateShipmentItems memperbarui detail item dan kuantitas pengiriman.
 func UpdateShipmentItems(shipmentIDStr string, input UpdateShipmentItemsInput, userID uuid.UUID) (models.Shipment, error) {
 	if len(input.Items) == 0 {
 		return models.Shipment{}, fmt.Errorf("pengiriman harus memiliki minimal 1 item")

@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// AttachmentCategory mendefinisikan kategori lampiran yang valid.
 type AttachmentCategory string
 
 const (
@@ -18,6 +19,7 @@ const (
 	AttachmentCategorySuratJalan       AttachmentCategory = "surat_jalan"
 )
 
+// FileType mendefinisikan tipe file lampiran yang diizinkan.
 type FileType string
 
 const (
@@ -26,6 +28,7 @@ const (
 	FileTypePdf   FileType = "pdf"
 )
 
+// Attachment mendefinisikan model lampiran berkas yang terkait dengan transaksi.
 type Attachment struct {
 	ID        uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	RelatedID uuid.UUID          `gorm:"type:uuid;not null;index" json:"related_id"`

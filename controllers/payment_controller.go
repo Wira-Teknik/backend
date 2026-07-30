@@ -59,6 +59,7 @@ type PaginatedPaymentHistoryResponse struct {
 // Get All Payments
 // ─────────────────────────────────────────────
 
+// GetAllPayments menangani permintaan untuk mengambil daftar pembayaran & tagihan customer.
 // GetAllPayments godoc
 // @Summary      Ambil daftar pembayaran & tagihan customer
 // @Description  Mengambil daftar customer beserta detail pesanan, total tagihan, dan histori pembayaran mereka. Dapat difilter berdasarkan nama customer, rentang tanggal order_date, status pembayaran, dan mendukung pagination (page & limit).
@@ -120,6 +121,7 @@ func GetAllPayments(c *fiber.Ctx) error {
 // Get Payment by ID
 // ─────────────────────────────────────────────
 
+// GetPayment menangani permintaan untuk mengambil detail pembayaran berdasarkan ID.
 // GetPayment godoc
 // @Summary      Ambil detail pembayaran
 // @Description  Mengambil detail pembayaran termasuk detail alokasi ke invoice
@@ -149,6 +151,7 @@ func GetPayment(c *fiber.Ctx) error {
 // Create Payment
 // ─────────────────────────────────────────────
 
+// CreatePayment menangani pencatatan pembayaran baru dari pelanggan.
 // CreatePayment godoc
 // @Summary      Buat pembayaran baru
 // @Description  Membuat pembayaran baru dengan alokasi otomatis berdasarkan daftar Order ID dari tagihan yang terlama. File bukti bayar dapat diunggah secara terpisah melalui API Attachments.
@@ -215,6 +218,7 @@ func CreatePayment(c *fiber.Ctx) error {
 	return utils.JSONCreated(c, "Pembayaran berhasil dicatat", payment)
 }
 
+// UpdatePaymentTotal menangani permintaan pembaruan jumlah total pembayaran.
 // UpdatePaymentTotal godoc
 // @Summary      Edit pembayaran
 // @Description  Memperbarui jumlah total pembayaran (payment_total) beserta alokasi detail order tanpa memperbarui tanggal dan bukti bayar.
@@ -273,6 +277,7 @@ func UpdatePaymentTotal(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, "Pembayaran berhasil diperbarui", payment)
 }
 
+// GetCustomerPaymentDetail menangani permintaan mengambil detail lengkap tagihan dan pembayaran satu customer.
 // GetCustomerPaymentDetail godoc
 // @Summary      Ambil detail pembayaran customer dengan filter
 // @Description  Mengambil detail ringkasan keuangan dan riwayat pembayaran lengkap dari satu customer tertentu berdasarkan namanya. Mendukung filter nomor PO/transaksi, status pembayaran (all, paid, partial, unpaid), dan rentang tanggal order_date.
@@ -316,6 +321,7 @@ func GetCustomerPaymentDetail(c *fiber.Ctx) error {
 // Payment History Report
 // ─────────────────────────────────────────────
 
+// GetPaymentHistory menangani permintaan laporan riwayat cicilan transaksi pembayaran.
 // GetPaymentHistory godoc
 // @Summary      Ambil Laporan Riwayat Transaksi Pembayaran
 // @Description  Mengambil riwayat cicilan transaksi pembayaran dengan pencarian berdasarkan PO atau nomor transaksi, filter berdasarkan status pembayaran order terkait (all, paid, partial), rentang tanggal payments.payment_date, dan pagination (page & limit).
@@ -377,6 +383,7 @@ func GetPaymentHistory(c *fiber.Ctx) error {
 // Export Payment History to Excel
 // ─────────────────────────────────────────────
 
+// ExportPaymentHistory mengekspor data riwayat pembayaran ke format Excel atau PDF.
 // ExportPaymentHistory godoc
 // @Summary      Export Riwayat Pembayaran ke Excel / PDF
 // @Description  Mengunduh file Excel atau PDF berisi riwayat alokasi cicilan pembayaran berdasarkan filter pencarian, status pembayaran order terkait, rentang tanggal payments.payment_date, dan parameter format (excel/pdf).
@@ -537,6 +544,7 @@ type paymentExcelStyles struct {
 	sumValue    int
 }
 
+// newPaymentExcelStyles mendefinisikan dan membuat gaya Excel untuk laporan pembayaran.
 func newPaymentExcelStyles(f *excelize.File) (paymentExcelStyles, error) {
 	var s paymentExcelStyles
 	var err error
@@ -648,6 +656,7 @@ func newPaymentExcelStyles(f *excelize.File) (paymentExcelStyles, error) {
 	return s, nil
 }
 
+// setPaymentMetaRow menetapkan nilai dan gaya untuk baris metadata laporan Excel.
 func setPaymentMetaRow(f *excelize.File, sh string, row int, label, value string, labelStyle, valStyle int) {
 	cell := fmt.Sprintf("A%d", row)
 	f.SetCellValue(sh, cell, label)
@@ -657,6 +666,7 @@ func setPaymentMetaRow(f *excelize.File, sh string, row int, label, value string
 	f.SetCellStyle(sh, v, v, valStyle)
 }
 
+// applyPaymentRowStyle menerapkan gaya baris data secara massal ke sel Excel.
 func applyPaymentRowStyle(f *excelize.File, sh string, row, numCols int, textSt, numSt int, numCol int) {
 	for col := 1; col <= numCols; col++ {
 		cellRef, _ := excelize.CoordinatesToCellName(col, row)
@@ -668,6 +678,7 @@ func applyPaymentRowStyle(f *excelize.File, sh string, row, numCols int, textSt,
 	}
 }
 
+// generatePaymentHistoryPDF menghasilkan dokumen PDF berisi laporan riwayat pembayaran.
 func generatePaymentHistoryPDF(history []services.PaymentHistoryDTO, search, status, startDate, endDate string) (*bytes.Buffer, error) {
 	pdf := fpdf.New("L", "mm", "A4", "") // Landscape, A4
 	pdf.AddPage()

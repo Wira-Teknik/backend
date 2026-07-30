@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Customer merepresentasikan model data pelanggan.
 type Customer struct {
 	ID              uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	CustomerName    string         `gorm:"type:varchar(255);not null" json:"customer_name"`

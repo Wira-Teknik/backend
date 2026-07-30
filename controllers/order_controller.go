@@ -137,6 +137,7 @@ type PaginatedOrdersResponse struct {
 // Get All Orders
 // ─────────────────────────────────────────────
 
+// GetAllOrders menangani permintaan untuk mengambil daftar pesanan dengan paginasi, pencarian, dan filter.
 // GetAllOrders godoc
 // @Summary      Ambil semua pesanan
 // @Description  Mengambil daftar semua pesanan beserta item-itemnya. Mendukung pencarian, filter rentang tanggal order_date, status pesanan (order_status), dan pagination (page & limit).
@@ -211,6 +212,7 @@ func GetAllOrders(c *fiber.Ctx) error {
 // Get Order by ID
 // ─────────────────────────────────────────────
 
+// GetOrder menangani permintaan untuk mengambil detail lengkap suatu pesanan berdasarkan ID.
 // GetOrder godoc
 // @Summary      Ambil detail pesanan
 // @Description  Mengambil detail pesanan termasuk items dan shipments
@@ -326,6 +328,7 @@ func GetOrder(c *fiber.Ctx) error {
 // Get Next Transaction No
 // ─────────────────────────────────────────────
 
+// GetNextTransactionNo menangani permintaan untuk mendapatkan pratinjau nomor transaksi berikutnya yang akan dihasilkan.
 // GetNextTransactionNo godoc
 // @Summary      Pratinjau nomor transaksi berikutnya
 // @Description  Mengambil format nomor transaksi yang akan digunakan untuk pesanan baru
@@ -345,6 +348,7 @@ func GetNextTransactionNo(c *fiber.Ctx) error {
 // Create Order
 // ─────────────────────────────────────────────
 
+// CreateOrder menangani permintaan pembuatan pesanan baru.
 // CreateOrder godoc
 // @Summary      Buat pesanan baru
 // @Description  Membuat pesanan baru dengan item. PPN 11% dan subtotal dihitung otomatis. remaining_qty diset sama dengan order_qty.
@@ -401,6 +405,7 @@ func CreateOrder(c *fiber.Ctx) error {
 // Update Order
 // ─────────────────────────────────────────────
 
+// UpdateOrder menangani permintaan pembaruan data header pesanan.
 // UpdateOrder godoc
 // @Summary      Update header pesanan
 // @Description  Mengupdate data header pesanan (hanya jika status masih pending)
@@ -450,6 +455,7 @@ func UpdateOrder(c *fiber.Ctx) error {
 // Delete Order
 // ─────────────────────────────────────────────
 
+// DeleteOrder menangani permintaan pembatalan/penghapusan pesanan.
 // DeleteOrder godoc
 // @Summary      Hapus pesanan
 // @Description  Menghapus pesanan beserta item-itemnya (hanya jika status masih pending)

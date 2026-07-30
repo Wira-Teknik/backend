@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserRole defines the allowed roles
+// UserRole mendefinisikan peran (role) pengguna yang diizinkan.
 type UserRole string
 
 const (
@@ -15,7 +15,7 @@ const (
 	RoleOwner UserRole = "owner"
 )
 
-// User model
+// User mendefinisikan struktur model pengguna dalam database.
 type User struct {
 	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	Name      string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"name"`

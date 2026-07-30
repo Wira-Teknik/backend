@@ -21,6 +21,7 @@ var (
 // Get All Invoices
 // ─────────────────────────────────────────────
 
+// GetAllInvoices mengambil seluruh data invoice dari database.
 func GetAllInvoices() ([]models.Invoice, error) {
 	var invoices []models.Invoice
 	err := config.DB.Order("created_at DESC").Find(&invoices).Error
@@ -34,6 +35,7 @@ func GetAllInvoices() ([]models.Invoice, error) {
 // Get Invoice By ID
 // ─────────────────────────────────────────────
 
+// GetInvoiceByID mengambil detail invoice berdasarkan ID.
 func GetInvoiceByID(id string) (models.Invoice, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return models.Invoice{}, ErrInvoiceInvalidUUID
@@ -54,6 +56,7 @@ func GetInvoiceByID(id string) (models.Invoice, error) {
 // Get Invoices by Shipment ID
 // ─────────────────────────────────────────────
 
+// GetInvoiceByShipmentID mengambil invoice yang terkait dengan pengiriman barang tertentu.
 func GetInvoiceByShipmentID(shipmentID string) (models.Invoice, error) {
 	if _, err := uuid.Parse(shipmentID); err != nil {
 		return models.Invoice{}, ErrInvoiceInvalidShipmentID

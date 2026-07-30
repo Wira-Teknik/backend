@@ -27,6 +27,7 @@ type CustomerResponse struct {
 // Customers
 // ─────────────────────────────────────────────
 
+// GetAllCustomers menangani permintaan untuk mengambil semua data customer.
 // GetAllCustomers godoc
 // @Summary      Ambil semua customer
 // @Tags         Customers
@@ -54,6 +55,7 @@ func GetAllCustomers(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, "Data customer berhasil diambil", response)
 }
 
+// GetCustomer menangani permintaan untuk mengambil detail customer berdasarkan ID.
 // GetCustomer godoc
 // @Summary      Ambil detail customer
 // @Tags         Customers
@@ -86,6 +88,7 @@ func GetCustomer(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, "Detail customer berhasil diambil", response)
 }
 
+// CreateCustomer menangani permintaan untuk menambahkan customer baru.
 // CreateCustomer godoc
 // @Summary      Tambah customer baru
 // @Tags         Customers
@@ -112,6 +115,7 @@ func CreateCustomer(c *fiber.Ctx) error {
 	return utils.JSONCreated(c, "Customer berhasil ditambahkan", customer)
 }
 
+// UpdateCustomer menangani permintaan untuk memperbarui data customer berdasarkan ID.
 // UpdateCustomer godoc
 // @Summary      Update data customer
 // @Tags         Customers
@@ -145,6 +149,7 @@ func UpdateCustomer(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, "Data customer berhasil diupdate", customer)
 }
 
+// DeleteCustomer menangani permintaan untuk menghapus customer berdasarkan ID.
 // DeleteCustomer godoc
 // @Summary      Hapus customer
 // @Tags         Customers

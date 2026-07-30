@@ -31,7 +31,7 @@ type seedOrder struct {
 	Items            []seedOrderItem `json:"items"`
 }
 
-// SeedOrders seeds the orders table from order-seed.json if the table is empty.
+// SeedOrders memasukkan data awal (seed) ke tabel orders dari file order-seed.json jika tabel kosong.
 func SeedOrders() {
 	var count int64
 	if err := DB.Unscoped().Model(&models.Order{}).Count(&count).Error; err != nil {
@@ -40,7 +40,7 @@ func SeedOrders() {
 	}
 
 	if count > 0 {
-		return // Already seeded
+		return // Sudah dimasukkan
 	}
 
 	log.Println("Seeding database with default orders from config/order-seed.json...")
@@ -68,7 +68,7 @@ func SeedOrders() {
 			continue
 		}
 
-		// Check if transaction number already exists (unscoped) to prevent unique key violation
+		// Periksa apakah nomor transaksi sudah ada (unscoped) untuk mencegah pelanggaran unique key
 		var existingCount int64
 		if err := tx.Unscoped().Model(&models.Order{}).Where("transaction_no = ?", so.TransactionNo).Count(&existingCount).Error; err != nil {
 			tx.Rollback()
@@ -134,7 +134,7 @@ type seedCustomer struct {
 	CustomerAddress string `json:"customer_address"`
 }
 
-// SeedCustomers seeds the customers table from customer-seed.json if the table is empty.
+// SeedCustomers memasukkan data awal (seed) ke tabel customers dari file customer-seed.json jika tabel kosong.
 func SeedCustomers() {
 	var count int64
 	if err := DB.Unscoped().Model(&models.Customer{}).Count(&count).Error; err != nil {
@@ -143,7 +143,7 @@ func SeedCustomers() {
 	}
 
 	if count > 0 {
-		return // Already seeded
+		return // Sudah dimasukkan
 	}
 
 	log.Println("Seeding database with default customers from config/customer-seed.json...")
@@ -163,7 +163,7 @@ func SeedCustomers() {
 
 	tx := DB.Begin()
 	for _, sc := range seedCusts {
-		// Check if customer name already exists (unscoped) to prevent unique/duplicate constraints
+		// Periksa apakah nama pelanggan sudah ada (unscoped) untuk mencegah batasan unik/duplikat
 		var existingCount int64
 		if err := tx.Unscoped().Model(&models.Customer{}).Where("LOWER(customer_name) = LOWER(?)", sc.CustomerName).Count(&existingCount).Error; err != nil {
 			tx.Rollback()
@@ -199,11 +199,12 @@ func SeedCustomers() {
 }
 
 
+// mathRoundTwo membulatkan nilai desimal float64 ke dua tempat desimal.
 func mathRoundTwo(val float64) float64 {
 	return math.Round(val*100) / 100
 }
 
-// ResetDatabase drops the database schema and recreates it.
+// ResetDatabase menghapus skema database saat ini dan membuatnya kembali.
 func ResetDatabase() {
 	schema := os.Getenv("DB_SCHEMA")
 	if schema == "" {

@@ -265,6 +265,7 @@ func SearchCustomerPayments(name, startDate, endDate, status string, page, limit
 	return results, totalRows, nil
 }
 
+// GetAllPayments mengambil semua pembayaran yang tercatat di database.
 func GetAllPayments() ([]models.Payment, error) {
 	var payments []models.Payment
 	err := config.DB.Preload("Details").
@@ -277,6 +278,7 @@ func GetAllPayments() ([]models.Payment, error) {
 // Get Payment By ID
 // ─────────────────────────────────────────────
 
+// GetPaymentByID mengambil pembayaran berdasarkan ID.
 func GetPaymentByID(id string) (models.Payment, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return models.Payment{}, ErrPaymentInvalidUUID
@@ -883,6 +885,7 @@ type PaymentHistoryDTO struct {
 	CreatedAt     string  `json:"created_at" example:"2026-11-05 12:10"`
 }
 
+// GetPaymentHistory mengambil daftar riwayat pembayaran yang difilter.
 func GetPaymentHistory(search string, statusFilter string, startDate string, endDate string, page int, limit int) ([]PaymentHistoryDTO, int64, error) {
 	type rawPaymentHistory struct {
 		DetailID        uuid.UUID

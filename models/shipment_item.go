@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// ShipmentItem merepresentasikan item/barang spesifik yang termasuk dalam pengiriman.
 type ShipmentItem struct {
 	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	ShipmentID   uuid.UUID      `gorm:"type:uuid;not null;index" json:"shipment_id"`

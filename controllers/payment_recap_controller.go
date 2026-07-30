@@ -69,6 +69,7 @@ type PaginatedRecapResponse struct {
 	Pagination PaginationMeta `json:"pagination"`
 }
 
+// GetPaymentRecapSummary menangani permintaan ringkasan rekapitulasi pembayaran.
 // GetPaymentRecapSummary godoc
 // @Summary      Ringkasan Rekapitulasi Pembayaran
 // @Description  Menampilkan metrik ringkasan: Total Pendapatan, Total Pesanan, Total Unpaid, Total Paid, dan persentase pelunasan piutang pada periode tertentu.
@@ -94,6 +95,7 @@ func GetPaymentRecapSummary(c *fiber.Ctx) error {
 // 2. GET /payment-recap/detail-pendapatan
 // ─────────────────────────────────────────────
 
+// GetDetailPendapatan menangani permintaan detail total pendapatan berdasarkan filter.
 // GetDetailPendapatan godoc
 // @Summary      Detail Total Pendapatan
 // @Description  Menampilkan daftar invoice berdasarkan periode dan filter status pembayaran (all, paid, unpaid). Mendukung pagination (page & limit).
@@ -138,6 +140,7 @@ func GetDetailPendapatan(c *fiber.Ctx) error {
 // 3. GET /payment-recap/detail-pesanan
 // ─────────────────────────────────────────────
 
+// GetDetailPesanan menangani permintaan detail total nominal pesanan berdasarkan filter.
 // GetDetailPesanan godoc
 // @Summary      Detail Total Pesanan
 // @Description  Menampilkan daftar pesanan berdasarkan periode dan filter status (all, pending, partial, shipped, completed). Mendukung pagination (page & limit).
@@ -182,6 +185,7 @@ func GetDetailPesanan(c *fiber.Ctx) error {
 // 4. GET /payment-recap/detail-unpaid
 // ─────────────────────────────────────────────
 
+// GetDetailUnpaid menangani permintaan detail sisa tagihan/belum lunas.
 // GetDetailUnpaid godoc
 // @Summary      Detail Total Unpaid
 // @Description  Menampilkan daftar invoice yang belum/sebagian lunas pada periode tertentu. Mendukung pagination (page & limit).
@@ -225,6 +229,7 @@ func GetDetailUnpaid(c *fiber.Ctx) error {
 // 5. GET /payment-recap/detail-paid
 // ─────────────────────────────────────────────
 
+// GetDetailPaid menangani permintaan detail tagihan yang sudah lunas.
 // GetDetailPaid godoc
 // @Summary      Detail Total Paid
 // @Description  Menampilkan daftar invoice yang sudah lunas pada periode tertentu. Mendukung pagination (page & limit).
@@ -282,6 +287,7 @@ type excelStyles struct {
 	sumValue    int
 }
 
+// newExcelStyles mendefinisikan dan membuat gaya Excel yang dipakai bersama.
 func newExcelStyles(f *excelize.File) (excelStyles, error) {
 	var s excelStyles
 	var err error
@@ -404,6 +410,7 @@ func newExcelStyles(f *excelize.File) (excelStyles, error) {
 	return s, nil
 }
 
+// strPtr mengembalikan pointer untuk string literal.
 func strPtr(s string) *string { return &s }
 
 // setMetaRow menulis baris meta label + value pada kolom A dan B.
@@ -432,6 +439,7 @@ func applyRowStyle(f *excelize.File, sh string, row, numCols int, textSt, numSt 
 // EXPORT TO EXCEL HANDLERS
 // ─────────────────────────────────────────────
 
+// ExportDetailPendapatan mengekspor detail total pendapatan ke dokumen Excel.
 // ExportDetailPendapatan godoc
 // @Summary      Export Detail Total Pendapatan ke Excel
 // @Description  Mengunduh file Excel berisi detail total pendapatan berdasarkan periode dan filter status pembayaran.
@@ -531,6 +539,7 @@ func ExportDetailPendapatan(c *fiber.Ctx) error {
 	return c.Send(buf.Bytes())
 }
 
+// ExportDetailPesanan mengekspor detail total pesanan ke dokumen Excel.
 // ExportDetailPesanan godoc
 // @Summary      Export Detail Total Pesanan ke Excel
 // @Description  Mengunduh file Excel berisi detail total pesanan berdasarkan periode dan filter status.
@@ -624,6 +633,7 @@ func ExportDetailPesanan(c *fiber.Ctx) error {
 	return c.Send(buf.Bytes())
 }
 
+// ExportDetailUnpaid mengekspor detail unpaid ke dokumen Excel.
 // ExportDetailUnpaid godoc
 // @Summary      Export Detail Total Unpaid ke Excel
 // @Description  Mengunduh file Excel berisi detail total unpaid berdasarkan periode.
@@ -717,6 +727,7 @@ func ExportDetailUnpaid(c *fiber.Ctx) error {
 	return c.Send(buf.Bytes())
 }
 
+// ExportDetailPaid mengekspor detail paid ke dokumen Excel.
 // ExportDetailPaid godoc
 // @Summary      Export Detail Total Paid ke Excel
 // @Description  Mengunduh file Excel berisi detail total paid berdasarkan periode.

@@ -5,6 +5,7 @@ import (
 	"teknik/utils"
 )
 
+// AuditAction mendefinisikan jenis tindakan audit yang direkam.
 type AuditAction string
 
 const (
@@ -15,6 +16,7 @@ const (
 	AuditActionUploadDoc AuditAction = "UPLOAD_DOC"
 )
 
+// AuditLog merepresentasikan catatan audit untuk melacak aktivitas pengguna dalam sistem.
 type AuditLog struct {
 	ID         uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID     uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`

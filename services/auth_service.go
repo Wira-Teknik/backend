@@ -57,10 +57,12 @@ var (
 // Redis key helpers
 // ─────────────────────────────────────────────
 
+// redisOTPKey menghasilkan kunci Redis untuk menyimpan kode OTP lupa password.
 func redisOTPKey(email string) string {
 	return fmt.Sprintf("otp:forgot:%s", email)
 }
 
+// redisVerifiedTokenKey menghasilkan kunci Redis untuk token verifikasi lupa password.
 func redisVerifiedTokenKey(token string) string {
 	return fmt.Sprintf("verified:forgot:%s", token)
 }
@@ -69,6 +71,7 @@ func redisVerifiedTokenKey(token string) string {
 // Register
 // ─────────────────────────────────────────────
 
+// RegisterUser mendaftarkan pengguna baru dengan melakukan validasi terlebih dahulu.
 func RegisterUser(input RegisterInput) (UserDTO, error) {
 	// Normalize input
 	input.Name = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(input.Name), " ", ""))
@@ -130,6 +133,7 @@ func RegisterUser(input RegisterInput) (UserDTO, error) {
 // Login
 // ─────────────────────────────────────────────
 
+// LoginUser melakukan autentikasi pengguna berdasarkan nama dan kata sandi.
 func LoginUser(input LoginInput) (LoginResult, error) {
 	// Force name ke lowercase (konsisten dengan register)
 	input.Name = strings.ToLower(strings.TrimSpace(input.Name))
@@ -168,8 +172,7 @@ func LoginUser(input LoginInput) (LoginResult, error) {
 // Forgot Password – Step 1: Request OTP
 // ─────────────────────────────────────────────
 
-// ForgotPasswordRequestOTP checks the email, generates an OTP, stores it in Redis
-// and sends it via email. Returns a generic error to prevent user enumeration.
+// ForgotPasswordRequestOTP memeriksa email, membuat OTP, menyimpannya di Redis, dan mengirimkannya via email.
 func ForgotPasswordRequestOTP(email string) error {
 	email = strings.TrimSpace(strings.ToLower(email))
 
@@ -205,7 +208,7 @@ func ForgotPasswordRequestOTP(email string) error {
 // Forgot Password – Step 2: Verify OTP
 // ─────────────────────────────────────────────
 
-// ForgotPasswordVerifyOTP validates the OTP and returns a short-lived verified token.
+// ForgotPasswordVerifyOTP memvalidasi kode OTP yang dimasukkan dan mengembalikan token verifikasi jangka pendek.
 func ForgotPasswordVerifyOTP(email, otp string) (string, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
 	otp = strings.TrimSpace(otp)
@@ -239,7 +242,7 @@ func ForgotPasswordVerifyOTP(email, otp string) (string, error) {
 // Forgot Password – Step 3: Reset Password
 // ─────────────────────────────────────────────
 
-// ForgotPasswordReset validates the verified token and updates the user's password.
+// ForgotPasswordReset memvalidasi token verifikasi dan memperbarui kata sandi pengguna.
 func ForgotPasswordReset(token, newPassword, confirmPassword string) error {
 	token = strings.TrimSpace(token)
 

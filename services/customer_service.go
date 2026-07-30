@@ -27,6 +27,7 @@ type CustomerInput struct {
 	CustomerAddress string `json:"customer_address"`
 }
 
+// GetAllCustomers mengambil daftar seluruh customer.
 func GetAllCustomers() ([]models.Customer, error) {
 	var customers []models.Customer
 	if err := config.DB.Select("id, customer_name, customer_email, customer_phone, customer_address").Find(&customers).Error; err != nil {
@@ -38,6 +39,7 @@ func GetAllCustomers() ([]models.Customer, error) {
 	return customers, nil
 }
 
+// GetCustomerByID mengambil detail customer berdasarkan ID.
 func GetCustomerByID(id string) (models.Customer, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return models.Customer{}, ErrCustomerInvalidUUID
@@ -54,6 +56,7 @@ func GetCustomerByID(id string) (models.Customer, error) {
 	return customer, nil
 }
 
+// CreateCustomer membuat data customer baru.
 func CreateCustomer(input CustomerInput) (models.Customer, error) {
 	input.CustomerName = strings.TrimSpace(input.CustomerName)
 	if input.CustomerName == "" {
@@ -89,6 +92,7 @@ func CreateCustomer(input CustomerInput) (models.Customer, error) {
 	return customer, nil
 }
 
+// UpdateCustomer memperbarui data customer yang sudah ada.
 func UpdateCustomer(id string, input CustomerInput) (models.Customer, error) {
 	customer, err := GetCustomerByID(id)
 	if err != nil {
@@ -130,6 +134,7 @@ func UpdateCustomer(id string, input CustomerInput) (models.Customer, error) {
 	return customer, nil
 }
 
+// DeleteCustomer menghapus data customer berdasarkan ID.
 func DeleteCustomer(id string) error {
 	if _, err := uuid.Parse(id); err != nil {
 		return ErrCustomerInvalidUUID

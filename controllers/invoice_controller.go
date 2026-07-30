@@ -13,6 +13,7 @@ import (
 // Get All Invoices
 // ─────────────────────────────────────────────
 
+// GetAllInvoices menangani permintaan untuk mengambil semua data invoice.
 // GetAllInvoices godoc
 // @Summary      Ambil semua invoice
 // @Description  Mengambil daftar semua invoice. Invoice otomatis dibuat saat pengiriman dibuat.
@@ -33,6 +34,7 @@ func GetAllInvoices(c *fiber.Ctx) error {
 // Get Invoice by ID
 // ─────────────────────────────────────────────
 
+// GetInvoice menangani permintaan untuk mengambil detail invoice berdasarkan ID.
 // GetInvoice godoc
 // @Summary      Ambil detail invoice
 // @Description  Mengambil detail invoice berdasarkan ID
@@ -62,6 +64,7 @@ func GetInvoice(c *fiber.Ctx) error {
 // Get Invoice by Shipment ID
 // ─────────────────────────────────────────────
 
+// GetInvoiceByShipment menangani permintaan untuk mengambil invoice berdasarkan ID Shipment.
 // GetInvoiceByShipment godoc
 // @Summary      Ambil invoice berdasarkan Shipment
 // @Description  Mengambil invoice yang terkait dengan pengiriman tertentu

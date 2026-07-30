@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// OrderItem merepresentasikan detail barang/item dari pesanan (order).
 type OrderItem struct {
 	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	OrderID      uuid.UUID      `gorm:"type:uuid;not null;index" json:"order_id"`

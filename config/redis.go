@@ -14,7 +14,7 @@ import (
 var Redis *redis.Client
 var RedisCTX = context.Background()
 
-// ConnectRedis initializes the Redis client.
+// ConnectRedis menginisialisasi klien Redis.
 func ConnectRedis() {
 	host := os.Getenv("REDIS_HOST")
 	port := os.Getenv("REDIS_PORT")

@@ -12,7 +12,7 @@ import (
 
 var DB *gorm.DB
 
-// ConnectDatabase creates the database if it doesn't exist, then connects to it.
+// ConnectDatabase membuat database jika belum ada, kemudian menghubungkannya.
 func ConnectDatabase() {
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
@@ -25,7 +25,7 @@ func ConnectDatabase() {
 		schema = "public"
 	}
 
-	// Step 1: Connect to the default 'postgres' database to create target DB if needed
+	// Langkah 1: Hubungkan ke default database 'postgres' untuk membuat database target jika diperlukan
 	defaultDSN := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable TimeZone=Asia/Jakarta",
 		host, port, user, password,
@@ -38,7 +38,7 @@ func ConnectDatabase() {
 		log.Fatalf("Failed to connect to postgres default DB: %v", err)
 	}
 
-	// Create target database if it doesn't exist
+	// Buat database target jika belum ada
 	var count int64
 	adminDB.Raw("SELECT COUNT(*) FROM pg_database WHERE datname = ?", dbName).Scan(&count)
 	if count == 0 {
@@ -46,11 +46,11 @@ func ConnectDatabase() {
 		log.Printf("Database '%s' created successfully.", dbName)
 	}
 
-	// Close admin connection
+	// Tutup koneksi admin
 	sqlAdminDB, _ := adminDB.DB()
 	sqlAdminDB.Close()
 
-	// Step 2: Connect to target database
+	// Langkah 2: Hubungkan ke database target
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=Asia/Jakarta search_path=%s",
 		host, port, user, password, dbName, schema,
@@ -68,7 +68,7 @@ func ConnectDatabase() {
 		log.Fatalf("Failed to connect to database '%s': %v", dbName, err)
 	}
 
-	// Step 3: Configure connection pool
+	// Langkah 3: Konfigurasi pool koneksi
 	sqlDB, err := db.DB()
 	if err != nil {
 		log.Fatalf("Failed to get raw DB: %v", err)
@@ -80,7 +80,7 @@ func ConnectDatabase() {
 	DB = db
 }
 
-// DropDatabase terminates all active connections to the target database and drops it.
+// DropDatabase memutuskan semua koneksi aktif ke database target dan menghapusnya.
 func DropDatabase() error {
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
@@ -92,7 +92,7 @@ func DropDatabase() error {
 		return fmt.Errorf("DB_NAME environment variable is empty")
 	}
 
-	// Close the current DB pool if it exists
+	// Tutup pool DB saat ini jika ada
 	if DB != nil {
 		sqlDB, err := DB.DB()
 		if err == nil && sqlDB != nil {
@@ -101,7 +101,7 @@ func DropDatabase() error {
 		}
 	}
 
-	// Connect to default 'postgres' database
+	// Hubungkan ke database default 'postgres'
 	defaultDSN := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable TimeZone=Asia/Jakarta",
 		host, port, user, password,
@@ -120,7 +120,7 @@ func DropDatabase() error {
 		}
 	}()
 
-	// Terminate active connections to the target database
+	// Putuskan koneksi aktif ke database target
 	terminateQuery := fmt.Sprintf(`
 		SELECT pg_terminate_backend(pg_stat_activity.pid)
 		FROM pg_stat_activity
@@ -130,7 +130,7 @@ func DropDatabase() error {
 		log.Printf("Warning: failed to terminate active connections: %v", err)
 	}
 
-	// Drop the target database
+	// Hapus database target
 	dropQuery := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, dbName)
 	if err := adminDB.Exec(dropQuery).Error; err != nil {
 		return fmt.Errorf("failed to drop database '%s': %v", dbName, err)

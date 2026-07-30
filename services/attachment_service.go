@@ -61,6 +61,7 @@ var extToFileType = map[string]models.FileType{
 // Get Attachments by Related ID
 // ─────────────────────────────────────────────
 
+// GetAttachmentsByRelatedID mengambil daftar lampiran berdasarkan ID resource terkait.
 func GetAttachmentsByRelatedID(relatedID string) ([]models.Attachment, error) {
 	if _, err := uuid.Parse(relatedID); err != nil {
 		return nil, ErrAttachmentInvalidRelatedID
@@ -80,6 +81,7 @@ func GetAttachmentsByRelatedID(relatedID string) ([]models.Attachment, error) {
 // Upload Attachment
 // ─────────────────────────────────────────────
 
+// UploadAttachment mengunggah file lampiran fisik ke server dan mencatatnya ke database.
 func UploadAttachment(file *multipart.FileHeader, relatedID, category string, userID uuid.UUID) (models.Attachment, error) {
 	// Validasi related_id
 	relID, err := uuid.Parse(relatedID)

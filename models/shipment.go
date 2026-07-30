@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// ShippingStatus mendefinisikan status pengiriman barang.
 type ShippingStatus string
 
 const (
@@ -14,6 +15,7 @@ const (
 	ShippingStatusDiterima ShippingStatus = "diterima"
 )
 
+// Shipment merepresentasikan data pengiriman barang.
 type Shipment struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	OrderID        uuid.UUID      `gorm:"type:uuid;not null;index" json:"order_id"`

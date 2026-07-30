@@ -50,6 +50,7 @@ type ForgotStep3Request struct {
 // POST /api/v1/auth/register
 // ─────────────────────────────────────────────
 
+// Register menangani registrasi akun pengguna baru.
 // Register godoc
 // @Summary      Register akun baru
 // @Description  Membuat akun pengguna baru dengan nama, email, password, dan role
@@ -99,6 +100,7 @@ func Register(c *fiber.Ctx) error {
 // POST /api/v1/auth/login
 // ─────────────────────────────────────────────
 
+// Login menangani proses autentikasi pengguna dan pembuatan token JWT.
 // Login godoc
 // @Summary      Login
 // @Description  Login menggunakan username (name) dan password. Mengembalikan **JWT** yang dapat digunakan sebagai Bearer token. Cookie HttpOnly juga di-set secara otomatis.
@@ -156,6 +158,7 @@ type LoginResponseData struct {
 // POST /api/v1/auth/forgot-password/request
 // ─────────────────────────────────────────────
 
+// ForgotPasswordRequest menangani langkah pertama lupa kata sandi dengan mengirimkan OTP ke email.
 // ForgotPasswordRequest godoc
 // @Summary      Langkah 1 – Request kode OTP
 // @Description  Mengirim kode OTP 6 digit ke email pengguna. OTP berlaku 15 menit. Response selalu sukses meski email tidak ditemukan (mencegah user enumeration).
@@ -184,6 +187,7 @@ func ForgotPasswordRequest(c *fiber.Ctx) error {
 // POST /api/v1/auth/forgot-password/verify
 // ─────────────────────────────────────────────
 
+// ForgotPasswordVerify menangani langkah kedua lupa kata sandi dengan memvalidasi OTP.
 // ForgotPasswordVerify godoc
 // @Summary      Langkah 2 – Verifikasi kode OTP
 // @Description  Memvalidasi kode OTP yang diterima via email. Jika valid, mengembalikan token sementara (berlaku 10 menit) untuk mereset password. OTP langsung dihapus setelah berhasil (single-use).
@@ -220,6 +224,7 @@ type VerifyTokenData struct {
 // POST /api/v1/auth/forgot-password/reset
 // ─────────────────────────────────────────────
 
+// ForgotPasswordReset menangani langkah ketiga lupa kata sandi dengan mereset kata sandi menggunakan token verifikasi.
 // ForgotPasswordReset godoc
 // @Summary      Langkah 3 – Reset password
 // @Description  Mereset password menggunakan token yang didapat dari langkah 2. Password baru minimal 8 karakter dan harus mengandung huruf serta angka. Token dihapus setelah digunakan (single-use).

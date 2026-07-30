@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// OrderStatus mendefinisikan status pesanan.
 type OrderStatus string
 
 const (
@@ -16,6 +17,7 @@ const (
 	OrderStatusCompleted OrderStatus = "completed"
 )
 
+// Order merepresentasikan data pesanan (order) pembelian dari pelanggan.
 type Order struct {
 	ID               uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	TransactionNo    string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"transaction_no"`

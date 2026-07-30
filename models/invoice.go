@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// PaymentStatus mendefinisikan status pembayaran untuk invoice.
 type PaymentStatus string
 
 const (
@@ -15,6 +16,7 @@ const (
 	PaymentStatusPaid    PaymentStatus = "paid"
 )
 
+// Invoice merepresentasikan data faktur (invoice) pengiriman barang.
 type Invoice struct {
 	ID               uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	ShipmentID       uuid.UUID      `gorm:"type:uuid;not null;index" json:"shipment_id"`

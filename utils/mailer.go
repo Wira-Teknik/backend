@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-// SendOTPEmail sends a password reset OTP to the given email address.
+// SendOTPEmail mengirimkan OTP reset password ke alamat email yang ditentukan.
 func SendOTPEmail(toEmail, otp string) error {
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPort := os.Getenv("SMTP_PORT")

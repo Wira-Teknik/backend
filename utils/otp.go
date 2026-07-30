@@ -8,7 +8,7 @@ import (
 const otpLength = 6
 const otpChars = "0123456789"
 
-// GenerateOTP generates a cryptographically secure numeric OTP of fixed length.
+// GenerateOTP menghasilkan kode OTP numerik yang aman secara kriptografi dengan panjang tetap.
 func GenerateOTP() (string, error) {
 	otp := make([]byte, otpLength)
 	for i := range otp {

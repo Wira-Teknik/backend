@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// formatIDR formats monetary values into Indonesian Rupiah format.
+// formatIDR memformat nilai nominal angka float64 menjadi format mata uang Rupiah Indonesia (IDR).
 func formatIDR(amount float64) string {
 	parts := strings.Split(fmt.Sprintf("%.2f", amount), ".")
 	intPart := parts[0]
@@ -33,7 +33,7 @@ func formatIDR(amount float64) string {
 	return "Rp " + strings.Join(result, ".") + "," + decPart
 }
 
-// formatDateIndo formats time.Time to readable Indonesian date format.
+// formatDateIndo mengubah tipe data time.Time menjadi format string tanggal Indonesia yang mudah dibaca.
 func formatDateIndo(t time.Time) string {
 	if t.IsZero() {
 		return "-"
@@ -49,7 +49,7 @@ func formatDateIndo(t time.Time) string {
 	return fmt.Sprintf("%02d %s %d", t.Day(), months[monthIdx], t.Year())
 }
 
-// getEmailHeader returns a styled HTML header for email notifications.
+// getEmailHeader menghasilkan template HTML bagian atas untuk email notifikasi.
 func getEmailHeader(title string) string {
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -154,7 +154,7 @@ func getEmailHeader(title string) string {
         <div class="content">`, title, title)
 }
 
-// getEmailFooter returns the HTML footer.
+// getEmailFooter menghasilkan template HTML bagian bawah untuk email notifikasi.
 func getEmailFooter() string {
 	appName := os.Getenv("APP_NAME")
 	if appName == "" {
@@ -170,7 +170,7 @@ func getEmailFooter() string {
 </html>`, time.Now().Year(), appName)
 }
 
-// SendEmail sends a basic HTML email.
+// SendEmail mengirimkan email dalam bentuk format HTML dasar.
 func SendEmail(toEmail, subject, htmlBody string) error {
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPort := os.Getenv("SMTP_PORT")
@@ -201,7 +201,7 @@ func SendEmail(toEmail, subject, htmlBody string) error {
 	return smtp.SendMail(addr, auth, smtpUser, []string{toEmail}, []byte(message.String()))
 }
 
-// SendEmailWithAttachment sends an HTML email with a PDF file attached.
+// SendEmailWithAttachment mengirimkan email berformat HTML dengan melampirkan berkas PDF.
 func SendEmailWithAttachment(toEmail, subject, htmlBody, filename string, attachmentBytes []byte) error {
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPort := os.Getenv("SMTP_PORT")
@@ -263,7 +263,7 @@ func SendEmailWithAttachment(toEmail, subject, htmlBody, filename string, attach
 	return smtp.SendMail(addr, auth, smtpUser, []string{toEmail}, []byte(message.String()))
 }
 
-// GetUploadedInvoiceAttachment finds and reads the uploaded invoice document associated with the Invoice ID or Shipment ID.
+// GetUploadedInvoiceAttachment mencari dan membaca lampiran dokumen invoice yang diunggah.
 func GetUploadedInvoiceAttachment(invoiceID uuid.UUID) (string, []byte, error) {
 	var attachment models.Attachment
 
@@ -294,7 +294,7 @@ func GetUploadedInvoiceAttachment(invoiceID uuid.UUID) (string, []byte, error) {
 	return "", nil, fmt.Errorf("dokumen invoice yang diupload tidak ditemukan di database atau disk")
 }
 
-// SendShipmentNotificationEmail triggers an email when a shipment is dispatched (Dikirim).
+// SendShipmentNotificationEmail mengirimkan email notifikasi pengiriman barang kepada penerima.
 func SendShipmentNotificationEmail(shipmentID uuid.UUID) error {
 	var shipment models.Shipment
 	err := config.DB.
@@ -358,8 +358,7 @@ func SendShipmentNotificationEmail(shipmentID uuid.UUID) error {
 	return SendEmail(shipment.Order.RecipientEmail, subject, htmlContent)
 }
 
-// SendShipmentReceivedNotificationEmail triggers an email when a shipment is confirmed received.
-// It retrieves the uploaded PDF Invoice from disk.
+// SendShipmentReceivedNotificationEmail mengirimkan email konfirmasi bahwa pengiriman barang telah diterima.
 func SendShipmentReceivedNotificationEmail(shipmentID uuid.UUID) error {
 	var shipment models.Shipment
 	err := config.DB.
@@ -456,7 +455,7 @@ func SendShipmentReceivedNotificationEmail(shipmentID uuid.UUID) error {
 	return SendEmail(shipment.Order.RecipientEmail, subject, htmlContent)
 }
 
-// SendInvoicePaidNotificationEmail triggers an email when an invoice status becomes PAID (Lunas).
+// SendInvoicePaidNotificationEmail mengirimkan email pemberitahuan ketika invoice telah lunas dibayar.
 func SendInvoicePaidNotificationEmail(invoiceID uuid.UUID) error {
 	var invoice models.Invoice
 	err := config.DB.
@@ -521,7 +520,7 @@ func SendInvoicePaidNotificationEmail(invoiceID uuid.UUID) error {
 	return SendEmail(recipientEmail, subject, htmlContent)
 }
 
-// SendPaymentDueReminderEmail sends a notification for payment due 3 months after order creation.
+// SendPaymentDueReminderEmail mengirimkan email peringatan jatuh tempo pembayaran.
 func SendPaymentDueReminderEmail(orderID uuid.UUID) error {
 	var order models.Order
 	err := config.DB.
@@ -594,9 +593,9 @@ func SendPaymentDueReminderEmail(orderID uuid.UUID) error {
         </table>
         <p>Mohon segera melakukan pelunasan pembayaran ke rekening resmi kami berikut:</p>
         <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 16px 0;">
-            <p style="margin: 0; font-weight: bold; color: #1e3a8a;">Bank Central Asia (BCA)</p>
-            <p style="margin: 4px 0;">No. Rekening: <strong>123-456-7890</strong></p>
-            <p style="margin: 0;">Atas Nama: <strong>PT WIRA TEKNIK</strong></p>
+            <p style="margin: 0; font-weight: bold; color: #1e3a8a;">Bank Mandiri</p>
+            <p style="margin: 4px 0;">No. Rekening: <strong>105-00-1372691-8</strong></p>
+            <p style="margin: 0;">Atas Nama: <strong>WIRA TEKNIK</strong></p>
         </div>
         <p>Jika Anda sudah melakukan transfer pembayaran, abaikan email ini atau hubungi tim administrasi keuangan kami untuk konfirmasi rekonsiliasi.</p>
         <p>Terima kasih atas perhatian dan kerja sama Anda.</p>
@@ -619,8 +618,7 @@ func SendPaymentDueReminderEmail(orderID uuid.UUID) error {
 	return SendEmail(order.RecipientEmail, subject, htmlContent)
 }
 
-// Send3MonthOverduePaymentReminders scans for orders created 3 months ago (or older)
-// that are unpaid or partially paid, and sends them a due reminder email.
+// Send3MonthOverduePaymentReminders memindai dan mengirimkan email pengingat bagi seluruh transaksi yang telah jatuh tempo selama 3 bulan atau lebih.
 func Send3MonthOverduePaymentReminders() (int, error) {
 	// 3 months ago limit
 	threeMonthsAgo := time.Now().AddDate(0, -3, 0)

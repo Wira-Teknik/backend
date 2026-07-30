@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// SetupRoutes registers all API routes.
+// SetupRoutes mendaftarkan semua rute API untuk aplikasi.
 func SetupRoutes(app *fiber.App) {
 	api := app.Group("/api/v1")
 
