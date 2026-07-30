@@ -100,7 +100,7 @@
       {
         "product_name": "WORM SHARFT 100X300",
         "order_qty": 2,
-        "unit_price": 0
+        "unit_price": 1700000
       }
     ]
   },
@@ -137,12 +137,12 @@
       {
         "product_name": "RODA GIGI PAYUNG 30T",
         "order_qty": 4,
-        "unit_price": 0
+        "unit_price": 350000
       },
       {
         "product_name": "RODA GIGI PAYUNG 20T",
         "order_qty": 4,
-        "unit_price": 0
+        "unit_price": 250000
       }
     ]
   },
@@ -158,12 +158,12 @@
       {
         "product_name": "WORM SHARFT SETIUR",
         "order_qty": 5,
-        "unit_price": 0
+        "unit_price": 750000
       },
       {
         "product_name": "WORM GEAR SETIUR",
         "order_qty": 5,
-        "unit_price": 0
+        "unit_price": 550000
       }
     ]
   },
@@ -184,7 +184,7 @@
       {
         "product_name": "AS PISAU",
         "order_qty": 6,
-        "unit_price": 0
+        "unit_price": 250000
       }
     ]
   },
@@ -200,17 +200,17 @@
       {
         "product_name": "AS UNTUK GEARBOX 2PCS",
         "order_qty": 2,
-        "unit_price": 0
+        "unit_price": 700000
       },
       {
         "product_name": "BUSHING GERDANG 2PCS",
         "order_qty": 8,
-        "unit_price": 0
+        "unit_price": 200000
       },
       {
         "product_name": "BLOCK GERDANG",
         "order_qty": 1,
-        "unit_price": 0
+        "unit_price": 200000
       },
       {
         "product_name": "BARU GRENDA",
@@ -375,7 +375,7 @@
       {
         "product_name": "WORM SHARFT 100X300",
         "order_qty": 5,
-        "unit_price": 0
+        "unit_price": 1700000
       }
     ]
   },
@@ -423,7 +423,7 @@
       {
         "product_name": "RODA GIGI PAYUNG 30T",
         "order_qty": 6,
-        "unit_price": 0
+        "unit_price": 350000
       }
     ]
   },
@@ -439,7 +439,7 @@
       {
         "product_name": "RODA GIGI PAYUNG 20T",
         "order_qty": 6,
-        "unit_price": 0
+        "unit_price": 250000
       }
     ]
   },
@@ -455,7 +455,7 @@
       {
         "product_name": "WORM SHARFT SETIUR",
         "order_qty": 10,
-        "unit_price": 0
+        "unit_price": 750000
       }
     ]
   },
@@ -471,7 +471,7 @@
       {
         "product_name": "WORM GEAR SETIUR",
         "order_qty": 10,
-        "unit_price": 0
+        "unit_price": 550000
       }
     ]
   },
@@ -503,7 +503,7 @@
       {
         "product_name": "AS PISAU",
         "order_qty": 12,
-        "unit_price": 0
+        "unit_price": 250000
       }
     ]
   },
@@ -519,12 +519,12 @@
       {
         "product_name": "AS UNTUK GEARBOX 2PCS",
         "order_qty": 4,
-        "unit_price": 0
+        "unit_price": 700000
       },
       {
         "product_name": "BUSHING GERDANG 2PCS",
         "order_qty": 10,
-        "unit_price": 0
+        "unit_price": 200000
       }
     ]
   },
@@ -540,7 +540,7 @@
       {
         "product_name": "BLOCK GERDANG",
         "order_qty": 5,
-        "unit_price": 0
+        "unit_price": 200000
       },
       {
         "product_name": "BARU GRENDA",
