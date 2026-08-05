@@ -190,7 +190,7 @@ func CreatePayment(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "File Bukti Pembayaran wajib dilampirkan")
 	}
 
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -251,7 +251,7 @@ func UpdatePaymentTotal(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "Details alokasi pembayaran tidak boleh kosong")
 	}
 
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}

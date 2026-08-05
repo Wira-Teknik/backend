@@ -62,7 +62,7 @@ func UploadAttachment(c *fiber.Ctx) error {
 	relatedID := c.FormValue("related_id")
 	category := c.FormValue("category")
 
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}

@@ -117,13 +117,6 @@ type OrderDetailResponse struct {
 	UpdatedAt        utils.JSONDateTime   `json:"updated_at"`
 }
 
-// PaginationMeta adalah metadata pagination untuk API response.
-type PaginationMeta struct {
-	Page       int   `json:"page"       example:"1"`
-	Limit      int   `json:"limit"      example:"20"`
-	TotalRows  int64 `json:"total_rows" example:"100"`
-	TotalPages int   `json:"total_pages" example:"5"`
-}
 
 // PaginatedOrdersResponse adalah wrapper response paginasi untuk daftar pesanan.
 type PaginatedOrdersResponse struct {
@@ -366,7 +359,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "Format request tidak valid")
 	}
 
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -425,7 +418,7 @@ func UpdateOrder(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "Format request tidak valid")
 	}
 
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -468,7 +461,7 @@ func UpdateOrder(c *fiber.Ctx) error {
 // @Security     BearerAuth
 func DeleteOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}

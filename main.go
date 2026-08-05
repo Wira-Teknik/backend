@@ -75,27 +75,9 @@ func main() {
 		config.ResetDatabase()
 
 		log.Println("Running AutoMigrate after schema reset...")
-		if err := config.DB.AutoMigrate(
-			&models.User{},
-			&models.Customer{},
-			&models.Order{},
-			&models.OrderItem{},
-			&models.Payment{},
-			&models.PaymentDetail{},
-			&models.Shipment{},
-			&models.ShipmentItem{},
-			&models.Invoice{},
-			&models.Attachment{},
-			&models.AuditLog{},
-		); err != nil {
-			log.Fatalf("AutoMigrate failed: %v", err)
-		}
+		runMigration()
 		log.Println("Database migration completed after reset.")
-
-		// Masukkan data awal pelanggan & pesanan jika kosong
-		config.SeedCustomers()
-		config.SeedOrders()
-		log.Println("Database reset, migrated, and seeded successfully.")
+		log.Println("Database reset and migrated successfully.")
 		os.Exit(0)
 	}
 
@@ -103,26 +85,8 @@ func main() {
 	config.ConnectDatabase()
 
 	// Menjalankan AutoMigrate
-	if err := config.DB.AutoMigrate(
-		&models.User{},
-		&models.Customer{},
-		&models.Order{},
-		&models.OrderItem{},
-		&models.Payment{},
-		&models.PaymentDetail{},
-		&models.Shipment{},
-		&models.ShipmentItem{},
-		&models.Invoice{},
-		&models.Attachment{},
-		&models.AuditLog{},
-	); err != nil {
-		log.Fatalf("AutoMigrate failed: %v", err)
-	}
+	runMigration()
 	log.Println("Database migration completed.")
-
-	// Masukkan data awal pelanggan & pesanan jika kosong
-	config.SeedCustomers()
-	config.SeedOrders()
 
 	// Menghubungkan ke Redis
 	config.ConnectRedis()
@@ -219,6 +183,25 @@ func main() {
 
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+// runMigration menjalankan proses AutoMigrate GORM untuk semua model.
+func runMigration() {
+	if err := config.DB.AutoMigrate(
+		&models.User{},
+		&models.Customer{},
+		&models.Order{},
+		&models.OrderItem{},
+		&models.Payment{},
+		&models.PaymentDetail{},
+		&models.Shipment{},
+		&models.ShipmentItem{},
+		&models.Invoice{},
+		&models.Attachment{},
+		&models.AuditLog{},
+	); err != nil {
+		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 }
 

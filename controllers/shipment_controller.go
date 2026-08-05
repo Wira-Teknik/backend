@@ -181,7 +181,7 @@ func CreateShipment(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "File Bon Pesanan wajib dilampirkan")
 	}
 
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -247,7 +247,7 @@ func CreateShipment(c *fiber.Ctx) error {
 // @Security     BearerAuth
 func ConfirmShipmentReceived(c *fiber.Ctx) error {
 	id := c.Params("id")
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}
@@ -307,7 +307,7 @@ func UpdateShipmentItems(c *fiber.Ctx) error {
 		return utils.JSONError(c, fiber.StatusBadRequest, "Format request tidak valid")
 	}
 
-	userID, err := services.ParseUserID(c.Locals("userID").(string))
+	userID, err := getAuthorizedUserID(c)
 	if err != nil {
 		return utils.JSONError(c, fiber.StatusUnauthorized, err.Error())
 	}

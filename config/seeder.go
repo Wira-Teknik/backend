@@ -1,215 +1,18 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"os"
-	"time"
-
-	"teknik/models"
-	"teknik/utils"
-
-	"github.com/google/uuid"
 )
-
-type seedOrderItem struct {
-	ProductName string  `json:"product_name"`
-	OrderQty    int     `json:"order_qty"`
-	UnitPrice   float64 `json:"unit_price"`
-}
-
-type seedOrder struct {
-	TransactionNo    string          `json:"transaction_no"`
-	PoNo             string          `json:"po_no"`
-	OrderDate        string          `json:"order_date"`
-	RecipientName    string          `json:"recipient_name"`
-	RecipientAddress string          `json:"recipient_address"`
-	RecipientPhone   string          `json:"recipient_phone"`
-	RecipientEmail   string          `json:"recipient_email"`
-	Items            []seedOrderItem `json:"items"`
-}
-
-// SeedOrders memasukkan data awal (seed) ke tabel orders dari file order-seed.json jika tabel kosong.
-func SeedOrders() {
-	var count int64
-	if err := DB.Unscoped().Model(&models.Order{}).Count(&count).Error; err != nil {
-		log.Printf("Failed to count orders for seeding: %v", err)
-		return
-	}
-
-	if count > 0 {
-		return // Sudah dimasukkan
-	}
-
-	log.Println("Seeding database with default orders from config/order-seed.json...")
-
-	filePath := "config/order-seed.json"
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		log.Printf("Failed to read seed file %s: %v", filePath, err)
-		return
-	}
-
-	var seedOrders []seedOrder
-	if err := json.Unmarshal(data, &seedOrders); err != nil {
-		log.Printf("Failed to unmarshal seed data: %v", err)
-		return
-	}
-
-	const ppnRate = 0.11
-
-	tx := DB.Begin()
-	for _, so := range seedOrders {
-		orderDate, err := time.ParseInLocation("2006-01-02", so.OrderDate, time.Local)
-		if err != nil {
-			log.Printf("Warning: failed to parse order date '%s' for order %s: %v", so.OrderDate, so.TransactionNo, err)
-			continue
-		}
-
-		// Periksa apakah nomor transaksi sudah ada (unscoped) untuk mencegah pelanggaran unique key
-		var existingCount int64
-		if err := tx.Unscoped().Model(&models.Order{}).Where("transaction_no = ?", so.TransactionNo).Count(&existingCount).Error; err != nil {
-			tx.Rollback()
-			log.Printf("Failed to check existing order %s: %v", so.TransactionNo, err)
-			return
-		}
-		if existingCount > 0 {
-			log.Printf("Order %s already exists (possibly soft-deleted), skipping...", so.TransactionNo)
-			continue
-		}
-
-		orderID := uuid.New()
-		var items []models.OrderItem
-
-		for _, item := range so.Items {
-			ppn := mathRoundTwo(float64(item.OrderQty) * item.UnitPrice * ppnRate)
-			subtotal := mathRoundTwo(float64(item.OrderQty)*item.UnitPrice + ppn)
-
-			items = append(items, models.OrderItem{
-				ID:           uuid.New(),
-				OrderID:      orderID,
-				ProductName:  item.ProductName,
-				OrderQty:     item.OrderQty,
-				RemainingQty: item.OrderQty,
-				UnitPrice:    item.UnitPrice,
-				PPN:          ppn,
-				Subtotal:     subtotal,
-				CreatedAt:    utils.JSONDateTime(orderDate),
-				UpdatedAt:    utils.JSONDateTime(orderDate),
-			})
-		}
-
-		order := models.Order{
-			ID:               orderID,
-			TransactionNo:    so.TransactionNo,
-			PoNo:             so.PoNo,
-			OrderDate:        utils.JSONDate(orderDate),
-			RecipientName:    so.RecipientName,
-			RecipientAddress: so.RecipientAddress,
-			RecipientPhone:   so.RecipientPhone,
-			RecipientEmail:   so.RecipientEmail,
-			OrderStatus:      models.OrderStatusPending,
-			Items:            items,
-			CreatedAt:        utils.JSONDateTime(orderDate),
-			UpdatedAt:        utils.JSONDateTime(orderDate),
-		}
-
-		if err := tx.Create(&order).Error; err != nil {
-			tx.Rollback()
-			log.Printf("Failed to seed order %s: %v", so.TransactionNo, err)
-			return
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		log.Printf("Failed to commit seed transaction: %v", err)
-		return
-	}
-
-	log.Printf("Successfully seeded %d orders into the database.", len(seedOrders))
-}
-
-type seedCustomer struct {
-	CustomerName    string `json:"customer_name"`
-	CustomerEmail   string `json:"customer_email"`
-	CustomerPhone   string `json:"customer_phone"`
-	CustomerAddress string `json:"customer_address"`
-}
-
-// SeedCustomers memasukkan data awal (seed) ke tabel customers dari file customer-seed.json jika tabel kosong.
-func SeedCustomers() {
-	var count int64
-	if err := DB.Unscoped().Model(&models.Customer{}).Count(&count).Error; err != nil {
-		log.Printf("Failed to count customers for seeding: %v", err)
-		return
-	}
-
-	if count > 0 {
-		return // Sudah dimasukkan
-	}
-
-	log.Println("Seeding database with default customers from config/customer-seed.json...")
-
-	filePath := "config/customer-seed.json"
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		log.Printf("Failed to read customer seed file %s: %v", filePath, err)
-		return
-	}
-
-	var seedCusts []seedCustomer
-	if err := json.Unmarshal(data, &seedCusts); err != nil {
-		log.Printf("Failed to unmarshal customer seed data: %v", err)
-		return
-	}
-
-	tx := DB.Begin()
-	for _, sc := range seedCusts {
-		// Periksa apakah nama pelanggan sudah ada (unscoped) untuk mencegah batasan unik/duplikat
-		var existingCount int64
-		if err := tx.Unscoped().Model(&models.Customer{}).Where("LOWER(customer_name) = LOWER(?)", sc.CustomerName).Count(&existingCount).Error; err != nil {
-			tx.Rollback()
-			log.Printf("Failed to check existing customer %s: %v", sc.CustomerName, err)
-			return
-		}
-		if existingCount > 0 {
-			log.Printf("Customer %s already exists, skipping...", sc.CustomerName)
-			continue
-		}
-
-		customer := models.Customer{
-			ID:              uuid.New(),
-			CustomerName:    sc.CustomerName,
-			CustomerEmail:   sc.CustomerEmail,
-			CustomerPhone:   sc.CustomerPhone,
-			CustomerAddress: sc.CustomerAddress,
-		}
-
-		if err := tx.Create(&customer).Error; err != nil {
-			tx.Rollback()
-			log.Printf("Failed to seed customer %s: %v", sc.CustomerName, err)
-			return
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		log.Printf("Failed to commit customer seed transaction: %v", err)
-		return
-	}
-
-	log.Printf("Successfully seeded %d customers into the database.", len(seedCusts))
-}
-
-
-// mathRoundTwo membulatkan nilai desimal float64 ke dua tempat desimal.
-func mathRoundTwo(val float64) float64 {
-	return math.Round(val*100) / 100
-}
 
 // ResetDatabase menghapus skema database saat ini dan membuatnya kembali.
 func ResetDatabase() {
+	if DB == nil {
+		log.Println("Database connection is not initialized.")
+		return
+	}
+
 	schema := os.Getenv("DB_SCHEMA")
 	if schema == "" {
 		schema = "public"
@@ -226,3 +29,4 @@ func ResetDatabase() {
 	}
 	log.Println("Database schema reset successfully.")
 }
+

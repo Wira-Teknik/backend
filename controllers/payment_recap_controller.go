@@ -3,7 +3,6 @@ package controllers
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"teknik/services"
 	"teknik/utils"
 
@@ -14,23 +13,6 @@ import (
 // ─────────────────────────────────────────────
 // Helper: build RecapFilter from query params
 // ─────────────────────────────────────────────
-
-// parsePaginationParams mengambil query param page & limit dengan nilai default.
-func parsePaginationParams(c *fiber.Ctx) (page, limit int) {
-	page = 1
-	if p := c.Query("page"); p != "" {
-		if val, err := strconv.Atoi(p); err == nil && val > 0 {
-			page = val
-		}
-	}
-	limit = 20
-	if l := c.Query("limit"); l != "" {
-		if val, err := strconv.Atoi(l); err == nil && val > 0 {
-			limit = val
-		}
-	}
-	return
-}
 
 // buildRecapFilter mengambil semua query param standar recap + pagination.
 func buildRecapFilter(c *fiber.Ctx) services.RecapFilter {
@@ -302,7 +284,7 @@ func newExcelStyles(f *excelize.File) (excelStyles, error) {
 
 	// ── Title ──
 	s.titleStyle, err = f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Size: 16, Color: "1A237E", Family: "Calibri"},
+		Font:      &excelize.Font{Bold: true, Size: 16, Color: "1A237E", Family: "Calibri"},
 		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
 	})
 	if err != nil {
@@ -386,10 +368,10 @@ func newExcelStyles(f *excelize.File) (excelStyles, error) {
 
 	// ── Summary label ──
 	s.sumLabel, err = f.NewStyle(&excelize.Style{
-		Font:   &excelize.Font{Bold: true, Size: 10, Color: "FFFFFF", Family: "Calibri"},
-		Fill:   excelize.Fill{Type: "pattern", Color: []string{"283593"}, Pattern: 1},
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "FFFFFF", Family: "Calibri"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"283593"}, Pattern: 1},
 		Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"},
-		Border: border,
+		Border:    border,
 	})
 	if err != nil {
 		return s, err

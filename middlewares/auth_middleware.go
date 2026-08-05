@@ -50,12 +50,12 @@ func RequireRole(roles ...string) fiber.Handler {
 	}
 }
 
-// extractToken membaca Bearer token dari Authorization header,
+// extractToken membaca Bearer token dari Authorization header (case-insensitive),
 // atau fallback ke cookie session_token.
 func extractToken(c *fiber.Ctx) string {
 	authHeader := c.Get("Authorization")
-	if strings.HasPrefix(authHeader, "Bearer ") {
-		return strings.TrimPrefix(authHeader, "Bearer ")
+	if len(authHeader) > 7 && strings.EqualFold(authHeader[:7], "bearer ") {
+		return strings.TrimSpace(authHeader[7:])
 	}
 	return c.Cookies("session_token")
 }

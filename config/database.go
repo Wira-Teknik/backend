@@ -40,15 +40,20 @@ func ConnectDatabase() {
 
 	// Buat database target jika belum ada
 	var count int64
-	adminDB.Raw("SELECT COUNT(*) FROM pg_database WHERE datname = ?", dbName).Scan(&count)
+	if err := adminDB.Raw("SELECT COUNT(*) FROM pg_database WHERE datname = ?", dbName).Scan(&count).Error; err != nil {
+		log.Printf("Warning: failed to check if database exists: %v", err)
+	}
 	if count == 0 {
-		adminDB.Exec(fmt.Sprintf(`CREATE DATABASE "%s"`, dbName))
+		if err := adminDB.Exec(fmt.Sprintf(`CREATE DATABASE "%s"`, dbName)).Error; err != nil {
+			log.Fatalf("Failed to create database '%s': %v", dbName, err)
+		}
 		log.Printf("Database '%s' created successfully.", dbName)
 	}
 
 	// Tutup koneksi admin
-	sqlAdminDB, _ := adminDB.DB()
-	sqlAdminDB.Close()
+	if sqlAdminDB, err := adminDB.DB(); err == nil && sqlAdminDB != nil {
+		sqlAdminDB.Close()
+	}
 
 	// Langkah 2: Hubungkan ke database target
 	dsn := fmt.Sprintf(
@@ -114,8 +119,7 @@ func DropDatabase() error {
 		return fmt.Errorf("failed to connect to postgres default DB: %v", err)
 	}
 	defer func() {
-		sqlAdminDB, _ := adminDB.DB()
-		if sqlAdminDB != nil {
+		if sqlAdminDB, err := adminDB.DB(); err == nil && sqlAdminDB != nil {
 			sqlAdminDB.Close()
 		}
 	}()
